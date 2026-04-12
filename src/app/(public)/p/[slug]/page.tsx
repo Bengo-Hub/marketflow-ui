@@ -78,7 +78,7 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
       </div>
 
       <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-        <p>Powered by MarketFlow</p>
+        <p>Powered by Codevertex Africa Ltd</p>
       </footer>
     </div>
   );
