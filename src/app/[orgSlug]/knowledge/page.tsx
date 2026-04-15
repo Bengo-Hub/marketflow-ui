@@ -205,7 +205,7 @@ export default function KnowledgePage() {
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Category</label>
                 <Select
                   value={editing.category}
-                  onValueChange={(v) => setEditing({ ...editing, category: v })}
+                  onValueChange={(v) => setEditing({ ...editing, category: v ?? "faq" })}
                 >
                   <SelectTrigger>
                     <SelectValue />

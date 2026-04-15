@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -23,19 +22,23 @@ const NAV = [
 
 export function PlatformSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   return (
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarMenu>
-            {NAV.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton asChild isActive={pathname === item.href}>
-                  <Link href={item.href}>{item.label}</Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            {NAV.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton isActive={isActive} onClick={() => router.push(item.href)}>
+                    {item.label}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
