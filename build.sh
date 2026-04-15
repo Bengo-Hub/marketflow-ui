@@ -75,7 +75,24 @@ info "Running Trivy filesystem scan"
 trivy fs . --exit-code "$TRIVY_ECODE" --format table || true
 
 info "Building Docker image"
-DOCKER_BUILDKIT=1 docker build . -t "${IMAGE_REPO}:${GIT_COMMIT_ID}"
+# NEXT_PUBLIC_* are baked at build time by Next.js; defaults point to prod DNS
+# so a CI run without overrides still produces a working image.
+NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-"https://marketflowapi.codevertexitsolutions.com"}
+NEXT_PUBLIC_AI_API_URL=${NEXT_PUBLIC_AI_API_URL:-"https://marketflowai.codevertexitsolutions.com"}
+NEXT_PUBLIC_SSO_URL=${NEXT_PUBLIC_SSO_URL:-"https://sso.codevertexitsolutions.com"}
+NEXT_PUBLIC_AUTH_API_URL=${NEXT_PUBLIC_AUTH_API_URL:-"${NEXT_PUBLIC_SSO_URL}"}
+NEXT_PUBLIC_SSO_CLIENT_ID=${NEXT_PUBLIC_SSO_CLIENT_ID:-"marketflow-ui"}
+NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-"https://marketflow.codevertexitsolutions.com"}
+NEXT_PUBLIC_NOTIFICATIONS_URL=${NEXT_PUBLIC_NOTIFICATIONS_URL:-"https://notificationsapi.codevertexitsolutions.com"}
+
+DOCKER_BUILDKIT=1 docker build . -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" \
+  --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
+  --build-arg NEXT_PUBLIC_AI_API_URL="$NEXT_PUBLIC_AI_API_URL" \
+  --build-arg NEXT_PUBLIC_SSO_URL="$NEXT_PUBLIC_SSO_URL" \
+  --build-arg NEXT_PUBLIC_AUTH_API_URL="$NEXT_PUBLIC_AUTH_API_URL" \
+  --build-arg NEXT_PUBLIC_SSO_CLIENT_ID="$NEXT_PUBLIC_SSO_CLIENT_ID" \
+  --build-arg NEXT_PUBLIC_APP_URL="$NEXT_PUBLIC_APP_URL" \
+  --build-arg NEXT_PUBLIC_NOTIFICATIONS_URL="$NEXT_PUBLIC_NOTIFICATIONS_URL"
 success "Docker build complete"
 
 if [[ ${DEPLOY} != "true" ]]; then

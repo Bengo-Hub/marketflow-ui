@@ -1,4 +1,5 @@
 const SSO_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || "https://sso.codevertexitsolutions.com";
+const MF_API_URL = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexitsolutions.com";
 const CLIENT_ID = process.env.NEXT_PUBLIC_SSO_CLIENT_ID || "marketflow-ui";
 
 // ── PKCE Helpers ──────────────────────────────────────────────────────────
@@ -119,6 +120,13 @@ export interface UserProfile {
   permissions: string[];
   tenantId: string;
   tenantSlug: string;
+  /**
+   * Preferred slug for routing: distributor ID when the tenant has one
+   * (FBO accounts), otherwise falls back to tenantSlug. Use this for every
+   * `/{orgSlug}/...` URL so FBOs always land on their distributor-style URL.
+   */
+  preferredSlug: string;
+  fboDistribId?: string;
   isPlatformOwner: boolean;
   isSuperUser: boolean;
   subscriptionPlan?: string;
@@ -133,6 +141,27 @@ export async function fetchProfile(accessToken: string): Promise<UserProfile> {
   });
   if (!res.ok) throw new Error(`Profile failed: ${res.status}`);
   const d = await res.json();
+  const tenantSlug = d.tenant_slug ?? "";
+  const isPlatformOwner = d.is_platform_owner === true || tenantSlug === "codevertex";
+
+  // For non-platform tenants, enrich with the tenant's fbo_distrib_id from
+  // marketflow-api so we can route FBOs to /{distribID}/... URLs. Public
+  // endpoint, no auth header required. Non-fatal: fall back to tenantSlug.
+  let fboDistribId: string | undefined;
+  if (tenantSlug && !isPlatformOwner) {
+    try {
+      const p = await fetch(
+        `${MF_API_URL}/api/v1/public/profile/${encodeURIComponent(tenantSlug)}`,
+      );
+      if (p.ok) {
+        const tp = await p.json();
+        if (tp?.fbo_distrib_id) fboDistribId = String(tp.fbo_distrib_id);
+      }
+    } catch {
+      // swallow — enrichment is best-effort
+    }
+  }
+
   return {
     id: d.id ?? "",
     email: d.email ?? "",
@@ -140,8 +169,10 @@ export async function fetchProfile(accessToken: string): Promise<UserProfile> {
     roles: (d.roles ?? []) as string[],
     permissions: (d.permissions ?? []) as string[],
     tenantId: d.tenant_id ?? "",
-    tenantSlug: d.tenant_slug ?? "",
-    isPlatformOwner: d.is_platform_owner === true || d.tenant_slug === "codevertex",
+    tenantSlug,
+    preferredSlug: fboDistribId || tenantSlug,
+    fboDistribId,
+    isPlatformOwner,
     isSuperUser: (d.roles ?? []).includes("superuser"),
     subscriptionPlan: d.sub_plan,
     subscriptionStatus: d.sub_status,

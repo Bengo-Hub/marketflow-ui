@@ -21,8 +21,10 @@ function CallbackHandler() {
       const returnTo = sessionStorage.getItem("sso_return_to");
       sessionStorage.removeItem("sso_return_to");
       const user = useAuthStore.getState().user;
-      if (user?.tenantSlug) {
-        router.replace(returnTo || `/${user.tenantSlug}/dashboard`);
+      // Prefer distributor ID as URL slug for FBO accounts; fall back to tenantSlug.
+      const slug = user?.preferredSlug || user?.tenantSlug || "";
+      if (slug) {
+        router.replace(returnTo || `/${slug}/dashboard`);
       } else {
         router.replace(returnTo || "/");
       }

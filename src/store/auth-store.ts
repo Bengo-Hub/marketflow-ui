@@ -170,10 +170,14 @@ export const useAuthStore = create<AuthState>()(
         if (user) {
           localStorage.setItem("mf_tenant_id", user.tenantId || "");
           localStorage.setItem("mf_tenant_slug", user.tenantSlug || "");
+          localStorage.setItem("mf_preferred_slug", user.preferredSlug || user.tenantSlug || "");
+          if (user.fboDistribId) localStorage.setItem("mf_distrib_id", user.fboDistribId);
           localStorage.setItem("mf_is_platform_owner", String(user.isPlatformOwner));
         } else {
           localStorage.removeItem("mf_tenant_id");
           localStorage.removeItem("mf_tenant_slug");
+          localStorage.removeItem("mf_preferred_slug");
+          localStorage.removeItem("mf_distrib_id");
           localStorage.removeItem("mf_is_platform_owner");
         }
       },
