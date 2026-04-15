@@ -3,73 +3,125 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserCheck, BookOpen, Link2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { STALE_TIMES } from "@/app/providers";
 
+type Dashboard = {
+  leads: { total: number; this_week: number; delta_percent: number; converted: number; conversion_rate: number };
+  chat_sessions: { this_week: number };
+  campaigns: { active: number };
+  meetings: { upcoming_week: number };
+  nurture: { active_enrollments: number };
+  generated_at: string;
+};
+
 export default function DashboardPage() {
-  const { data: leads } = useQuery({
-    queryKey: ["leads", "count"],
+  const { data, isLoading, error } = useQuery<Dashboard>({
+    queryKey: ["dashboard"],
     queryFn: async () => {
-      const res = await apiClient.get("/api/v1/leads?limit=1");
-      return res.data;
+      const r = await apiClient.get<Dashboard>(`/api/v1/analytics/dashboard`);
+      return r.data;
     },
-    staleTime: STALE_TIMES.MODERATE,
+    staleTime: STALE_TIMES.OPERATIONAL,
+    refetchInterval: 60_000,
   });
-
-  const { data: contacts } = useQuery({
-    queryKey: ["contacts", "count"],
-    queryFn: async () => {
-      const res = await apiClient.get("/api/v1/contacts?limit=1");
-      return res.data;
-    },
-    staleTime: STALE_TIMES.MODERATE,
-  });
-
-  const { data: kb } = useQuery({
-    queryKey: ["knowledge", "count"],
-    queryFn: async () => {
-      const res = await apiClient.get("/api/v1/knowledge/entries?limit=1");
-      return res.data;
-    },
-    staleTime: STALE_TIMES.SEMI_STATIC,
-  });
-
-  const { data: links } = useQuery({
-    queryKey: ["shortlinks", "count"],
-    queryFn: async () => {
-      const res = await apiClient.get("/api/v1/short-links?limit=1");
-      return res.data;
-    },
-    staleTime: STALE_TIMES.SEMI_STATIC,
-  });
-
-  const stats = [
-    { title: "Total Leads", value: leads?.total ?? "—", icon: Users, color: "text-blue-500" },
-    { title: "Contacts", value: contacts?.total ?? "—", icon: UserCheck, color: "text-green-500" },
-    { title: "KB Entries", value: kb?.total ?? "—", icon: BookOpen, color: "text-purple-500" },
-    { title: "Short Links", value: links?.total ?? "—", icon: Link2, color: "text-orange-500" },
-  ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Marketing automation overview</p>
+        <p className="text-sm text-muted-foreground">
+          Your marketing pipeline at a glance. Updates every 60 seconds.
+        </p>
       </div>
 
+      {error && (
+        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          Failed to load: {(error as Error).message}
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-            </CardContent>
-          </Card>
-        ))}
+        <Metric
+          label="Total leads"
+          value={data?.leads.total}
+          sub={
+            data
+              ? `${data.leads.this_week} this week ${formatDelta(data.leads.delta_percent)}`
+              : undefined
+          }
+          loading={isLoading}
+        />
+        <Metric
+          label="Conversion rate"
+          value={data ? `${data.leads.conversion_rate.toFixed(1)}%` : undefined}
+          sub={data ? `${data.leads.converted} converted` : undefined}
+          loading={isLoading}
+        />
+        <Metric
+          label="Chat sessions"
+          value={data?.chat_sessions.this_week}
+          sub="this week"
+          loading={isLoading}
+        />
+        <Metric
+          label="Active campaigns"
+          value={data?.campaigns.active}
+          loading={isLoading}
+        />
+        <Metric
+          label="Upcoming meetings"
+          value={data?.meetings.upcoming_week}
+          sub="next 7 days"
+          loading={isLoading}
+        />
+        <Metric
+          label="Active nurture"
+          value={data?.nurture.active_enrollments}
+          sub="enrollments in progress"
+          loading={isLoading}
+        />
       </div>
+
+      {data && (
+        <p className="text-xs text-muted-foreground">
+          Generated at {new Date(data.generated_at).toLocaleString()}
+        </p>
+      )}
     </div>
   );
+}
+
+function Metric({
+  label,
+  value,
+  sub,
+  loading,
+}: {
+  label: string;
+  value?: number | string;
+  sub?: string;
+  loading?: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium uppercase text-muted-foreground">{label}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-8 w-20" />
+        ) : (
+          <div className="text-3xl font-semibold tracking-tight">{value ?? "—"}</div>
+        )}
+        {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatDelta(pct: number): string {
+  if (!isFinite(pct) || pct === 0) return "";
+  const sign = pct > 0 ? "▲" : "▼";
+  return `(${sign} ${Math.abs(pct).toFixed(0)}%)`;
 }
