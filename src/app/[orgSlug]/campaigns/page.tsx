@@ -34,6 +34,7 @@ type Campaign = {
 export default function CampaignsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Campaign>>({
     name: "",
     platform: "meta",
@@ -48,14 +49,38 @@ export default function CampaignsPage() {
     },
   });
 
-  const create = useMutation({
-    mutationFn: async (c: Partial<Campaign>) => apiClient.post(`/api/v1/campaigns`, c),
+  function resetForm() {
+    setForm({ name: "", platform: "meta", status: "draft" });
+    setEditingId(null);
+  }
+
+  const save = useMutation({
+    mutationFn: async (c: Partial<Campaign>) => {
+      if (editingId) return apiClient.put(`/api/v1/campaigns/${editingId}`, c);
+      return apiClient.post(`/api/v1/campaigns`, c);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["campaigns"] });
       setOpen(false);
-      setForm({ name: "", platform: "meta", status: "draft" });
+      resetForm();
     },
   });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => apiClient.delete(`/api/v1/campaigns/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns"] }),
+  });
+
+  function openEdit(c: Campaign) {
+    setForm({
+      name: c.name,
+      platform: c.platform,
+      status: c.status,
+      budget_daily: c.budget_daily ?? undefined,
+    });
+    setEditingId(c.id);
+    setOpen(true);
+  }
 
   return (
     <div className="space-y-6">
@@ -66,7 +91,7 @@ export default function CampaignsPage() {
             Track your Meta / TikTok / organic campaigns and the leads they generate.
           </p>
         </div>
-        <Button onClick={() => setOpen(true)}>+ New campaign</Button>
+        <Button onClick={() => { resetForm(); setOpen(true); }}>+ New campaign</Button>
       </div>
 
       <Card>
@@ -80,20 +105,21 @@ export default function CampaignsPage() {
                 <TableHead>Leads</TableHead>
                 <TableHead>Conversions</TableHead>
                 <TableHead>Spend</TableHead>
+                <TableHead className="w-32"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 6 }).map((_, j) => (
+                    {Array.from({ length: 7 }).map((_, j) => (
                       <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : data?.data?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     No campaigns yet. Add one to start tracking lead attribution.
                   </TableCell>
                 </TableRow>
@@ -106,6 +132,22 @@ export default function CampaignsPage() {
                     <TableCell>{c.total_leads}</TableCell>
                     <TableCell>{c.total_conversions}</TableCell>
                     <TableCell>{c.total_spend ? `$${c.total_spend.toFixed(2)}` : "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(c)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm(`Delete campaign "${c.name}"?`)) del.mutate(c.id);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -117,13 +159,13 @@ export default function CampaignsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New campaign</DialogTitle>
+            <DialogTitle>{editingId ? "Edit campaign" : "New campaign"}</DialogTitle>
           </DialogHeader>
           <form
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              create.mutate(form);
+              save.mutate(form);
             }}
           >
             <label className="block text-xs">
@@ -166,8 +208,8 @@ export default function CampaignsPage() {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={create.isPending}>
-                {create.isPending ? "Creating…" : "Create"}
+              <Button type="submit" disabled={save.isPending}>
+                {save.isPending ? (editingId ? "Saving…" : "Creating…") : editingId ? "Save changes" : "Create"}
               </Button>
             </DialogFooter>
           </form>

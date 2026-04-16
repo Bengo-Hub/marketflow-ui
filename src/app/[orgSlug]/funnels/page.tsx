@@ -84,6 +84,11 @@ export default function FunnelsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["funnels"] }),
   });
 
+  const del = useMutation({
+    mutationFn: async (id: string) => apiClient.delete(`/api/v1/funnels/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["funnels"] }),
+  });
+
   function newFunnel() {
     setEditing({
       name: "",
@@ -188,6 +193,15 @@ export default function FunnelsPage() {
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => publish.mutate(f)}>
                           {f.status === "published" ? "Unpublish" : "Publish"}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm(`Delete funnel "${f.name}"?`)) del.mutate(f.id);
+                          }}
+                        >
+                          Delete
                         </Button>
                       </div>
                     </TableCell>
