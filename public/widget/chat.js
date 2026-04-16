@@ -47,7 +47,15 @@
     '.typing{font-style:italic;color:#6b7280}',
     '.inp{display:flex;padding:8px;border-top:1px solid #e5e7eb;background:#fff;gap:8px}',
     '.inp input{flex:1;border:1px solid #e5e7eb;border-radius:20px;padding:8px 12px;font-size:14px;outline:none}',
-    '.inp button{background:#16a34a;color:#fff;border:none;border-radius:20px;padding:8px 16px;cursor:pointer}'
+    '.inp button{background:#16a34a;color:#fff;border:none;border-radius:20px;padding:8px 16px;cursor:pointer}',
+    '.card{display:flex;gap:10px;padding:10px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;margin-bottom:8px;max-width:92%}',
+    '.card img{width:64px;height:64px;border-radius:8px;object-fit:cover;flex-shrink:0}',
+    '.card .c-body{flex:1;min-width:0}',
+    '.card .c-title{font-weight:600;font-size:13px;color:#111827;margin-bottom:2px}',
+    '.card .c-meta{font-size:11px;color:#6b7280;margin-bottom:6px}',
+    '.card .c-cta{display:inline-block;background:#16a34a;color:#fff;font-size:12px;padding:4px 10px;border-radius:14px;text-decoration:none}',
+    '.actions{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}',
+    '.action{font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid #16a34a;background:#fff;color:#16a34a;text-decoration:none;cursor:pointer}'
   ].join('\n');
 
   var style = document.createElement('style');
@@ -85,6 +93,76 @@
     return d;
   }
 
+  // renderRichAnswer looks for assistant-emitted structured blocks (markdown
+  // links + shop.foreverliving.com / wa.me / join.foreverliving.com URLs) and
+  // upgrades them to product cards / action chips so the chat feels like a
+  // storefront instead of a plain text transcript.
+  function renderRichAnswer(text, meta) {
+    var container = document.createElement('div');
+    container.className = 'msg bot';
+    container.textContent = text;
+    body.appendChild(container);
+
+    // Product cards — agent tool results include a `products` array when
+    // get_product was invoked. See marketflow-ai/internal/agent/tools/get_product.go.
+    if (meta && Array.isArray(meta.products)) {
+      meta.products.forEach(function (p) {
+        var card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML =
+          (p.image_url ? '<img src="' + escapeAttr(p.image_url) + '" alt="" />' : '') +
+          '<div class="c-body">' +
+          '<div class="c-title">' + escapeHTML(p.name || p.product_code || 'Product') + '</div>' +
+          '<div class="c-meta">' +
+            (p.price ? escapeHTML(p.price) + ' · ' : '') +
+            (p.cc_value ? 'CC ' + escapeHTML(String(p.cc_value)) + ' · ' : '') +
+            (p.product_code ? '#' + escapeHTML(p.product_code) : '') +
+          '</div>' +
+          (p.buy_url ? '<a class="c-cta" target="_blank" rel="noreferrer" href="' + escapeAttr(p.buy_url) + '">Buy now</a>' : '') +
+          '</div>';
+        body.appendChild(card);
+      });
+    }
+
+    // Action chips — detect wa.me / cal.com / join FLP links in the answer
+    // and surface them as buttons at the end of the bubble.
+    var urlMatches = (text || '').match(/https?:\/\/[^\s)]+/g) || [];
+    var chips = [];
+    urlMatches.forEach(function (u) {
+      if (/wa\.me/.test(u) && !chips.find(function(c){return c.type==='whatsapp';})) {
+        chips.push({ type: 'whatsapp', label: 'WhatsApp', href: u });
+      } else if (/cal(endar)?\./.test(u) && !chips.find(function(c){return c.type==='book';})) {
+        chips.push({ type: 'book', label: 'Schedule call', href: u });
+      } else if (/join\.foreverliving\.com/.test(u) && !chips.find(function(c){return c.type==='join';})) {
+        chips.push({ type: 'join', label: 'Join my team', href: u });
+      }
+    });
+    if (chips.length > 0) {
+      var row = document.createElement('div');
+      row.className = 'actions';
+      chips.forEach(function (c) {
+        var a = document.createElement('a');
+        a.className = 'action';
+        a.target = '_blank';
+        a.rel = 'noreferrer';
+        a.href = c.href;
+        a.textContent = c.label;
+        row.appendChild(a);
+      });
+      body.appendChild(row);
+    }
+
+    body.scrollTop = body.scrollHeight;
+    return container;
+  }
+
+  function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function escapeAttr(s) { return escapeHTML(s); }
+
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     var q = input.value.trim();
@@ -104,8 +182,12 @@
       var data = await res.json();
       if (data.session_id) sessionID = data.session_id;
       var answer = (data.result && data.result.response) || data.response || '';
-      typing.classList.remove('typing');
-      typing.textContent = answer;
+      // Pull any structured meta the agent loop left on the response envelope
+      // (products array, trace, etc.). Falls back to plain text on older APIs.
+      var meta = (data.result && data.result.meta) || data.meta || null;
+      // Replace the "..." placeholder with the rich rendering.
+      body.removeChild(typing);
+      renderRichAnswer(answer, meta);
     } catch (err) {
       typing.classList.remove('typing');
       typing.textContent = 'Sorry — something went wrong. Please try again.';
