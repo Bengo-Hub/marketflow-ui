@@ -427,92 +427,12 @@ const schedulingProviders: ProviderDef[] = [
   },
 ];
 
-// ── Messaging providers (delegated to notifications-api) ─────────────────
-
-const messagingProviders: ProviderDef[] = [
-  {
-    id: "meta",
-    type: "whatsapp",
-    name: "WhatsApp (Meta Cloud API)",
-    description: "WhatsApp Business Cloud API via Meta.",
-    scope: "platform",
-    logoSlug: "whatsapp",
-    logoColor: "25D366",
-    brandColor: "#25D366",
-    docsUrl: "https://developers.facebook.com/docs/whatsapp/cloud-api",
-    fields: [
-      { key: "phone_number_id", label: "Phone number ID", type: "text", required: true },
-      { key: "business_account_id", label: "WABA ID", type: "text", required: true },
-      { key: "access_token", label: "System-user access token", type: "password", secret: true, required: true },
-      { key: "base_url", label: "Base URL", type: "url", default: "https://graph.facebook.com/v21.0" },
-    ],
-  },
-  {
-    id: "brevo",
-    type: "email",
-    name: "Brevo (Sendinblue)",
-    description: "Transactional email.",
-    scope: "platform",
-    logoSlug: "sendinblue",
-    logoColor: "0B996E",
-    brandColor: "#0B996E",
-    docsUrl: "https://app.brevo.com",
-    fields: [
-      { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "xkeysib-…" },
-      { key: "base_url", label: "Base URL", type: "url", default: "https://api.brevo.com/v3" },
-      { key: "sender_email", label: "From email", type: "email", required: true },
-      { key: "sender_name", label: "From name", type: "text" },
-    ],
-  },
-  {
-    id: "sendgrid",
-    type: "email",
-    name: "SendGrid",
-    description: "Transactional email.",
-    scope: "platform",
-    logoSlug: "twilio",
-    logoColor: "1A82E2",
-    brandColor: "#1A82E2",
-    docsUrl: "https://app.sendgrid.com/settings/api_keys",
-    fields: [
-      { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "SG.…" },
-      { key: "sender_email", label: "From email", type: "email", required: true },
-      { key: "sender_name", label: "From name", type: "text" },
-    ],
-  },
-  {
-    id: "twilio",
-    type: "sms",
-    name: "Twilio SMS",
-    description: "SMS via Twilio.",
-    scope: "platform",
-    logoSlug: "twilio",
-    logoColor: "F22F46",
-    brandColor: "#F22F46",
-    docsUrl: "https://console.twilio.com",
-    fields: [
-      { key: "account_sid", label: "Account SID", type: "text", required: true, placeholder: "ACxxxx" },
-      { key: "auth_token", label: "Auth token", type: "password", secret: true, required: true },
-      { key: "from_number", label: "From number", type: "text", required: true, placeholder: "+1234567890" },
-    ],
-  },
-  {
-    id: "africastalking",
-    type: "sms",
-    name: "Africa's Talking",
-    description: "SMS for African markets.",
-    scope: "platform",
-    logoSlug: "africastalking",
-    logoColor: "F24E1E",
-    brandColor: "#F24E1E",
-    docsUrl: "https://account.africastalking.com",
-    fields: [
-      { key: "username", label: "Username", type: "text", required: true },
-      { key: "api_key", label: "API key", type: "password", secret: true, required: true },
-      { key: "sender_id", label: "Sender ID", type: "text", placeholder: "MARKETFLOW" },
-    ],
-  },
-];
+// Email / SMS / WhatsApp / Push providers are NOT defined here — notifications-api
+// owns every messaging channel for every SSO-integrated service. MarketFlow
+// dispatches via notifications-api's HTTP + NATS interface (see
+// marketflow-api/internal/notifications/client.go). Configure those vendors
+// from the platform console at notifications.codevertexitsolutions.com/platform
+// (deep-link exposed at /platform/messaging in this UI).
 
 // ── Per-tenant integrations (shown on /settings/integrations) ─────────────
 // These rely on platform-level OAuth clients defined above; per tenant they
@@ -600,13 +520,8 @@ export const providerCatalog: ProviderCategory[] = [
     description: "Google Calendar + Cal.com integration defaults.",
     providers: schedulingProviders,
   },
-  {
-    id: "messaging",
-    label: "Messaging (via notifications-api)",
-    description:
-      "Email / SMS / WhatsApp providers. These are mirrored from notifications-api's provider store — configure them there.",
-    providers: messagingProviders,
-  },
+  // Messaging (Email / SMS / WhatsApp / Push) is centrally configured in
+  // notifications-api. Use the deep-link at /platform/messaging.
 ];
 
 // ── Logo helper ───────────────────────────────────────────────────────────
