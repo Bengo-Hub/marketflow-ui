@@ -21,16 +21,37 @@ export const aiClient = axios.create({
   timeout: 120000,
 });
 
-// Request interceptor: attach tenant headers (non-platform users only)
+// Request interceptor: attach tenant headers.
+//
+// Two contexts, both may apply for platform owners:
+//   1. Tenant pages (/{orgSlug}/...) — always send X-Tenant-Slug resolved from
+//      the URL. Works for both regular tenant users and platform owners
+//      "acting as" a tenant. Lets the backend resolve tenant via DB lookup.
+//   2. Platform pages (/platform/...) — no tenant header needed; backend
+//      reads platform scope from JWT claims.
 const attachTenantHeaders = (config: InternalAxiosRequestConfig) => {
   if (typeof window === "undefined") return config;
 
+  const path = window.location.pathname;
+  const onPlatformPage = path.startsWith("/platform");
   const isPlatformOwner = localStorage.getItem("mf_is_platform_owner") === "true";
-  if (!isPlatformOwner) {
-    const tenantId = localStorage.getItem("mf_tenant_id");
-    const tenantSlug = localStorage.getItem("mf_tenant_slug");
-    if (tenantId) config.headers["X-Tenant-ID"] = tenantId;
-    if (tenantSlug) config.headers["X-Tenant-Slug"] = tenantSlug;
+
+  // Skip tenant headers when the user is on /platform/* pages.
+  if (onPlatformPage) return config;
+
+  // Resolve tenant slug from URL first (platform owners on tenant pages),
+  // then from localStorage (regular tenant users). tenantId from storage
+  // only applies when it matches the URL slug — otherwise send slug alone
+  // and let the backend resolve the UUID.
+  const urlSlug = path.split("/").filter(Boolean)[0];
+  const storedSlug = localStorage.getItem("mf_preferred_slug") || localStorage.getItem("mf_tenant_slug");
+  const tenantId = localStorage.getItem("mf_tenant_id");
+  const slug = urlSlug && urlSlug !== "auth" && urlSlug !== "403" ? urlSlug : storedSlug || "";
+
+  if (slug) config.headers["X-Tenant-Slug"] = slug;
+  if (tenantId && !isPlatformOwner && (!urlSlug || urlSlug === storedSlug)) {
+    // Regular tenant user: include UUID too (matches storage).
+    config.headers["X-Tenant-ID"] = tenantId;
   }
   return config;
 };

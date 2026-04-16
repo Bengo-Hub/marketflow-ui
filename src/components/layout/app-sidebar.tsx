@@ -11,7 +11,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useBrand } from "@/contexts/BrandContext";
 import {
   LayoutDashboard, Users, UserCheck, BookOpen, Link2, MessageSquare,
-  Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon,
+  Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,15 @@ const navItems = [
 
 const settingsItems = [
   { title: "Settings", href: "/settings", icon: Settings },
+];
+
+const platformItems = [
+  { title: "Platform home", href: "/platform", icon: Shield },
+  { title: "Tenants", href: "/platform/tenants", icon: Building2 },
+  { title: "AI providers", href: "/platform/providers", icon: Settings },
+  { title: "Messaging", href: "/platform/messaging", icon: Mail },
+  { title: "Usage", href: "/platform/usage", icon: LayoutDashboard },
+  { title: "Security", href: "/platform/security", icon: Shield },
 ];
 
 export function AppSidebar() {
@@ -96,6 +105,27 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {user?.isPlatformOwner && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Platform console</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {platformItems.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton isActive={isActive} onClick={() => window.location.href = item.href}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-3">

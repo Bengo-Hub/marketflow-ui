@@ -21,12 +21,22 @@ function CallbackHandler() {
       const returnTo = sessionStorage.getItem("sso_return_to");
       sessionStorage.removeItem("sso_return_to");
       const user = useAuthStore.getState().user;
-      // Prefer distributor ID as URL slug for FBO accounts; fall back to tenantSlug.
+      if (returnTo) {
+        router.replace(returnTo);
+        return;
+      }
+      // Platform owners land on the platform console by default; tenant
+      // users land on their dashboard. The sidebar on tenant pages still
+      // exposes a "Platform console" shortcut for platform owners.
+      if (user?.isPlatformOwner) {
+        router.replace("/platform");
+        return;
+      }
       const slug = user?.preferredSlug || user?.tenantSlug || "";
       if (slug) {
-        router.replace(returnTo || `/${slug}/dashboard`);
+        router.replace(`/${slug}/dashboard`);
       } else {
-        router.replace(returnTo || "/");
+        router.replace("/");
       }
     });
   }, [searchParams, router]);
