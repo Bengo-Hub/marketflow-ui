@@ -9,9 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProviderLogo } from "./provider-logo";
 import type { ProviderDef, ProviderField } from "@/lib/providers/catalog";
-import { ExternalLink, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Zap } from "lucide-react";
 
-// Shape of /api/v1/admin/providers list row.
 type ProviderRow = {
   id: string;
   provider_type: string;
@@ -22,8 +21,8 @@ type ProviderRow = {
 
 /**
  * Metadata-driven config card for a single provider. Reads the catalog
- * definition to render inputs; handles save, sync-models (AI), and shows
- * connected / unset state.
+ * definition to render inputs; handles save, sync-models, test connection,
+ * and shows connected / unset state.
  */
 export function ProviderCard({
   provider,
@@ -47,13 +46,18 @@ export function ProviderCard({
     enabled: configured,
   });
 
+  // Persist a recently-synced model list so switching tabs doesn't wipe it.
+  const modelListQ = useQuery<string[]>({
+    queryKey: ["provider-models", provider.type, provider.id],
+    queryFn: async () => [],
+    enabled: false,
+    initialData: [],
+  });
+
   const initial = useMemo(() => {
     const out: Record<string, string> = {};
     for (const f of provider.fields) if (f.default !== undefined) out[f.key] = f.default;
     for (const s of settingsQ.data ?? []) {
-      // Masked secrets come back as bullets; leave them blank so the user
-      // only has to retype if they want to rotate. Non-secret values prefill
-      // the input so form defaults aren't wiped.
       if (!s.is_secret && !s.is_encrypted) out[s.key] = s.value;
     }
     return out;
@@ -62,14 +66,11 @@ export function ProviderCard({
   const [values, setValues] = useState<Record<string, string>>({});
   useEffect(() => setValues(initial), [initial]);
 
-  const [modelChoices, setModelChoices] = useState<string[] | null>(null);
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   const save = useMutation({
     mutationFn: async () => {
       const secret_keys = provider.fields.filter((f) => f.secret).map((f) => f.key);
-      // Strip empty secret fields so we don't overwrite an existing secret
-      // with an empty string just because the user didn't retype it.
       const settings: Record<string, string> = {};
       for (const [k, v] of Object.entries(values)) {
         if (v === "" && secret_keys.includes(k) && configured) continue;
@@ -100,16 +101,41 @@ export function ProviderCard({
       return r.data.models.map((m) => m.id);
     },
     onSuccess: (models) => {
-      setModelChoices(models);
-      setFeedback({ kind: "ok", text: `${models.length} models available` });
+      qc.setQueryData(["provider-models", provider.type, provider.id], models);
+      setFeedback({ kind: "ok", text: `${models.length} models available — pick from dropdown` });
     },
-    onError: (e) => setFeedback({ kind: "err", text: (e as Error).message }),
+    onError: (e) => setFeedback({ kind: "err", text: `Sync failed: ${(e as Error).message}` }),
+  });
+
+  const test = useMutation({
+    mutationFn: async () => {
+      const r = await apiClient.post<{ ok: boolean; latency_ms?: number; message?: string }>(
+        `/api/v1/admin/providers/test`,
+        { provider_type: provider.type, provider_name: provider.id },
+      );
+      return r.data;
+    },
+    onSuccess: (d) => {
+      if (d.ok) {
+        setFeedback({
+          kind: "ok",
+          text: d.latency_ms != null ? `Test OK (${d.latency_ms} ms)` : (d.message ?? "Test OK"),
+        });
+      } else {
+        setFeedback({ kind: "err", text: d.message || "Test failed" });
+      }
+    },
+    onError: (e) => setFeedback({ kind: "err", text: `Test failed: ${(e as Error).message}` }),
   });
 
   function set(key: string, value: string) {
     setValues((s) => ({ ...s, [key]: value }));
     setFeedback(null);
   }
+
+  const modelChoices = (modelListQ.data ?? []) as string[];
+  const canSync = !!(configured || values.api_key);
+  const canTest = configured;
 
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm transition hover:shadow">
@@ -149,19 +175,23 @@ export function ProviderCard({
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {provider.fields.map((f) => (
-          <FieldInput
-            key={f.key}
-            field={f}
-            value={values[f.key] ?? ""}
-            placeholder={
-              f.placeholder ??
-              (f.secret && configured ? "•••••••• (leave blank to keep)" : undefined)
-            }
-            modelChoices={modelChoices && /model/i.test(f.key) ? modelChoices : null}
-            onChange={(v) => set(f.key, v)}
-          />
-        ))}
+        {provider.fields.map((f) => {
+          const isModelField =
+            provider.modelFieldKeys?.includes(f.key) ?? /model$/i.test(f.key);
+          return (
+            <FieldInput
+              key={f.key}
+              field={f}
+              value={values[f.key] ?? ""}
+              placeholder={
+                f.placeholder ??
+                (f.secret && configured ? "•••••••• (leave blank to keep)" : undefined)
+              }
+              modelChoices={isModelField && modelChoices.length > 0 ? modelChoices : null}
+              onChange={(v) => set(f.key, v)}
+            />
+          );
+        })}
       </div>
 
       {feedback && (
@@ -179,7 +209,7 @@ export function ProviderCard({
         </p>
       )}
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <Button
           size="sm"
           onClick={() => save.mutate()}
@@ -194,13 +224,29 @@ export function ProviderCard({
             size="sm"
             variant="outline"
             onClick={() => syncModels.mutate()}
-            disabled={syncModels.isPending || !values.api_key}
-            title={!values.api_key ? "Save an API key first" : "Fetch live list of models"}
+            disabled={syncModels.isPending || !canSync}
+            title={!canSync ? "Configure an API key first" : "Fetch live list of models"}
           >
             <RefreshCw
               className={`mr-1.5 h-3.5 w-3.5 ${syncModels.isPending ? "animate-spin" : ""}`}
             />
             Sync models
+          </Button>
+        )}
+        {provider.capabilities?.test && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => test.mutate()}
+            disabled={test.isPending || !canTest}
+            title={
+              !canTest
+                ? "Save configuration first, then run a test probe"
+                : "Send a probe request to the provider"
+            }
+          >
+            <Zap className={`mr-1.5 h-3.5 w-3.5 ${test.isPending ? "animate-pulse" : ""}`} />
+            {test.isPending ? "Testing…" : "Test"}
           </Button>
         )}
       </div>
@@ -228,17 +274,20 @@ function FieldInput({
     </span>
   );
 
-  // When Sync models returned a list, upgrade any model-like text field to a Select.
+  // If sync-models returned a list, render Select preserving the current value
+  // even if it's not in the list (so saved values aren't lost on re-render).
   if (modelChoices && modelChoices.length > 0) {
+    const choices =
+      value && !modelChoices.includes(value) ? [value, ...modelChoices] : modelChoices;
     return (
       <label className="block">
         {label}
-        <Select value={value} onValueChange={(v) => onChange(v ?? "")}>
+        <Select value={value || undefined} onValueChange={(v) => onChange(v ?? "")}>
           <SelectTrigger>
             <SelectValue placeholder="Pick a model…" />
           </SelectTrigger>
           <SelectContent>
-            {modelChoices.map((m) => (
+            {choices.map((m) => (
               <SelectItem key={m} value={m}>
                 {m}
               </SelectItem>
@@ -254,7 +303,7 @@ function FieldInput({
     return (
       <label className="block">
         {label}
-        <Select value={value} onValueChange={(v) => onChange(v ?? "")}>
+        <Select value={value || undefined} onValueChange={(v) => onChange(v ?? "")}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>

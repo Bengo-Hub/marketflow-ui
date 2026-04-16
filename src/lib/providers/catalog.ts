@@ -63,9 +63,11 @@ export interface ProviderDef {
     syncModels?: boolean;
     /** Supports OAuth: redirects to provider then back. */
     oauth?: boolean;
-    /** Supports a test-connection call. */
+    /** Supports POST /admin/providers/test to verify credentials work. */
     test?: boolean;
   };
+  /** Which field keys are model selectors (become Select once sync-models runs). */
+  modelFieldKeys?: string[];
   fields: ProviderField[];
 }
 
@@ -89,7 +91,8 @@ const aiProviders: ProviderDef[] = [
     logoColor: "F55036",
     brandColor: "#F55036",
     docsUrl: "https://console.groq.com/keys",
-    capabilities: { syncModels: true },
+    capabilities: { syncModels: true, test: true },
+    modelFieldKeys: ["router_model", "main_model", "fallback_model"],
     fields: [
       {
         key: "api_key",
@@ -138,6 +141,8 @@ const aiProviders: ProviderDef[] = [
     logoColor: "000000",
     brandColor: "#111111",
     docsUrl: "https://ollama.com",
+    capabilities: { syncModels: true, test: true },
+    modelFieldKeys: ["embedding_model", "fallback_model"],
     fields: [
       {
         key: "base_url",
@@ -177,6 +182,7 @@ const aiProviders: ProviderDef[] = [
     logoColor: "0F172A",
     brandColor: "#0F172A",
     docsUrl: "https://app.tavily.com",
+    capabilities: { test: true },
     fields: [
       {
         key: "api_key",
@@ -203,6 +209,46 @@ const aiProviders: ProviderDef[] = [
     ],
   },
   {
+    id: "custom_search",
+    type: "ai_search",
+    name: "Google Custom Search",
+    description:
+      "Primary web search for the agentic RAG. 100 free queries/day; $5 per 1000 after.",
+    scope: "platform",
+    logoSlug: "google",
+    logoColor: "4285F4",
+    brandColor: "#4285F4",
+    docsUrl: "https://developers.google.com/custom-search/v1/overview",
+    capabilities: { test: true },
+    fields: [
+      {
+        key: "api_key",
+        label: "Google API key",
+        type: "password",
+        secret: true,
+        required: true,
+        placeholder: "AIza…",
+        help: "Enable 'Custom Search API' in Google Cloud Console.",
+      },
+      {
+        key: "cse_id",
+        label: "Programmable Search Engine ID",
+        type: "text",
+        required: true,
+        placeholder: "0123456789abc:xyz",
+        help: "Create at programmablesearchengine.google.com; set 'Search the entire web' ON.",
+      },
+      {
+        key: "daily_cap",
+        label: "Per-tenant daily cap",
+        type: "number",
+        default: "80",
+        min: 1,
+        help: "Keep below 100 to stay within the free tier (shared across all tenants).",
+      },
+    ],
+  },
+  {
     id: "openai",
     type: "ai_llm",
     name: "OpenAI (optional fallback)",
@@ -212,7 +258,8 @@ const aiProviders: ProviderDef[] = [
     logoColor: "412991",
     brandColor: "#412991",
     docsUrl: "https://platform.openai.com/api-keys",
-    capabilities: { syncModels: true },
+    capabilities: { syncModels: true, test: true },
+    modelFieldKeys: ["main_model"],
     fields: [
       { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "sk-…" },
       { key: "base_url", label: "Base URL", type: "url", default: "https://api.openai.com/v1" },
@@ -229,7 +276,8 @@ const aiProviders: ProviderDef[] = [
     logoColor: "191919",
     brandColor: "#191919",
     docsUrl: "https://console.anthropic.com/settings/keys",
-    capabilities: { syncModels: true },
+    capabilities: { syncModels: true, test: true },
+    modelFieldKeys: ["main_model"],
     fields: [
       { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "sk-ant-…" },
       { key: "base_url", label: "Base URL", type: "url", default: "https://api.anthropic.com/v1" },
@@ -252,6 +300,7 @@ const adProviders: ProviderDef[] = [
     logoColor: "0866FF",
     brandColor: "#0866FF",
     docsUrl: "https://developers.facebook.com/apps",
+    capabilities: { test: true },
     fields: [
       { key: "app_id", label: "App ID", type: "text", required: true },
       { key: "app_secret", label: "App secret", type: "password", secret: true, required: true },
@@ -287,6 +336,7 @@ const adProviders: ProviderDef[] = [
     logoColor: "000000",
     brandColor: "#25F4EE",
     docsUrl: "https://ads.tiktok.com/marketing_api/",
+    capabilities: { test: true },
     fields: [
       { key: "app_id", label: "App ID", type: "text", required: true },
       { key: "app_secret", label: "App secret", type: "password", secret: true, required: true },
@@ -314,6 +364,7 @@ const adProviders: ProviderDef[] = [
     logoColor: "4285F4",
     brandColor: "#4285F4",
     docsUrl: "https://developers.google.com/google-ads/api/docs/get-started/introduction",
+    capabilities: { test: true },
     fields: [
       { key: "client_id", label: "Client ID", type: "text", required: true, help: "OAuth 2.0 Client ID (…apps.googleusercontent.com)" },
       { key: "client_secret", label: "Client secret", type: "password", secret: true, required: true },
@@ -350,6 +401,7 @@ const adProviders: ProviderDef[] = [
     logoColor: "0A66C2",
     brandColor: "#0A66C2",
     docsUrl: "https://learn.microsoft.com/en-us/linkedin/marketing/",
+    capabilities: { test: true },
     fields: [
       { key: "client_id", label: "Client ID", type: "text", required: true },
       { key: "client_secret", label: "Client secret", type: "password", secret: true, required: true },
@@ -371,6 +423,7 @@ const adProviders: ProviderDef[] = [
     logoColor: "000000",
     brandColor: "#000000",
     docsUrl: "https://developer.x.com/en/docs/x-ads-api",
+    capabilities: { test: true },
     fields: [
       { key: "consumer_key", label: "Consumer key", type: "password", secret: true, required: true },
       { key: "consumer_secret", label: "Consumer secret", type: "password", secret: true, required: true },
@@ -398,6 +451,7 @@ const schedulingProviders: ProviderDef[] = [
     logoColor: "4285F4",
     brandColor: "#4285F4",
     docsUrl: "https://console.cloud.google.com/apis/credentials",
+    capabilities: { test: true },
     fields: [
       { key: "client_id", label: "Client ID", type: "text", required: true },
       { key: "client_secret", label: "Client secret", type: "password", secret: true, required: true },
@@ -419,6 +473,7 @@ const schedulingProviders: ProviderDef[] = [
     logoColor: "111827",
     brandColor: "#111827",
     docsUrl: "https://cal.com/docs/api-reference",
+    capabilities: { test: true },
     fields: [
       { key: "base_url", label: "Base URL", type: "url", default: "https://api.cal.com/v2" },
       { key: "api_key", label: "API key", type: "password", secret: true, required: true },

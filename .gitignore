@@ -6,3 +6,4 @@ out/
 *.pem
 .DS_Store
 Thumbs.db
+tsconfig.tsbuildinfo
