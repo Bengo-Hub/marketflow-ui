@@ -13,8 +13,7 @@ import {
 
 const NAV = [
   { label: "Overview", href: "/platform" },
-  { label: "AI providers", href: "/platform/providers" },
-  { label: "Messaging providers", href: "/platform/messaging" },
+  { label: "Integrations", href: "/platform/providers" },
   { label: "Tenants", href: "/platform/tenants" },
   { label: "Usage", href: "/platform/usage" },
   { label: "Security", href: "/platform/security" },

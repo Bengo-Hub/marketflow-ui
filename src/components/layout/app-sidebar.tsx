@@ -36,8 +36,7 @@ const settingsItems = [
 const platformItems = [
   { title: "Platform home", href: "/platform", icon: Shield },
   { title: "Tenants", href: "/platform/tenants", icon: Building2 },
-  { title: "AI providers", href: "/platform/providers", icon: Settings },
-  { title: "Messaging", href: "/platform/messaging", icon: Mail },
+  { title: "Integrations", href: "/platform/providers", icon: Settings },
   { title: "Usage", href: "/platform/usage", icon: LayoutDashboard },
   { title: "Security", href: "/platform/security", icon: Shield },
 ];

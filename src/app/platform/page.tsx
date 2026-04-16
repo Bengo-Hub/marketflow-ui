@@ -8,8 +8,7 @@ export default function PlatformOverviewPage() {
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card title="AI providers" href="/platform/providers" desc="Groq, Tavily, Ollama — shared across all tenants." />
-        <Card title="Messaging providers" href="/platform/messaging" desc="Email, SMS, WhatsApp, Push credentials (managed by notifications-api)." />
+        <Card title="Integrations" href="/platform/providers" desc="AI, advertising, scheduling — every provider in one tabbed catalog. Messaging opens notifications console in a new tab." />
         <Card title="Tenants" href="/platform/tenants" desc="Create, suspend, or override plan for any tenant." />
         <Card title="Usage" href="/platform/usage" desc="Per-tenant usage against plan limits." />
         <Card title="Security" href="/platform/security" desc="Encryption key rotation, audit log, recent admin actions." />
