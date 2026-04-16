@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, User } from "lucide-react";
+import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 
 export function AppHeader() {
   const { user, logout } = useAuthStore();
@@ -23,7 +24,16 @@ export function AppHeader() {
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-6" />
 
+      {/* Platform owner: tenant switcher pinned left so it's always reachable */}
+      {user?.isPlatformOwner && <TenantSwitcher />}
+
       <div className="flex-1" />
+
+      {user?.isPlatformOwner && (
+        <span className="hidden text-[10px] uppercase tracking-wider text-amber-700 sm:inline">
+          Platform owner
+        </span>
+      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger className="relative h-8 w-8 rounded-full outline-none cursor-pointer">
