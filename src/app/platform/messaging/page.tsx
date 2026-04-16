@@ -1,6 +1,9 @@
 export default function PlatformMessagingPage() {
+  // The notifications *UI* lives at notifications.codevertex... (the API
+  // host is notificationsapi.codevertex... but has no browser UI). We link
+  // users to the UI so they land on the interactive /platform/providers page.
   const notificationsUrl =
-    process.env.NEXT_PUBLIC_NOTIFICATIONS_URL ?? "https://notificationsapi.codevertexitsolutions.com";
+    process.env.NEXT_PUBLIC_NOTIFICATIONS_UI_URL ?? "https://notifications.codevertexitsolutions.com";
   return (
     <div className="space-y-6">
       <header>

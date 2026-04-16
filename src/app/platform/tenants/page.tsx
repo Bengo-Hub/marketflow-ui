@@ -20,7 +20,7 @@ export default function PlatformTenantsPage() {
 
   useEffect(() => {
     apiClient
-      .get<{ tenants: Tenant[] }>("/admin/tenants")
+      .get<{ tenants: Tenant[] }>("/api/v1/admin/tenants")
       .then((r) => setItems(r.data.tenants ?? []))
       .catch((e) => setError(e?.message ?? "Failed to load tenants"))
       .finally(() => setLoading(false));

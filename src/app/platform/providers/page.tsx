@@ -33,7 +33,7 @@ export default function PlatformProvidersPage() {
 
   useEffect(() => {
     apiClient
-      .get<{ providers: ProviderSetting[] }>("/admin/providers")
+      .get<{ providers: ProviderSetting[] }>("/api/v1/admin/providers")
       .then((r) => setItems(r.data.providers ?? []))
       .catch((e) => setError(e?.message ?? "Failed to load providers"))
       .finally(() => setLoading(false));
@@ -124,7 +124,7 @@ function ProviderCard({
     setErr(null);
     setOk(false);
     try {
-      const res = await apiClient.post<ProviderSetting>("/admin/providers/configure", {
+      const res = await apiClient.post<ProviderSetting>("/api/v1/admin/providers/configure", {
         provider_type: providerType,
         settings: form,
         environment: "production",
