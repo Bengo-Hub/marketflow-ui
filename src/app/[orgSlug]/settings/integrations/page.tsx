@@ -3,30 +3,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProviderLogo } from "@/components/providers/provider-logo";
+import { tenantIntegrations } from "@/lib/providers/catalog";
+import { CheckCircle2, ExternalLink } from "lucide-react";
 
 type Integration = {
   provider: string;
   name: string;
   connected: boolean;
   fields: Record<string, string>;
-};
-
-const catalog: Record<string, { title: string; description: string; provider: string }> = {
-  google_calendar: {
-    title: "Google Calendar",
-    description:
-      "Push every meeting you schedule to your Google Calendar. Attendees receive an invite with a Google Meet link.",
-    provider: "google",
-  },
-  meta_ads: {
-    title: "Facebook / Instagram",
-    description:
-      "Connect your Facebook Page to receive leads from Meta Lead Ads into MarketFlow automatically.",
-    provider: "meta",
-  },
 };
 
 export default function IntegrationsPage() {
@@ -43,8 +31,12 @@ export default function IntegrationsPage() {
   });
 
   const connect = useMutation({
-    mutationFn: async (provider: "google" | "meta") => {
-      const r = await apiClient.get<{ url: string }>(`/api/v1/integrations/${provider}/authorize`);
+    mutationFn: async (providerType: string) => {
+      // Strip trailing "_ads" / "_calendar" — backend only knows google/meta/tiktok/etc.
+      const slug = providerType.replace(/_ads$|_calendar$/, "").replace("google_", "google-");
+      const r = await apiClient.get<{ url: string }>(
+        `/api/v1/integrations/${slug}/authorize`,
+      );
       window.location.href = r.data.url;
     },
   });
@@ -55,114 +47,117 @@ export default function IntegrationsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations"] }),
   });
 
-  const googleConnected = data?.integrations.some(
-    (i) => i.provider === "google_calendar" && i.connected,
-  );
-  const metaConnected = data?.integrations.some(
-    (i) => i.provider === "meta_ads" && i.connected,
-  );
+  function rowFor(providerType: string) {
+    return data?.integrations.find((i) => i.provider === providerType);
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Integrations</h1>
         <p className="text-sm text-muted-foreground">
-          Connect MarketFlow to the tools you already use. Platform-wide provider credentials
-          (Groq, Tavily, Meta App) are managed by platform admins — not here.
+          Connect the tools you already use. Shared infrastructure credentials (AI models,
+          OAuth app secrets) are managed by the platform — you&apos;ll never see them here.
         </p>
       </div>
 
+      {/* Success banners from OAuth redirects */}
       {params.get("google") === "connected" && (
-        <div className="rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800">
-          ✓ Google Calendar connected. Meetings will sync automatically.
-        </div>
+        <Banner ok text="Google Calendar connected. Meetings will sync automatically." />
       )}
       {params.get("meta") === "connected" && (
-        <div className="rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800">
-          ✓ Facebook Page connected{" "}
-          {params.get("page") && <>(<strong>{params.get("page")}</strong>)</>}.
-        </div>
+        <Banner
+          ok
+          text={`Facebook Page connected${params.get("page") ? ` — ${params.get("page")}` : ""}.`}
+        />
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <IntegrationCard
-          title={catalog.google_calendar.title}
-          description={catalog.google_calendar.description}
-          connected={!!googleConnected}
-          loading={isLoading}
-          onConnect={() => connect.mutate("google")}
-          onDisconnect={() => disconnect.mutate("google_calendar")}
-          fields={data?.integrations.find((i) => i.provider === "google_calendar")?.fields}
-        />
-        <IntegrationCard
-          title={catalog.meta_ads.title}
-          description={catalog.meta_ads.description}
-          connected={!!metaConnected}
-          loading={isLoading}
-          onConnect={() => connect.mutate("meta")}
-          onDisconnect={() => disconnect.mutate("meta_ads")}
-          fields={data?.integrations.find((i) => i.provider === "meta_ads")?.fields}
-        />
+        {tenantIntegrations.map((it) => {
+          const existing = rowFor(it.id);
+          const connected = !!existing?.connected;
+          return (
+            <div
+              key={it.id}
+              className="flex flex-col gap-4 rounded-xl border bg-card p-5 transition hover:shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                <ProviderLogo
+                  slug={it.logoSlug}
+                  color={it.logoColor}
+                  brandColor={it.brandColor}
+                  name={it.name}
+                  size={44}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="truncate text-base font-semibold">{it.name}</h3>
+                    {isLoading ? (
+                      <Skeleton className="h-5 w-20" />
+                    ) : connected ? (
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                        <CheckCircle2 className="mr-1 h-3 w-3" /> Connected
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">Not connected</Badge>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{it.description}</p>
+                </div>
+              </div>
+
+              {connected && existing?.fields && Object.keys(existing.fields).length > 0 && (
+                <dl className="rounded-md bg-muted/40 p-3 text-xs">
+                  {Object.entries(existing.fields)
+                    .slice(0, 4)
+                    .map(([k, v]) => (
+                      <div key={k} className="flex gap-2 py-0.5">
+                        <dt className="w-28 text-muted-foreground">{k}</dt>
+                        <dd className="truncate font-mono">{v || "—"}</dd>
+                      </div>
+                    ))}
+                </dl>
+              )}
+
+              <div className="mt-auto flex items-center gap-2">
+                {connected ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => disconnect.mutate(it.id)}
+                  >
+                    Disconnect
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => connect.mutate(it.id)}
+                    style={{ background: it.brandColor }}
+                    className="text-white hover:opacity-90"
+                  >
+                    Connect {it.name}
+                    <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function IntegrationCard({
-  title,
-  description,
-  connected,
-  loading,
-  onConnect,
-  onDisconnect,
-  fields,
-}: {
-  title: string;
-  description: string;
-  connected: boolean;
-  loading: boolean;
-  onConnect: () => void;
-  onDisconnect: () => void;
-  fields?: Record<string, string>;
-}) {
+function Banner({ ok, text }: { ok?: boolean; text: string }) {
   return (
-    <Card>
-      <CardContent className="space-y-4 p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-base font-medium">{title}</div>
-            <div className="text-sm text-muted-foreground">{description}</div>
-          </div>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs ${
-              connected ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"
-            }`}
-          >
-            {loading ? "…" : connected ? "Connected" : "Not connected"}
-          </span>
-        </div>
-        {connected && fields && Object.keys(fields).length > 0 && (
-          <dl className="rounded bg-muted/30 p-3 text-xs">
-            {Object.entries(fields).map(([k, v]) => (
-              <div key={k} className="flex gap-2">
-                <dt className="w-32 text-muted-foreground">{k}</dt>
-                <dd className="font-mono">{v || "—"}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-        {loading ? (
-          <Skeleton className="h-9 w-32" />
-        ) : connected ? (
-          <Button variant="outline" size="sm" onClick={onDisconnect}>
-            Disconnect
-          </Button>
-        ) : (
-          <Button size="sm" onClick={onConnect}>
-            Connect {title}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+    <div
+      className={`rounded border px-3 py-2 text-sm ${
+        ok
+          ? "border-green-300 bg-green-50 text-green-800"
+          : "border-red-300 bg-red-50 text-red-800"
+      }`}
+    >
+      ✓ {text}
+    </div>
   );
 }
