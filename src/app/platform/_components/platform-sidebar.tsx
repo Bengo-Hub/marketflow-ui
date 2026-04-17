@@ -14,6 +14,7 @@ import {
 const NAV = [
   { label: "Overview", href: "/platform" },
   { label: "Integrations", href: "/platform/providers" },
+  { label: "Billing", href: "/platform/billing" },
   { label: "Tenants", href: "/platform/tenants" },
   { label: "Usage", href: "/platform/usage" },
   { label: "Security", href: "/platform/security" },
