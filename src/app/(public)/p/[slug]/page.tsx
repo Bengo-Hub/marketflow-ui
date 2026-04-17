@@ -170,10 +170,8 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
               {[
                 { icon: "💰", title: "Earn 30-48% Retail Profit", desc: "Every product you sell earns immediate margin — no waiting for commission payouts." },
                 { icon: "👥", title: "Build a Team & Earn More", desc: "Sponsor others and earn bonuses from your team's sales volume, up to Eagle Manager." },
-                { icon: "🚗", title: "Forever2Drive", desc: "$400-$800/month car allowance for qualifying managers. 3-year program." },
                 { icon: "🌍", title: "Global Travel Incentives", desc: "Top performers earn all-expenses-paid trips to exotic destinations worldwide." },
                 { icon: "🏆", title: "Inheritable Business", desc: "Your Forever business can be passed to your children — a true legacy asset." },
-                { icon: "📱", title: "AI-Powered by MarketFlow", desc: "Automated chatbot, ad campaigns, landing funnels — your AI marketing assistant." },
               ].map((b) => (
                 <div key={b.title} className="rounded-xl border p-4 hover:shadow-sm transition">
                   <span className="text-xl">{b.icon}</span>
@@ -181,53 +179,58 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
                   <p className="mt-1 text-xs text-gray-500 leading-relaxed">{b.desc}</p>
                 </div>
               ))}
+              {/* Forever2Drive with image */}
+              <div className="rounded-xl border overflow-hidden hover:shadow-sm transition sm:col-span-2 lg:col-span-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/images/public-profile/forever2drive-image.jpg" alt="Forever2Drive" className="w-full h-32 object-cover" loading="lazy" />
+                <div className="p-4">
+                  <h3 className="text-sm font-semibold">🚗 Forever2Drive</h3>
+                  <p className="mt-1 text-xs text-gray-500 leading-relaxed">$400-$800/month car bonus for qualifying managers. 3-year program — drive your dream car with Forever.</p>
+                </div>
+              </div>
             </div>
           </section>
         )}
 
-        {/* ══════ MY FOREVER STORY ══════ */}
-        {(videoUrl || story) && (
+        {/* ══════ MY FOREVER JOURNEY (always shows — fallback video + story) ══════ */}
+        {isFLP && (
           <section className="py-8 border-t">
-            <h2 className="text-2xl font-bold text-center">{isFLP ? "My Forever Story" : `About ${name}`}</h2>
+            <h2 className="text-2xl font-bold text-center">{story || videoUrl ? "My Forever Story" : "The Forever Journey"}</h2>
             <div className="mt-6 grid gap-6 md:grid-cols-2 items-center max-w-3xl mx-auto">
-              <div>
-                {videoUrl ? (
-                  <div className="aspect-video overflow-hidden rounded-2xl shadow-lg">
-                    <iframe src={videoUrl} className="h-full w-full" allow="autoplay; fullscreen" loading="lazy" title="Story" />
-                  </div>
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src="/images/public-profile/fbo-one-on-one-meeting.jpg" alt="Business meeting"
-                    className="rounded-2xl shadow-lg w-full object-cover" loading="lazy" />
-                )}
+              <div className="aspect-video overflow-hidden rounded-2xl shadow-lg">
+                <iframe src={videoUrl || FALLBACK_VIDEO} className="h-full w-full" allow="autoplay; fullscreen; encrypted-media" loading="lazy" title="Forever Journey" />
               </div>
               <div>
-                {story && <p className="text-sm text-gray-600 leading-relaxed">{story}</p>}
-                {!story && isFLP && (
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    Discover how Forever Living Products can transform your health and create financial freedom.
-                    Book a one-on-one meeting to learn about the business opportunity and get personalised guidance
-                    on building your own team.
-                  </p>
-                )}
-                {waLink && (
-                  <a href={waLink} target="_blank" rel="noreferrer"
-                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2 text-sm font-medium text-white hover:bg-[#1DA851] transition">
-                    💬 Let&apos;s Chat
-                  </a>
-                )}
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {story || `Forever Living Products has been changing lives for over 46 years. From our own aloe vera farms in Texas and the Dominican Republic to homes in 160+ countries, we deliver pure, certified wellness products and a business opportunity that creates real financial freedom. Watch the video to discover what makes Forever special.`}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {waLink && (
+                    <a href={waLink} target="_blank" rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2 text-sm font-medium text-white hover:bg-[#1DA851] transition">
+                      💬 Let&apos;s Chat
+                    </a>
+                  )}
+                  {hasBooking && (
+                    <a href="#booking"
+                      className="inline-flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-medium hover:bg-gray-50 transition">
+                      📅 Book a Call
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           </section>
         )}
-        {/* Show meeting image section even without video/story for FLP tenants */}
-        {!videoUrl && !story && isFLP && (
+
+        {/* ══════ ONE-ON-ONE MEETING ══════ */}
+        {isFLP && (
           <section className="py-8 border-t">
             <h2 className="text-2xl font-bold text-center">Book a One-on-One Meeting</h2>
             <div className="mt-6 grid gap-6 md:grid-cols-2 items-center max-w-3xl mx-auto">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/public-profile/fbo-one-on-one-meeting.jpg" alt="Business meeting"
-                className="rounded-2xl shadow-lg w-full object-cover" loading="lazy" />
+              <img src="/images/public-profile/fbo-one-on-one-meeting.jpg" alt="Business consultation meeting"
+                className="rounded-2xl shadow-lg w-full h-56 object-cover" loading="lazy" />
               <div>
                 <p className="text-sm text-gray-600 leading-relaxed">
                   Ready to learn more? Book a free, no-obligation one-on-one meeting with me. I&apos;ll walk you through
@@ -360,11 +363,10 @@ el=el.parentNode;}},true);}catch(e){}})();`.trim() }} />
   );
 }
 
+const FALLBACK_VIDEO = "https://www.youtube.com/embed/YRvN_JkHSzQ";
+
 const PRODUCTS = [
-  { code: "015", name: "Aloe Vera Gel", cc: "0.103", desc: "Pure inner leaf gel for digestive wellness.", img: "https://cdn.foreverliving.com/content/products/images/015_aloe_vera_gel_pd_main_512_X_512_1702972857237.webp" },
-  { code: "C9", name: "C9 Clean 9", cc: "2.000", desc: "9-day nutritional cleanse program.", img: "https://cdn.foreverliving.com/content/products/images/c9_chocolate_pd_main_512_X_512_1702972869296.webp" },
-  { code: "473", name: "Forever Argi+", cc: "0.300", desc: "L-Arginine + vitamin complex for vitality.", img: "https://cdn.foreverliving.com/content/products/images/473_forever_argi_pd_main_512_X_512_1702972861557.webp" },
-  { code: "061", name: "Aloe Vera Gelly", cc: "0.069", desc: "Topical soothing gel for skin.", img: "https://cdn.foreverliving.com/content/products/images/061_aloe_vera_gelly_pd_main_512_X_512_1702972858107.webp" },
-  { code: "028", name: "Forever Bright", cc: "0.054", desc: "Aloe vera toothgel with bee propolis.", img: "https://cdn.foreverliving.com/content/products/images/028_forever_bright_pd_main_512_X_512_1702972858741.webp" },
-  { code: "063", name: "Aloe Moisturizing Lotion", cc: "0.102", desc: "Daily body moisturizer with aloe.", img: "https://cdn.foreverliving.com/content/products/images/063_aloe_moisturizing_lotion_pd_main_512_X_512_1702972858267.webp" },
+  { code: "015", name: "Aloe Vera Gel", cc: "0.103", desc: "Pure inner leaf gel for digestive wellness. IASC certified, up to 99.7% pure stabilized aloe vera.", img: "https://gallery.foreverliving.com/gallery/FLP/image/2016_Product_Images/Aloe-Vera-Gel_Large.png" },
+  { code: "C9", name: "C9 Clean 9", cc: "2.000", desc: "9-day nutritional cleanse and weight management program. The perfect start to your wellness journey.", img: "https://gallery.foreverliving.com/gallery/KEN/image/products/C9_1.jpg" },
+  { code: "473", name: "Forever Argi+", cc: "0.300", desc: "L-Arginine + vitamin complex that supports energy, cardiovascular health, and immune function.", img: "https://cdn.foreverliving.com/content/products/images/473_forever_argi_pd_main_512_X_512_1702972861557.webp" },
 ];

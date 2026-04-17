@@ -194,14 +194,20 @@
     return d;
   }
 
-  // Basic markdown: **bold**, *italic*, [link](url), `code`, - lists
+  // Markdown: **bold**, *italic*, [link](url), bare URLs, `code`, ### headers, - lists
   function md(text) {
     if (!text) return '';
     return escapeHTML(text)
+      // Headers: ### H3, ## H2
+      .replace(/^### (.+)$/gm, '<h3 style="font-size:14px;font-weight:700;margin:8px 0 4px">$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2 style="font-size:15px;font-weight:700;margin:8px 0 4px">$1</h2>')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`(.+?)`/g, '<code>$1</code>')
-      .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+      // Markdown links: [text](url)
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer" style="color:#2563eb;text-decoration:underline;word-break:break-all">$1</a>')
+      // Bare URLs (not already inside an href) — make clickable
+      .replace(/(?<!="|&quot;)(https?:\/\/[^\s<&]+)/g, '<a href="$1" target="_blank" rel="noreferrer" style="color:#2563eb;text-decoration:underline;word-break:break-all">$1</a>')
       .replace(/^- (.+)$/gm, '<li>$1</li>')
       .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
       .replace(/\n/g, '<br>');
