@@ -83,7 +83,7 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
           {isFLP && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src="https://cdn.foreverliving.com/content/images/forever-logo-white.png" alt="Forever Living" className="mx-auto mb-6 h-8 opacity-90"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              />
           )}
 
           {/* Avatar */}
@@ -144,7 +144,7 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
                 <div key={img.label} className="text-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={img.src} alt={img.label} className="mx-auto h-24 w-24 rounded-xl object-contain" loading="lazy"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    />
                   <p className="mt-1 text-[10px] text-gray-500">{img.label}</p>
                 </div>
               ))}
@@ -259,7 +259,7 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
                   className="group rounded-xl border p-3 text-center hover:shadow-md hover:border-amber-200 transition">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={p.img} alt={p.name} className="mx-auto h-20 w-20 object-contain" loading="lazy"
-                    onError={(e) => { (e.target as HTMLImageElement).src = `https://via.placeholder.com/80x80?text=${encodeURIComponent(p.name.slice(0,8))}`; }} />
+                    />
                   <div className="mt-2 text-xs text-gray-400">#{p.code} · CC {p.cc}</div>
                   <h3 className="text-sm font-semibold group-hover:text-amber-600 transition">{p.name}</h3>
                   <p className="mt-1 text-[10px] text-gray-500 line-clamp-2">{p.desc}</p>
