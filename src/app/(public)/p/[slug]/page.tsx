@@ -69,10 +69,9 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://cdn.foreverliving.com/content/images/aloe-fields-hero.jpg"
-              alt=""
+              src="/images/public-profile/aloe-farm.jpg"
+              alt="Aloe vera farm"
               className="absolute inset-0 h-full w-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
           </>
@@ -186,12 +185,67 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
         {(videoUrl || story) && (
           <section className="py-8 border-t">
             <h2 className="text-2xl font-bold text-center">{isFLP ? "My Forever Story" : `About ${name}`}</h2>
-            {videoUrl && (
-              <div className="mt-4 mx-auto aspect-video max-w-2xl overflow-hidden rounded-2xl shadow-lg">
-                <iframe src={videoUrl} className="h-full w-full" allow="autoplay; fullscreen" loading="lazy" title="Story" />
+            <div className="mt-6 grid gap-6 md:grid-cols-2 items-center max-w-3xl mx-auto">
+              <div>
+                {videoUrl ? (
+                  <div className="aspect-video overflow-hidden rounded-2xl shadow-lg">
+                    <iframe src={videoUrl} className="h-full w-full" allow="autoplay; fullscreen" loading="lazy" title="Story" />
+                  </div>
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src="/images/public-profile/fbo-one-on-one-meeting.jpg" alt="Business meeting"
+                    className="rounded-2xl shadow-lg w-full object-cover" loading="lazy" />
+                )}
               </div>
-            )}
-            {story && <p className="mt-4 mx-auto max-w-2xl text-sm text-gray-600 leading-relaxed text-center">{story}</p>}
+              <div>
+                {story && <p className="text-sm text-gray-600 leading-relaxed">{story}</p>}
+                {!story && isFLP && (
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    Discover how Forever Living Products can transform your health and create financial freedom.
+                    Book a one-on-one meeting to learn about the business opportunity and get personalised guidance
+                    on building your own team.
+                  </p>
+                )}
+                {waLink && (
+                  <a href={waLink} target="_blank" rel="noreferrer"
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2 text-sm font-medium text-white hover:bg-[#1DA851] transition">
+                    💬 Let&apos;s Chat
+                  </a>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+        {/* Show meeting image section even without video/story for FLP tenants */}
+        {!videoUrl && !story && isFLP && (
+          <section className="py-8 border-t">
+            <h2 className="text-2xl font-bold text-center">Book a One-on-One Meeting</h2>
+            <div className="mt-6 grid gap-6 md:grid-cols-2 items-center max-w-3xl mx-auto">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/public-profile/fbo-one-on-one-meeting.jpg" alt="Business meeting"
+                className="rounded-2xl shadow-lg w-full object-cover" loading="lazy" />
+              <div>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Ready to learn more? Book a free, no-obligation one-on-one meeting with me. I&apos;ll walk you through
+                  the products, the business opportunity, and how you can get started — whether you want to be a
+                  customer or build your own Forever business.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {waLink && (
+                    <a href={waLink} target="_blank" rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2 text-sm font-medium text-white hover:bg-[#1DA851] transition">
+                      💬 WhatsApp Me
+                    </a>
+                  )}
+                  {calcomUser && (
+                    <a href={`#booking`}
+                      className="inline-flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-medium hover:bg-gray-50 transition">
+                      📅 Book a Call
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
           </section>
         )}
 
@@ -246,7 +300,7 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
 
         {/* ══════ CAL.COM BOOKING ══════ */}
         {calcomUser && (
-          <section className="py-8 border-t">
+          <section id="booking" className="py-8 border-t">
             <div className="overflow-hidden rounded-2xl border shadow-sm">
               <div className="border-b px-5 py-3" style={{ background: `${brandColor}15` }}>
                 <h2 className="text-lg font-bold">Book a Free Call with {name}</h2>
