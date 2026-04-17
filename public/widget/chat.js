@@ -24,6 +24,7 @@
   var tenantSlug = script && script.dataset.tenant;
   var apiURL = (script && script.dataset.apiUrl) || 'https://marketflowai.codevertexitsolutions.com';
   var brandColor = (script && script.dataset.color) || '#f59e0b';
+  var autoOpen = script && script.dataset.autoopen === 'true';
   if (!tenantSlug) { console.warn('[mf-widget] data-tenant required'); return; }
 
   var host = document.createElement('div');
@@ -108,11 +109,17 @@
 
   var greetingTimer = setTimeout(function () {
     if (!panelOpen) {
-      greeting.style.display = 'block';
-      // Auto-hide after 8s
-      setTimeout(function () { greeting.style.display = 'none'; }, 8000);
+      if (autoOpen) {
+        // Auto-expand the chat panel on profile pages
+        panelOpen = true;
+        panel.classList.add('open');
+        fab.innerHTML = '<span class="close">✕</span>';
+      } else {
+        greeting.style.display = 'block';
+        setTimeout(function () { greeting.style.display = 'none'; }, 8000);
+      }
     }
-  }, 3000);
+  }, 2000);
 
   // ── Panel ─────────────────────────────────────────────────────────
   var panel = document.createElement('div');
@@ -266,7 +273,7 @@
     var dots = showDots();
 
     try {
-      var res = await fetch(apiURL + '/api/v1/chat', {
+      var res = await fetch(apiURL + '/api/v1/public/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
         body: JSON.stringify({ question: q, session_id: sessionID, stream: false })

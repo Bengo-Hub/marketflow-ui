@@ -6,68 +6,29 @@ const AI_API_URL = process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.c
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://marketflow.codevertexitsolutions.com";
 
 type Profile = {
-  id: string;
-  name: string;
-  slug: string;
-  business_type?: string;
-  country?: string;
-  whatsapp_number?: string;
-  fbo_distrib_id?: string;
-  flp_store_code?: string;
-  flp_language?: string;
-  metadata?: {
-    bio?: string;
-    logo_url?: string;
-    cover_url?: string;
-    brand_primary_color?: string;
-    tagline?: string;
-    video_url?: string;
-    story?: string;
-    calcom_username?: string;
-    calcom_event?: string;
-  };
+  id: string; name: string; slug: string; business_type?: string; country?: string;
+  whatsapp_number?: string; fbo_distrib_id?: string; flp_store_code?: string; flp_language?: string;
+  metadata?: Record<string, any>;
 };
 
-type Testimonial = {
-  id: string;
-  author_name: string;
-  author_role?: string;
-  body: string;
-  avatar_url?: string;
-  rating: number;
-};
+type Testimonial = { id: string; author_name: string; author_role?: string; body: string; avatar_url?: string; rating: number };
 
 async function getProfile(slug: string): Promise<Profile | null> {
-  try {
-    const res = await fetch(`${API_URL}/api/v1/public/profile/${slug}`, { next: { revalidate: 300 } });
-    if (!res.ok) return null;
-    return res.json();
-  } catch { return null; }
+  try { const r = await fetch(`${API_URL}/api/v1/public/profile/${slug}`, { next: { revalidate: 300 } }); return r.ok ? r.json() : null; } catch { return null; }
 }
-
 async function getTestimonials(slug: string): Promise<Testimonial[]> {
-  try {
-    const res = await fetch(`${API_URL}/api/v1/public/profile/${slug}/testimonials?limit=10`, { next: { revalidate: 300 } });
-    if (!res.ok) return [];
-    const json = await res.json();
-    return json.data ?? [];
-  } catch { return []; }
+  try { const r = await fetch(`${API_URL}/api/v1/public/profile/${slug}/testimonials?limit=10`, { next: { revalidate: 300 } }); if (!r.ok) return []; const j = await r.json(); return j.data ?? []; } catch { return []; }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const profile = await getProfile(slug);
-  if (!profile) return { title: "Profile not found" };
-  const name = profile.name || slug;
-  const tagline = profile.metadata?.tagline ?? "Business Owner";
-  const bio = profile.metadata?.bio ?? `Explore products and opportunities with ${name}.`;
-  const image = profile.metadata?.logo_url || `${APP_URL}/api/og?title=${encodeURIComponent(name)}&subtitle=${encodeURIComponent(tagline)}`;
-  return {
-    title: `${name} — ${tagline}`,
-    description: bio,
-    alternates: { canonical: `${APP_URL}/p/${profile.slug}` },
-    openGraph: { title: `${name} — ${tagline}`, description: bio, url: `${APP_URL}/p/${profile.slug}`, type: "profile", images: [{ url: image, width: 1200, height: 630 }] },
-  };
+  const p = await getProfile(slug);
+  if (!p) return { title: "Profile not found" };
+  const name = p.name || slug;
+  const tagline = p.metadata?.tagline ?? "Business Owner";
+  const bio = p.metadata?.bio ?? `Discover products and opportunities with ${name}.`;
+  return { title: `${name} — ${tagline}`, description: bio, alternates: { canonical: `${APP_URL}/p/${p.slug}` },
+    openGraph: { title: `${name} — ${tagline}`, description: bio, url: `${APP_URL}/p/${p.slug}`, type: "profile" } };
 }
 
 export default async function FBOProfilePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -75,15 +36,13 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
   const [profile, testimonials] = await Promise.all([getProfile(slug), getTestimonials(slug)]);
   if (!profile) notFound();
 
+  const m = (profile.metadata ?? {}) as Record<string, any>;
   const name = profile.name || slug;
-  const brandColor = profile.metadata?.brand_primary_color || "#f59e0b";
-  const tagline = profile.metadata?.tagline ?? "Business Owner";
-  const bio = profile.metadata?.bio;
-  const story = profile.metadata?.story;
-  const videoUrl = profile.metadata?.video_url;
-  const coverUrl = profile.metadata?.cover_url;
-  const calcomUsername = profile.metadata?.calcom_username;
-  const calcomEvent = profile.metadata?.calcom_event ?? "15min";
+  const brandColor = m.brand_primary_color || "#f59e0b";
+  const tagline = m.tagline ?? (profile.business_type === "flp" ? "Forever Business Owner" : "Business Owner");
+  const bio = m.bio;
+  const story = m.story;
+  const videoUrl = m.video_url;
   const isFLP = profile.business_type === "flp";
   const store = profile.flp_store_code || "KEN";
   const lang = profile.flp_language || "en";
@@ -92,127 +51,164 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
   const recruitLink = did ? `https://join.foreverliving.com/marketing/joinnow/applicationForm.do?action=display&store=${store}&distribID=${did}&menuoff=n&langID=${lang}` : "";
   const waDigits = (profile.whatsapp_number || "").replace(/[^0-9]/g, "");
   const waLink = waDigits ? `https://wa.me/${waDigits}?text=${encodeURIComponent(`Hi ${name}, I'm interested in learning more!`)}` : "";
-
-  const ldPerson = {
-    "@context": "https://schema.org", "@type": "Person", name, jobTitle: tagline,
-    worksFor: { "@type": "Organization", name: isFLP ? "Forever Living Products" : name, url: isFLP ? "https://foreverliving.com" : `${APP_URL}/p/${profile.slug}` },
-    url: `${APP_URL}/p/${profile.slug}`,
-    ...(bio && { description: bio }),
-    ...(profile.country && { address: { "@type": "PostalAddress", addressCountry: profile.country } }),
-  };
+  const calcomUser = m.calcom_username;
+  const calcomEvent = m.calcom_event ?? "15min";
 
   return (
-    <div className="min-h-screen bg-background">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ldPerson) }} />
+    <div className="min-h-screen bg-white">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        "@context": "https://schema.org", "@type": "Person", name, jobTitle: tagline,
+        worksFor: { "@type": "Organization", name: isFLP ? "Forever Living Products" : name },
+        url: `${APP_URL}/p/${profile.slug}`, ...(bio && { description: bio }),
+      }) }} />
 
-      {/* ── Hero Banner ─────────────────────────────────────────── */}
-      <div className="relative" style={{ background: coverUrl ? undefined : `linear-gradient(135deg, ${brandColor}40 0%, ${brandColor}15 50%, transparent 100%)` }}>
-        {coverUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
+      {/* ══════ HERO with aloe farm background ══════ */}
+      <div className="relative overflow-hidden">
+        {/* Background: aloe vera farm for FLP, gradient for generic */}
+        {isFLP ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://cdn.foreverliving.com/content/images/aloe-fields-hero.jpg"
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
+          </>
+        ) : (
+          <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${brandColor}dd 0%, ${brandColor}88 100%)` }} />
         )}
-        <div className="relative mx-auto max-w-4xl px-4 py-12 md:py-16">
-          <div className="flex flex-col items-center gap-4 text-center md:flex-row md:items-start md:text-left md:gap-6">
-            {/* Avatar */}
-            {profile.metadata?.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.metadata.logo_url} alt={name} className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-lg md:h-28 md:w-28" />
+
+        <div className="relative mx-auto max-w-4xl px-4 py-14 md:py-20 text-center text-white">
+          {isFLP && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src="https://cdn.foreverliving.com/content/images/forever-logo-white.png" alt="Forever Living" className="mx-auto mb-6 h-8 opacity-90"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          )}
+
+          {/* Avatar */}
+          <div className="mx-auto mb-4">
+            {m.logo_url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={m.logo_url} alt={name} className="mx-auto h-24 w-24 rounded-full border-4 border-white/80 object-cover shadow-xl" />
             ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white text-3xl font-bold text-white shadow-lg md:h-28 md:w-28" style={{ background: brandColor }}>
-                {name.charAt(0).toUpperCase()}
+              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-4 border-white/80 text-3xl font-bold shadow-xl" style={{ background: brandColor }}>
+                {name.charAt(0)}
               </div>
             )}
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold md:text-3xl">{name}</h1>
-              <p className="text-muted-foreground">{tagline}</p>
-              {bio && <p className="mt-2 max-w-lg text-sm text-muted-foreground leading-relaxed">{bio}</p>}
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2 md:justify-start">
-                {waLink && (
-                  <a href={waLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#1DA851] transition">
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.52 3.45A11.84 11.84 0 0012.05 0C5.5 0 .2 5.31.2 11.87a11.8 11.8 0 001.6 5.94L0 24l6.33-1.75a11.85 11.85 0 005.72 1.46h.01c6.55 0 11.87-5.31 11.87-11.87a11.8 11.8 0 00-3.41-8.39z"/></svg>
-                    WhatsApp
-                  </a>
-                )}
-                {shopLink && (
-                  <a href={shopLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium hover:bg-muted transition">
-                    🛒 Shop Products
-                  </a>
-                )}
-                {recruitLink && (
-                  <a href={recruitLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium hover:bg-muted transition">
-                    🤝 Join My Team
-                  </a>
-                )}
-              </div>
-            </div>
+          </div>
+
+          <h1 className="text-3xl md:text-4xl font-bold drop-shadow-lg">{name}</h1>
+          <p className="mt-1 text-lg opacity-90 drop-shadow">{tagline}</p>
+          {bio && <p className="mt-3 mx-auto max-w-xl text-sm opacity-80 leading-relaxed">{bio}</p>}
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {waLink && (
+              <a href={waLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-medium text-white shadow-lg hover:bg-[#1DA851] transition">
+                💬 Chat on WhatsApp
+              </a>
+            )}
+            {shopLink && (
+              <a href={shopLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur px-5 py-2.5 text-sm font-medium text-white border border-white/30 hover:bg-white/30 transition">
+                🛒 Shop Products
+              </a>
+            )}
+            {recruitLink && (
+              <a href={recruitLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur px-5 py-2.5 text-sm font-medium text-white border border-white/30 hover:bg-white/30 transition">
+                🤝 Join My Team
+              </a>
+            )}
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-4xl px-4">
-        {/* ── Video / Story Section ─────────────────────────────── */}
-        {(videoUrl || story) && (
-          <section className="py-8">
-            <h2 className="mb-4 text-xl font-bold text-center">
-              {isFLP ? "My Forever Story" : `About ${name}`}
-            </h2>
-            {videoUrl && (
-              <div className="relative mx-auto mb-6 aspect-video max-w-2xl overflow-hidden rounded-2xl shadow-lg">
-                <iframe src={videoUrl} className="absolute inset-0 h-full w-full" allow="autoplay; fullscreen" loading="lazy" title="Video" />
-              </div>
-            )}
-            {story && (
-              <p className="mx-auto max-w-2xl text-sm text-muted-foreground leading-relaxed text-center">{story}</p>
-            )}
-          </section>
-        )}
 
-        {/* ── Benefits / Why Section ────────────────────────────── */}
+        {/* ══════ WHAT IS FOREVER LIVING? (FLP only) ══════ */}
         {isFLP && (
-          <section className="py-8 border-t">
-            <h2 className="mb-6 text-xl font-bold text-center">Why Forever Living?</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <section className="py-10 text-center">
+            <h2 className="text-2xl font-bold">What is Forever Living?</h2>
+            <p className="mt-3 mx-auto max-w-2xl text-sm text-gray-600 leading-relaxed">
+              Forever Living Products is the world&apos;s largest grower, manufacturer, and distributor of aloe vera.
+              For over 46 years, we&apos;ve operated in 160+ countries, delivering pure, IASC-certified wellness
+              products from our own farms to your doorstep. Our products contain up to 99.7% pure stabilized
+              aloe vera gel — because we control every step from plant to product.
+            </p>
+            {/* Aloe product banner */}
+            <div className="mt-6 grid grid-cols-3 gap-3 max-w-lg mx-auto">
               {[
-                { emoji: "🌿", title: "Pure Aloe Vera", desc: "World's largest grower. IASC certified. Up to 99.7% pure stabilized gel." },
-                { emoji: "🌍", title: "160+ Countries", desc: "Operating for over 46 years across 6 continents. A proven global brand." },
-                { emoji: "💰", title: "3 Income Streams", desc: "Retail profit (30-48%), team building bonuses, and leadership rewards." },
-                { emoji: "🚗", title: "Forever2Drive", desc: "$400-$800/month car bonus for qualifying managers. 3-year program." },
-                { emoji: "🏆", title: "Inheritable Business", desc: "Pass your business to the next generation. A true legacy asset." },
-                { emoji: "📱", title: "AI-Powered Tools", desc: "MarketFlow chatbot, automated ads, landing funnels — all on autopilot." },
-              ].map((b) => (
-                <div key={b.title} className="rounded-xl border p-4 transition hover:shadow-sm">
-                  <span className="text-2xl">{b.emoji}</span>
-                  <h3 className="mt-2 text-sm font-semibold">{b.title}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">{b.desc}</p>
+                { src: "https://cdn.foreverliving.com/content/products/images/015_aloe_vera_gel_pd_main_512_X_512_1702972857237.webp", label: "Aloe Vera Gel" },
+                { src: "https://cdn.foreverliving.com/content/products/images/fab_x_forever_active_boost__pd_zoomedimage_1000_X_1000_1775075598612.jpg", label: "FAB X" },
+                { src: "https://cdn.foreverliving.com/content/products/images/c9_chocolate_pd_main_512_X_512_1702972869296.webp", label: "C9 Clean 9" },
+              ].map((img) => (
+                <div key={img.label} className="text-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img.src} alt={img.label} className="mx-auto h-24 w-24 rounded-xl object-contain" loading="lazy"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  <p className="mt-1 text-[10px] text-gray-500">{img.label}</p>
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        {/* ── Product Spotlight (FLP) ───────────────────────────── */}
+        {/* ══════ ABOUT THE OPPORTUNITY ══════ */}
+        {isFLP && (
+          <section className="py-8 border-t">
+            <h2 className="text-2xl font-bold text-center">About the Opportunity</h2>
+            <p className="mt-3 mx-auto max-w-2xl text-sm text-gray-600 leading-relaxed text-center">
+              As a Forever Business Owner (FBO), you earn through three income streams: retail profit (30-48%),
+              team building bonuses, and leadership rewards. With the Forever2Drive car bonus program ($400-$800/month
+              for 3 years), global travel incentives, and an inheritable business model — this is more than a job,
+              it&apos;s a legacy you can pass to the next generation.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                { icon: "💰", title: "Earn 30-48% Retail Profit", desc: "Every product you sell earns immediate margin — no waiting for commission payouts." },
+                { icon: "👥", title: "Build a Team & Earn More", desc: "Sponsor others and earn bonuses from your team's sales volume, up to Eagle Manager." },
+                { icon: "🚗", title: "Forever2Drive", desc: "$400-$800/month car allowance for qualifying managers. 3-year program." },
+                { icon: "🌍", title: "Global Travel Incentives", desc: "Top performers earn all-expenses-paid trips to exotic destinations worldwide." },
+                { icon: "🏆", title: "Inheritable Business", desc: "Your Forever business can be passed to your children — a true legacy asset." },
+                { icon: "📱", title: "AI-Powered by MarketFlow", desc: "Automated chatbot, ad campaigns, landing funnels — your AI marketing assistant." },
+              ].map((b) => (
+                <div key={b.title} className="rounded-xl border p-4 hover:shadow-sm transition">
+                  <span className="text-xl">{b.icon}</span>
+                  <h3 className="mt-2 text-sm font-semibold">{b.title}</h3>
+                  <p className="mt-1 text-xs text-gray-500 leading-relaxed">{b.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ══════ MY FOREVER STORY ══════ */}
+        {(videoUrl || story) && (
+          <section className="py-8 border-t">
+            <h2 className="text-2xl font-bold text-center">{isFLP ? "My Forever Story" : `About ${name}`}</h2>
+            {videoUrl && (
+              <div className="mt-4 mx-auto aspect-video max-w-2xl overflow-hidden rounded-2xl shadow-lg">
+                <iframe src={videoUrl} className="h-full w-full" allow="autoplay; fullscreen" loading="lazy" title="Story" />
+              </div>
+            )}
+            {story && <p className="mt-4 mx-auto max-w-2xl text-sm text-gray-600 leading-relaxed text-center">{story}</p>}
+          </section>
+        )}
+
+        {/* ══════ FEATURED PRODUCTS ══════ */}
         {isFLP && did && (
           <section className="py-8 border-t">
-            <h2 className="mb-6 text-xl font-bold text-center">Featured Products</h2>
-            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
-              {[
-                { name: "Aloe Vera Gel", code: "015", cc: "0.103", desc: "Pure inner leaf gel for digestive wellness." },
-                { name: "C9 Clean 9", code: "475", cc: "2.000", desc: "9-day nutritional cleanse program." },
-                { name: "Forever Argi+", code: "473", cc: "0.300", desc: "L-Arginine + vitamin complex for vitality." },
-                { name: "Aloe Vera Gelly", code: "061", cc: "0.069", desc: "Topical soothing gel for skin." },
-                { name: "Forever Bright", code: "028", cc: "0.054", desc: "Aloe vera toothgel with bee propolis." },
-                { name: "Aloe Moisturizing Lotion", code: "063", cc: "0.102", desc: "Daily body moisturizer with aloe." },
-              ].map((p) => (
-                <a
-                  key={p.code}
-                  href={`${shopLink}&itemCode=${p.code}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group rounded-xl border p-3 transition hover:shadow-sm hover:border-amber-200"
-                >
-                  <div className="text-xs text-muted-foreground">#{p.code} · CC {p.cc}</div>
-                  <h3 className="mt-1 text-sm font-semibold group-hover:text-amber-600 transition">{p.name}</h3>
-                  <p className="mt-1 text-[11px] text-muted-foreground line-clamp-2">{p.desc}</p>
+            <h2 className="text-2xl font-bold text-center">Featured Products</h2>
+            <div className="mt-6 grid gap-3 grid-cols-2 sm:grid-cols-3">
+              {PRODUCTS.map((p) => (
+                <a key={p.code} href={`${shopLink}&itemCode=${p.code}`} target="_blank" rel="noreferrer"
+                  className="group rounded-xl border p-3 text-center hover:shadow-md hover:border-amber-200 transition">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.img} alt={p.name} className="mx-auto h-20 w-20 object-contain" loading="lazy"
+                    onError={(e) => { (e.target as HTMLImageElement).src = `https://via.placeholder.com/80x80?text=${encodeURIComponent(p.name.slice(0,8))}`; }} />
+                  <div className="mt-2 text-xs text-gray-400">#{p.code} · CC {p.cc}</div>
+                  <h3 className="text-sm font-semibold group-hover:text-amber-600 transition">{p.name}</h3>
+                  <p className="mt-1 text-[10px] text-gray-500 line-clamp-2">{p.desc}</p>
                 </a>
               ))}
             </div>
@@ -224,28 +220,23 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
           </section>
         )}
 
-        {/* ── Testimonials ──────────────────────────────────────── */}
+        {/* ══════ TESTIMONIALS ══════ */}
         {testimonials.length > 0 && (
           <section className="py-8 border-t">
-            <h2 className="mb-6 text-xl font-bold text-center">What people are saying</h2>
-            <div className="grid gap-4 md:grid-cols-2">
+            <h2 className="text-2xl font-bold text-center">What People Are Saying</h2>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
               {testimonials.map((t) => (
                 <figure key={t.id} className="rounded-xl border p-5">
-                  <blockquote className="text-sm leading-relaxed">&ldquo;{t.body}&rdquo;</blockquote>
+                  <blockquote className="text-sm leading-relaxed text-gray-700">&ldquo;{t.body}&rdquo;</blockquote>
                   <figcaption className="mt-3 flex items-center gap-3">
-                    {t.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={t.avatar_url} alt={t.author_name} className="h-9 w-9 rounded-full object-cover" />
-                    ) : (
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ background: brandColor }}>
-                        {t.author_name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: brandColor }}>
+                      {t.author_name.charAt(0)}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold truncate">{t.author_name}</div>
-                      {t.author_role && <div className="text-[11px] text-muted-foreground">{t.author_role}</div>}
+                      {t.author_role && <div className="text-[10px] text-gray-400">{t.author_role}</div>}
                     </div>
-                    <div className="text-xs text-amber-500">{"★".repeat(t.rating)}<span className="text-slate-200">{"★".repeat(5 - t.rating)}</span></div>
+                    <div className="text-xs text-amber-500">{"★".repeat(t.rating)}</div>
                   </figcaption>
                 </figure>
               ))}
@@ -253,32 +244,35 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
           </section>
         )}
 
-        {/* ── Cal.com Booking ───────────────────────────────────── */}
-        {calcomUsername && (
+        {/* ══════ CAL.COM BOOKING ══════ */}
+        {calcomUser && (
           <section className="py-8 border-t">
             <div className="overflow-hidden rounded-2xl border shadow-sm">
-              <div className="border-b px-5 py-3">
-                <h2 className="text-lg font-bold">Book a call with {name}</h2>
-                <p className="text-xs text-muted-foreground">Free 15-minute intro — pick a time that works for you.</p>
+              <div className="border-b px-5 py-3" style={{ background: `${brandColor}15` }}>
+                <h2 className="text-lg font-bold">Book a Free Call with {name}</h2>
+                <p className="text-xs text-gray-500">15-minute intro — no obligation, just conversation.</p>
               </div>
-              <iframe src={`https://calendar.codevertexitsolutions.com/${calcomUsername}/${calcomEvent}`} className="h-[580px] w-full" title="Book a meeting" loading="lazy" />
+              <iframe src={`https://calendar.codevertexitsolutions.com/${calcomUser}/${calcomEvent}`}
+                className="h-[560px] w-full" title="Book a meeting" loading="lazy" />
             </div>
           </section>
         )}
 
-        {/* ── CTA Banner ────────────────────────────────────────── */}
+        {/* ══════ CTA BANNER ══════ */}
         <section className="py-8 border-t">
-          <div className="rounded-2xl p-6 text-center text-white" style={{ background: `linear-gradient(135deg, ${brandColor}, ${brandColor}cc)` }}>
-            <h2 className="text-xl font-bold">Ready to get started?</h2>
-            <p className="mt-1 text-sm opacity-90">Chat with me or ask our AI assistant anything about products and the business opportunity.</p>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <div className="rounded-2xl p-8 text-center text-white" style={{ background: `linear-gradient(135deg, ${brandColor}, ${brandColor}cc)` }}>
+            <h2 className="text-xl font-bold">Ready to Get Started?</h2>
+            <p className="mt-2 text-sm opacity-90">Chat with me or ask our AI assistant anything — products, business opportunity, or getting started.</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
               {waLink && (
-                <a href={waLink} target="_blank" rel="noreferrer" className="rounded-full bg-white px-5 py-2 text-sm font-medium shadow-sm transition hover:shadow-md" style={{ color: brandColor }}>
-                  💬 Chat on WhatsApp
+                <a href={waLink} target="_blank" rel="noreferrer"
+                  className="rounded-full bg-white px-6 py-2.5 text-sm font-medium shadow-sm hover:shadow-md transition" style={{ color: brandColor }}>
+                  💬 WhatsApp Me
                 </a>
               )}
               {shopLink && (
-                <a href={shopLink} target="_blank" rel="noreferrer" className="rounded-full border border-white/40 px-5 py-2 text-sm font-medium text-white transition hover:bg-white/10">
+                <a href={shopLink} target="_blank" rel="noreferrer"
+                  className="rounded-full border border-white/40 px-6 py-2.5 text-sm font-medium text-white hover:bg-white/10 transition">
                   🛒 Browse Products
                 </a>
               )}
@@ -287,39 +281,32 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
         </section>
       </div>
 
-      {/* Chat widget */}
-      <script async src="/widget/chat.js" data-tenant={profile.slug} data-api-url={AI_API_URL} />
+      {/* Chat widget — auto-opens on profile pages */}
+      <script async src="/widget/chat.js" data-tenant={profile.slug} data-api-url={AI_API_URL}
+        data-color={brandColor} data-autoopen="true" />
 
-      {/* Visitor analytics beacon */}
+      {/* Analytics beacon */}
       <script dangerouslySetInnerHTML={{ __html: `
-(function(){
-  try {
-    var slug = ${JSON.stringify(profile.slug)};
-    var api = ${JSON.stringify(API_URL)};
-    var send = function(type, meta){
-      try { fetch(api + '/api/v1/public/profile-events', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({slug: slug, event_type: type, referrer: document.referrer, metadata: meta||{}}), keepalive: true }).catch(function(){}); } catch(e) {}
-    };
-    send('page_view');
-    document.addEventListener('click', function(e){
-      var el = e.target;
-      while (el && el.nodeType === 1) {
-        var href = el.getAttribute && el.getAttribute('href');
-        if (href) {
-          if (/^https:\\/\\/wa\\.me/.test(href)) return send('whatsapp_click');
-          if (/cal(endar)?\\./.test(href)) return send('book_click');
-          if (/shop\\.foreverliving\\.com/.test(href)) return send('product_click', {href: href});
-          if (/join\\.foreverliving\\.com/.test(href)) return send('cta_click', {cta: 'join'});
-        }
-        el = el.parentNode;
-      }
-    }, true);
-  } catch(e) {}
-})();
-      `.trim() }} />
+(function(){try{var s=${JSON.stringify(profile.slug)},a=${JSON.stringify(API_URL)};
+var f=function(t,m){try{fetch(a+'/api/v1/public/profile-events',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({slug:s,event_type:t,referrer:document.referrer,metadata:m||{}}),keepalive:true}).catch(function(){});}catch(e){}};
+f('page_view');document.addEventListener('click',function(e){var el=e.target;while(el&&el.nodeType===1){var h=el.getAttribute&&el.getAttribute('href');
+if(h){if(/wa\\.me/.test(h))return f('whatsapp_click');if(/cal/.test(h))return f('book_click');
+if(/shop\\.foreverliving/.test(h))return f('product_click',{href:h});if(/join\\.foreverliving/.test(h))return f('cta_click',{cta:'join'});}
+el=el.parentNode;}},true);}catch(e){}})();`.trim() }} />
 
-      <footer className="border-t py-4 text-center text-[11px] text-muted-foreground">
-        Powered by <a href={APP_URL} className="font-medium hover:underline">MarketFlow</a> · Codevertex Africa Ltd
+      <footer className="border-t py-4 text-center text-[10px] text-gray-400">
+        Powered by <a href={APP_URL} className="font-medium hover:underline text-gray-500">MarketFlow</a> · Codevertex Africa Ltd
       </footer>
     </div>
   );
 }
+
+const PRODUCTS = [
+  { code: "015", name: "Aloe Vera Gel", cc: "0.103", desc: "Pure inner leaf gel for digestive wellness.", img: "https://cdn.foreverliving.com/content/products/images/015_aloe_vera_gel_pd_main_512_X_512_1702972857237.webp" },
+  { code: "C9", name: "C9 Clean 9", cc: "2.000", desc: "9-day nutritional cleanse program.", img: "https://cdn.foreverliving.com/content/products/images/c9_chocolate_pd_main_512_X_512_1702972869296.webp" },
+  { code: "473", name: "Forever Argi+", cc: "0.300", desc: "L-Arginine + vitamin complex for vitality.", img: "https://cdn.foreverliving.com/content/products/images/473_forever_argi_pd_main_512_X_512_1702972861557.webp" },
+  { code: "061", name: "Aloe Vera Gelly", cc: "0.069", desc: "Topical soothing gel for skin.", img: "https://cdn.foreverliving.com/content/products/images/061_aloe_vera_gelly_pd_main_512_X_512_1702972858107.webp" },
+  { code: "028", name: "Forever Bright", cc: "0.054", desc: "Aloe vera toothgel with bee propolis.", img: "https://cdn.foreverliving.com/content/products/images/028_forever_bright_pd_main_512_X_512_1702972858741.webp" },
+  { code: "063", name: "Aloe Moisturizing Lotion", cc: "0.102", desc: "Daily body moisturizer with aloe.", img: "https://cdn.foreverliving.com/content/products/images/063_aloe_moisturizing_lotion_pd_main_512_X_512_1702972858267.webp" },
+];
