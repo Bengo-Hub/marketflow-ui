@@ -82,6 +82,9 @@ export default function IntegrationsPage() {
           text={`Facebook Page connected${params.get("page") ? ` — ${params.get("page")}` : ""}.`}
         />
       )}
+      {params.get("tiktok") === "connected" && (
+        <Banner ok text="TikTok for Business connected. You can now run TikTok campaigns." />
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {tenantIntegrations.filter((it) => availableTypes.has(it.requiresPlatformConfig)).map((it) => {
