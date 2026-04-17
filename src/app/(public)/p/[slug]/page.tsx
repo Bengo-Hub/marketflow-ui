@@ -241,5 +241,5 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 const PRODUCTS = [
   { code: "015", name: "Aloe Vera Gel", cc: "0.103", desc: "Pure inner leaf gel for digestive wellness.", img: "https://gallery.foreverliving.com/gallery/FLP/image/2016_Product_Images/Aloe-Vera-Gel_Large.png" },
   { code: "C9", name: "C9 Clean 9", cc: "2.000", desc: "9-day nutritional cleanse program.", img: "https://gallery.foreverliving.com/gallery/KEN/image/products/C9_1.jpg" },
-  { code: "473", name: "Forever Argi+", cc: "0.300", desc: "L-Arginine + vitamin complex for vitality.", img: "https://cdn.foreverliving.com/content/products/images/473_forever_argi_pd_main_512_X_512_1702972861557.webp" },
+  { code: "473", name: "Forever Argi+", cc: "0.300", desc: "L-Arginine + vitamin complex for vitality.", img: "/images/public-profile/argi-plus.jpg" },
 ];
