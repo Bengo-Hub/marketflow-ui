@@ -21,6 +21,14 @@ import {
   Mail,
   Smartphone,
   Check,
+  Facebook,
+  Linkedin,
+  Chrome,
+  Music2,
+  Wallet,
+  Brain,
+  Video,
+  Calendar,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -37,10 +45,7 @@ export default function LandingPage() {
     }
   }, [status, user, router]);
 
-  const handleLogin = () => {
-    useAuthStore.getState().redirectToSSO(window.location.href);
-  };
-
+  const handleLogin = () => useAuthStore.getState().redirectToSSO(window.location.href);
   const handleSignup = () => {
     const authURL = process.env.NEXT_PUBLIC_AUTH_API_URL || "https://sso.codevertexitsolutions.com";
     window.location.href = `${authURL.replace("sso.", "accounts.")}/register`;
@@ -55,164 +60,169 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background to-amber-50/30 dark:to-amber-950/10">
-      {/* ── Nav ──────────────────────────────────────────────────────── */}
+    <div className="min-h-screen flex flex-col">
+      {/* Nav */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg flex items-center justify-center text-black font-bold text-sm bg-gradient-to-br from-amber-400 to-amber-500">
-              M
-            </div>
-            <span className="text-xl font-bold tracking-tight">MarketFlow</span>
+            <div className="h-7 w-7 rounded-lg flex items-center justify-center text-black font-bold text-xs bg-gradient-to-br from-amber-400 to-amber-500">M</div>
+            <span className="text-lg font-bold tracking-tight">MarketFlow</span>
           </div>
-          <nav className="hidden md:flex items-center gap-6 text-sm">
+          <nav className="hidden sm:flex items-center gap-5 text-sm">
             <a href="#features" className="text-muted-foreground hover:text-foreground transition">Features</a>
             <a href="#integrations" className="text-muted-foreground hover:text-foreground transition">Integrations</a>
             <a href="#pricing" className="text-muted-foreground hover:text-foreground transition">Pricing</a>
           </nav>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={handleLogin}>Sign In</Button>
-            <Button onClick={handleSignup} className="bg-amber-400 hover:bg-amber-500 text-black font-medium">
-              Get Started Free
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={handleLogin}>Sign In</Button>
+            <Button size="sm" onClick={handleSignup} className="bg-amber-400 hover:bg-amber-500 text-black font-medium">
+              Get Started
             </Button>
           </div>
         </div>
       </header>
 
       <main className="flex-1">
-        {/* ── Hero ─────────────────────────────────────────────────────── */}
-        <section className="container mx-auto px-4 py-20 md:py-28 text-center">
-          <div className="inline-flex items-center gap-1.5 rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground mb-6">
+        {/* Hero — compact */}
+        <section className="mx-auto max-w-6xl px-4 py-12 md:py-16 text-center">
+          <div className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] text-muted-foreground mb-4">
             <Sparkles className="h-3 w-3 text-amber-500" /> AI-powered marketing on autopilot
           </div>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 leading-[1.1]">
-            Grow your business with<br />
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.15]">
+            Grow your business with{" "}
             <span className="bg-gradient-to-r from-amber-500 to-amber-600 bg-clip-text text-transparent">
-              AI-powered marketing
+              AI marketing
             </span>
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            Capture leads, run ad campaigns, build landing funnels, and nurture prospects — all
-            orchestrated by AI. Whether you sell products, services, or run a network
-            marketing business, MarketFlow automates your entire pipeline.
+          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            Capture leads, run ad campaigns, build funnels, and nurture prospects — all
+            orchestrated by AI. One platform for products, services, or network marketing.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" onClick={handleSignup} className="gap-2 bg-amber-400 hover:bg-amber-500 text-black font-medium px-8">
-              Start Free Trial <ArrowRight className="h-4 w-4" />
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
+            <Button onClick={handleSignup} className="gap-2 bg-amber-400 hover:bg-amber-500 text-black font-medium px-6">
+              Start Free <ArrowRight className="h-3.5 w-3.5" />
             </Button>
-            <Button size="lg" variant="outline" onClick={handleLogin}>
-              Sign In
-            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogin}>Sign In</Button>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">No credit card required · 5 free AI chats/month</p>
-        </section>
+          <p className="mt-2 text-[11px] text-muted-foreground">No credit card required</p>
 
-        {/* ── Features ────────────────────────────────────────────────── */}
-        <section id="features" className="container mx-auto px-4 py-16">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight">Everything you need to grow</h2>
-            <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
-              One platform for AI chatbots, ad campaigns, landing pages, nurture sequences,
-              scheduling, and analytics.
-            </p>
-          </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="group rounded-2xl border bg-card p-6 transition hover:shadow-md hover:border-amber-200">
-                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition">
-                  <f.icon className="h-5 w-5" />
+          {/* Mini flow diagram */}
+          <div className="mt-8 flex items-center justify-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground overflow-x-auto">
+            {[
+              { icon: Users, label: "Lead captured" },
+              { icon: Bot, label: "AI qualifies" },
+              { icon: Mail, label: "Nurture sent" },
+              { icon: CalendarClock, label: "Meeting booked" },
+              { icon: TrendingUp, label: "Deal closed" },
+            ].map((step, i) => (
+              <div key={step.label} className="flex items-center gap-1 sm:gap-2">
+                {i > 0 && <span className="text-amber-400">→</span>}
+                <div className="flex items-center gap-1 rounded-full border px-2 py-1">
+                  <step.icon className="h-3 w-3 text-amber-500" />
+                  <span className="whitespace-nowrap">{step.label}</span>
                 </div>
-                <h3 className="font-semibold mb-1.5">{f.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ── Integrations ────────────────────────────────────────────── */}
-        <section id="integrations" className="border-y bg-muted/30 py-16">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold tracking-tight">Connects with your stack</h2>
-              <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
-                MarketFlow integrates with the platforms you already use — ad networks, calendars,
-                messaging channels, payment gateways, and AI models.
+        {/* Features — 2-col on mobile, 3-col on md, 4-col on lg */}
+        <section id="features" className="mx-auto max-w-6xl px-4 py-10">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold tracking-tight">Everything you need to grow</h2>
+            <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+              One platform for chatbots, campaigns, funnels, nurture, scheduling, and analytics.
+            </p>
+          </div>
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="group rounded-xl border p-4 transition hover:shadow-sm hover:border-amber-200">
+                <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition">
+                  <f.icon className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-semibold leading-tight">{f.title}</h3>
+                <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed line-clamp-3">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Integrations — Lucide icons, no external CDN */}
+        <section id="integrations" className="border-y bg-muted/30 py-10">
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold tracking-tight">Connects with your stack</h2>
+              <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+                Ad networks, calendars, messaging, payments, and AI models — all in one place.
               </p>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 max-w-3xl mx-auto">
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 max-w-2xl mx-auto">
               {INTEGRATIONS.map((int_) => (
-                <div key={int_.name} className="flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition hover:shadow-sm">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`https://cdn.simpleicons.org/${int_.icon}/${int_.color}`}
-                    alt={int_.name}
-                    className="h-7 w-7"
-                    loading="lazy"
-                  />
-                  <span className="text-[11px] text-muted-foreground leading-tight">{int_.name}</span>
+                <div key={int_.name} className="flex flex-col items-center gap-1.5 rounded-lg border bg-card p-3 text-center transition hover:shadow-sm">
+                  <int_.icon className="h-5 w-5" style={{ color: int_.color }} />
+                  <span className="text-[10px] text-muted-foreground leading-tight">{int_.name}</span>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ── How it works ────────────────────────────────────────────── */}
-        <section className="container mx-auto px-4 py-16">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight">How it works</h2>
-          </div>
-          <div className="grid gap-8 md:grid-cols-3 max-w-4xl mx-auto">
+        {/* How it works — compact 3-step */}
+        <section className="mx-auto max-w-6xl px-4 py-10">
+          <h2 className="text-2xl font-bold tracking-tight text-center mb-8">How it works</h2>
+          <div className="grid gap-6 sm:grid-cols-3 max-w-3xl mx-auto">
             {[
-              { step: "1", title: "Connect", desc: "Link your ad accounts, calendar, and payment wallet. MarketFlow handles the rest." },
-              { step: "2", title: "Tell the AI what you need", desc: "\"Set up a Meta lead ads campaign for C9\" — the AI checks your integrations, builds the funnel, and calculates costs." },
-              { step: "3", title: "Watch it run", desc: "Leads come in, nurture sequences fire, meetings get booked, and your dashboard shows real-time ROI." },
+              { step: "1", title: "Connect", desc: "Link your ad accounts, calendar, and wallet. MarketFlow handles the rest." },
+              { step: "2", title: "Tell the AI", desc: "\"Set up a Meta campaign for C9\" — AI checks integrations, calculates costs, builds everything." },
+              { step: "3", title: "Watch it run", desc: "Leads flow in, nurture fires, meetings book, dashboard shows ROI in real-time." },
             ].map((s) => (
               <div key={s.step} className="text-center">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-lg font-bold">
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 font-bold">
                   {s.step}
                 </div>
-                <h3 className="font-semibold mb-2">{s.title}</h3>
-                <p className="text-sm text-muted-foreground">{s.desc}</p>
+                <h3 className="font-semibold text-sm mb-1">{s.title}</h3>
+                <p className="text-xs text-muted-foreground">{s.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ── Pricing ─────────────────────────────────────────────────── */}
-        <section id="pricing" className="border-t bg-muted/30 py-16">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold tracking-tight">Simple, transparent pricing</h2>
-              <p className="mt-3 text-muted-foreground">Start free. Upgrade when you&apos;re ready.</p>
+        {/* Pricing — compact */}
+        <section id="pricing" className="border-t bg-muted/30 py-10">
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold tracking-tight">Simple pricing</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Start free. Scale as you grow.</p>
             </div>
-            <div className="grid gap-6 md:grid-cols-3 max-w-4xl mx-auto">
+            <div className="grid gap-4 sm:grid-cols-3 max-w-3xl mx-auto">
               {PLANS.map((plan) => (
                 <div
                   key={plan.name}
-                  className={`rounded-2xl border p-6 ${plan.featured ? "border-amber-400 shadow-lg ring-1 ring-amber-200" : "bg-card"}`}
+                  className={`rounded-xl border p-5 ${plan.featured ? "border-amber-400 shadow-md ring-1 ring-amber-100" : "bg-card"}`}
                 >
                   {plan.featured && (
-                    <span className="mb-3 inline-block rounded-full bg-amber-100 px-3 py-0.5 text-xs font-medium text-amber-700">
-                      Most popular
+                    <span className="mb-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                      Popular
                     </span>
                   )}
-                  <h3 className="text-lg font-bold">{plan.name}</h3>
-                  <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-3xl font-bold">{plan.price}</span>
-                    {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
+                  <h3 className="font-bold">{plan.name}</h3>
+                  <div className="mt-1 flex items-baseline gap-1">
+                    <span className="text-2xl font-bold">{plan.price}</span>
+                    {plan.period && <span className="text-xs text-muted-foreground">{plan.period}</span>}
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">{plan.desc}</p>
-                  <ul className="mt-6 space-y-2.5">
+                  <p className="mt-1 text-xs text-muted-foreground">{plan.desc}</p>
+                  <ul className="mt-4 space-y-1.5">
                     {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-sm">
-                        <Check className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                      <li key={f} className="flex items-start gap-1.5 text-xs">
+                        <Check className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
                         {f}
                       </li>
                     ))}
                   </ul>
                   <Button
-                    className={`mt-6 w-full ${plan.featured ? "bg-amber-400 hover:bg-amber-500 text-black" : ""}`}
+                    className={`mt-4 w-full text-xs ${plan.featured ? "bg-amber-400 hover:bg-amber-500 text-black" : ""}`}
                     variant={plan.featured ? "default" : "outline"}
+                    size="sm"
                     onClick={handleSignup}
                   >
                     {plan.cta}
@@ -223,28 +233,25 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── CTA ─────────────────────────────────────────────────────── */}
-        <section className="container mx-auto px-4 py-20 text-center">
-          <h2 className="text-3xl font-bold tracking-tight mb-4">
-            Ready to automate your marketing?
-          </h2>
-          <p className="text-muted-foreground max-w-lg mx-auto mb-8">
-            Join businesses using MarketFlow to capture leads, run campaigns, and close
-            deals — all powered by AI.
+        {/* CTA */}
+        <section className="mx-auto max-w-6xl px-4 py-12 text-center">
+          <h2 className="text-2xl font-bold tracking-tight mb-3">Ready to automate your marketing?</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto mb-5">
+            Join businesses using MarketFlow to capture leads, run campaigns, and close deals — powered by AI.
           </p>
-          <Button size="lg" onClick={handleSignup} className="gap-2 bg-amber-400 hover:bg-amber-500 text-black font-medium px-8">
-            Get Started Free <ArrowRight className="h-4 w-4" />
+          <Button onClick={handleSignup} className="gap-2 bg-amber-400 hover:bg-amber-500 text-black font-medium px-6">
+            Get Started Free <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </section>
       </main>
 
-      <footer className="border-t py-8">
-        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded flex items-center justify-center text-black font-bold text-[10px] bg-amber-400">M</div>
-            <span className="text-sm font-semibold">MarketFlow</span>
+      <footer className="border-t py-4">
+        <div className="mx-auto max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <div className="h-5 w-5 rounded flex items-center justify-center text-black font-bold text-[8px] bg-amber-400">M</div>
+            <span className="text-xs font-semibold">MarketFlow</span>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[10px] text-muted-foreground">
             &copy; {new Date().getFullYear()} Codevertex Africa Ltd. All rights reserved.
           </p>
         </div>
@@ -254,33 +261,33 @@ export default function LandingPage() {
 }
 
 const FEATURES = [
-  { icon: Bot, title: "AI Chatbot", desc: "Answer product questions, handle objections, and qualify leads 24/7 with RAG-powered AI that knows your entire catalog." },
-  { icon: Megaphone, title: "Ad Campaign Automation", desc: "Launch Meta, Google, TikTok, and LinkedIn ad campaigns from a single prompt. The AI builds your funnel, sets targeting, and goes live." },
-  { icon: Users, title: "Lead Capture & CRM", desc: "Every interaction — ad click, chat message, form submit — becomes a lead. Filter, segment, and export with one click." },
-  { icon: Mail, title: "Nurture Sequences", desc: "Automated multi-channel follow-ups: email, SMS, WhatsApp. Templates with dynamic variables personalised per lead." },
-  { icon: CalendarClock, title: "Meeting Scheduling", desc: "Cal.com + Google Calendar integration. The AI books meetings directly from chat and syncs to your calendar." },
-  { icon: BarChart3, title: "Campaign Analytics", desc: "Per-campaign impressions, clicks, CTR, CPL. Per-sequence open/click rates. Profile visitor tracking." },
-  { icon: Globe, title: "Public Profile & Funnels", desc: "Shareable /p/{slug} profile pages and /f/{slug} landing funnels with product links, WhatsApp, and Cal.com booking." },
-  { icon: Target, title: "Conversion Tracking", desc: "Meta CAPI + Google Ads offline conversions uploaded automatically. Attribute every sale back to the campaign that drove it." },
-  { icon: Shield, title: "Compliance Built-in", desc: "FDA disclaimer injection, approved language substitution, and income-claim guardrails — every AI response is filtered before delivery." },
-  { icon: Smartphone, title: "Embeddable Widget", desc: "Drop a single <script> tag on any website. The chat widget runs in Shadow DOM — no style conflicts, works everywhere." },
-  { icon: Zap, title: "Multi-Provider AI", desc: "Groq, OpenAI, Anthropic, Ollama. Google Custom Search + Tavily for live web data. Switch models from the admin panel." },
-  { icon: MessageSquare, title: "WhatsApp Deep Links", desc: "Every profile, funnel, and chat response includes wa.me links with pre-filled messages so leads can reach you instantly." },
+  { icon: Bot, title: "AI Chatbot", desc: "Answer product questions 24/7 with RAG-powered AI that knows your catalog." },
+  { icon: Megaphone, title: "Ad Automation", desc: "Launch Meta, Google, TikTok campaigns from a single prompt." },
+  { icon: Users, title: "Lead CRM", desc: "Every interaction becomes a lead. Filter, segment, export." },
+  { icon: Mail, title: "Nurture Sequences", desc: "Multi-channel follow-ups: email, SMS, WhatsApp with dynamic variables." },
+  { icon: CalendarClock, title: "Scheduling", desc: "Cal.com + Google Calendar. AI books meetings from chat." },
+  { icon: BarChart3, title: "Analytics", desc: "Campaign CTR, CPL. Sequence open rates. Visitor tracking." },
+  { icon: Globe, title: "Profiles & Funnels", desc: "Public /p/{slug} profiles and /f/{slug} landing pages." },
+  { icon: Target, title: "Conversion Tracking", desc: "Meta CAPI + Google Ads offline conversions auto-uploaded." },
+  { icon: Shield, title: "Compliance", desc: "FDA disclaimers, approved language, income guardrails built in." },
+  { icon: Smartphone, title: "Chat Widget", desc: "Single <script> tag. Shadow DOM. Works on any site." },
+  { icon: Zap, title: "Multi-Provider AI", desc: "Groq, OpenAI, Claude, Ollama. Switch from the admin panel." },
+  { icon: MessageSquare, title: "WhatsApp Links", desc: "wa.me deep links in every profile, funnel, and chat response." },
 ];
 
 const INTEGRATIONS = [
-  { name: "Meta", icon: "meta", color: "0866FF" },
-  { name: "Google Ads", icon: "googleads", color: "4285F4" },
-  { name: "TikTok", icon: "tiktok", color: "000000" },
-  { name: "LinkedIn", icon: "linkedin", color: "0A66C2" },
-  { name: "WhatsApp", icon: "whatsapp", color: "25D366" },
-  { name: "Google Calendar", icon: "googlecalendar", color: "4285F4" },
-  { name: "Cal.com", icon: "caldotcom", color: "111827" },
-  { name: "Groq", icon: "groq", color: "F55036" },
-  { name: "OpenAI", icon: "openai", color: "412991" },
-  { name: "Anthropic", icon: "anthropic", color: "191919" },
-  { name: "Ollama", icon: "ollama", color: "000000" },
-  { name: "Paystack", icon: "paystack", color: "00C3F7" },
+  { name: "Meta", icon: Facebook, color: "#0866FF" },
+  { name: "Google Ads", icon: Chrome, color: "#4285F4" },
+  { name: "TikTok", icon: Music2, color: "#000000" },
+  { name: "LinkedIn", icon: Linkedin, color: "#0A66C2" },
+  { name: "WhatsApp", icon: MessageSquare, color: "#25D366" },
+  { name: "Calendar", icon: Calendar, color: "#4285F4" },
+  { name: "Cal.com", icon: CalendarClock, color: "#111827" },
+  { name: "Groq", icon: Zap, color: "#F55036" },
+  { name: "OpenAI", icon: Brain, color: "#412991" },
+  { name: "Claude", icon: Bot, color: "#D97706" },
+  { name: "Paystack", icon: Wallet, color: "#00C3F7" },
+  { name: "M-Pesa", icon: Smartphone, color: "#4CAF50" },
 ];
 
 const PLANS = [
@@ -288,52 +295,27 @@ const PLANS = [
     name: "Starter",
     price: "Free",
     period: "",
-    desc: "For individuals exploring AI marketing.",
+    desc: "Explore AI marketing.",
     featured: false,
     cta: "Start Free",
-    features: [
-      "1 active campaign",
-      "100 leads/month",
-      "5 AI chats/month",
-      "Public profile page",
-      "Embeddable chat widget",
-      "Email nurture sequences",
-    ],
+    features: ["1 campaign", "100 leads/mo", "5 AI chats/mo", "Profile page", "Chat widget", "Email nurture"],
   },
   {
     name: "Growth",
     price: "KES 3,500",
-    period: "/month",
-    desc: "For active marketers scaling their pipeline.",
+    period: "/mo",
+    desc: "Scale your pipeline.",
     featured: true,
-    cta: "Start Growth Trial",
-    features: [
-      "5 active campaigns",
-      "1,000 leads/month",
-      "100 AI chats/month",
-      "Ad campaign automation",
-      "Google Ads + Meta CAPI",
-      "WhatsApp + SMS nurture",
-      "Campaign analytics",
-      "Priority support",
-    ],
+    cta: "Start Growth",
+    features: ["5 campaigns", "1,000 leads/mo", "100 AI chats/mo", "Ad automation", "Google Ads + Meta CAPI", "WhatsApp + SMS", "Analytics", "Priority support"],
   },
   {
     name: "Pro",
     price: "KES 8,500",
-    period: "/month",
-    desc: "For teams and agencies managing multiple brands.",
+    period: "/mo",
+    desc: "For teams & agencies.",
     featured: false,
-    cta: "Start Pro Trial",
-    features: [
-      "Unlimited campaigns",
-      "Unlimited leads",
-      "500 AI chats/month",
-      "All Growth features",
-      "Multi-brand management",
-      "Custom AI training",
-      "Dedicated account manager",
-      "API access",
-    ],
+    cta: "Start Pro",
+    features: ["Unlimited campaigns", "Unlimited leads", "500 AI chats/mo", "All Growth features", "Multi-brand", "Custom AI training", "API access"],
   },
 ];
