@@ -127,10 +127,10 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
           </section>
         )}
 
-        {/* ═══ MY FOREVER STORY (video + text) ═══ */}
+        {/* ═══ THE FOREVER STORY (video + text) ═══ */}
         {isFLP && (
           <section className="py-8 border-t">
-            <h2 className="text-xl font-bold text-center">My Forever Story</h2>
+            <h2 className="text-xl font-bold text-center">The Forever Story</h2>
             <div className="mt-5 grid gap-5 sm:grid-cols-2 items-center">
               <div className="aspect-video rounded-xl overflow-hidden shadow-md">
                 <iframe src={videoUrl} className="w-full h-full" allow="autoplay; fullscreen; encrypted-media" loading="lazy" title="Forever Story" />
@@ -158,8 +158,12 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                   Ready to learn more? Book a free, no-obligation one-on-one with me. I&apos;ll walk you through the products, the opportunity, and how to get started.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  {booking ? (
+                    <a href="#booking" className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-amber-600 transition">📅 Book a Call</a>
+                  ) : wa ? (
+                    <a href={`https://wa.me/${waD}?text=${encodeURIComponent(`Hi ${name}, I'd like to book a one-on-one meeting with you!`)}`} target="_blank" rel="noreferrer" className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-amber-600 transition">📅 Book a Meeting</a>
+                  ) : null}
                   {wa && <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-[#25D366] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#1DA851] transition">💬 WhatsApp</a>}
-                  {booking && <a href="#booking" className="rounded-full border px-4 py-1.5 text-xs font-medium hover:bg-gray-50 transition">📅 Book a Call</a>}
                 </div>
               </div>
             </div>

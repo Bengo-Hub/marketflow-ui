@@ -1,13 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CreditCard, Wallet, Zap, TrendingUp, ArrowUpRight, Info } from "lucide-react";
+import { CreditCard, Wallet, Zap, TrendingUp, ArrowUpRight, Info, X } from "lucide-react";
 
+const TREASURY_UI_URL = process.env.NEXT_PUBLIC_TREASURY_UI_URL || "https://books.codevertexitsolutions.com";
 const TREASURY_URL = process.env.NEXT_PUBLIC_TREASURY_URL || "https://booksapi.codevertexitsolutions.com";
 const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://subscriptionsapi.codevertexitsolutions.com";
 
@@ -39,6 +41,10 @@ const PLAN_LIMITS: Record<string, { leads: string; chats: string; campaigns: str
 };
 
 export default function BillingPage() {
+  const qc = useQueryClient();
+  const [topUpOpen, setTopUpOpen] = useState(false);
+  const [topUpState, setTopUpState] = useState<"loading" | "checkout" | "confirmed" | "failed">("loading");
+
   const { data: subscription, isLoading: subLoading } = useQuery<Subscription>({
     queryKey: ["subscription"],
     queryFn: async () => {
@@ -80,20 +86,31 @@ export default function BillingPage() {
   const planLabel = plan === "STARTER" ? "Starter (Free)" : plan === "GROWTH" ? "Growth" : plan === "PRO" ? "Pro" : plan;
 
   const openTopUp = () => {
+    setTopUpState("loading");
+    setTopUpOpen(true);
+  };
+
+  const handleTopUpConfirmed = useCallback(() => {
+    setTopUpState("confirmed");
+    qc.invalidateQueries({ queryKey: ["wallet"] });
+    setTimeout(() => setTopUpOpen(false), 2000);
+  }, [qc]);
+
+  const openUpgrade = () => {
+    window.open(`${SUBSCRIPTIONS_URL}/plans`, "_blank");
+  };
+
+  const topUpIframeSrc = (() => {
     const params = new URLSearchParams({
-      embed: "false",
+      embed: "true",
       currency: "KES",
       reference_type: "wallet_topup",
       source_service: "marketflow",
       description: "MarketFlow wallet top-up",
       gateways: "paystack,mpesa",
     });
-    window.open(`${TREASURY_URL}/pay?${params}`, "_blank");
-  };
-
-  const openUpgrade = () => {
-    window.open(`${SUBSCRIPTIONS_URL}/plans`, "_blank");
-  };
+    return `${TREASURY_UI_URL}/pay?${params}`;
+  })();
 
   return (
     <div className="space-y-6">
@@ -202,6 +219,82 @@ export default function BillingPage() {
           </p>
         </CardContent>
       </Card>
+
+      {topUpOpen && (
+        <TopUpModal
+          src={topUpIframeSrc}
+          state={topUpState}
+          onConfirmed={handleTopUpConfirmed}
+          onClose={() => setTopUpOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function TopUpModal({
+  src,
+  state,
+  onConfirmed,
+  onClose,
+}: {
+  src: string;
+  state: string;
+  onConfirmed: () => void;
+  onClose: () => void;
+}) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (!e.data || typeof e.data !== "object") return;
+      switch (e.data.type) {
+        case "treasury:payment_confirmed":
+          onConfirmed();
+          break;
+        case "treasury:payment_failed":
+          break;
+        case "treasury:resize":
+          if (iframeRef.current && e.data.height) {
+            iframeRef.current.style.height = `${e.data.height}px`;
+          }
+          break;
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onConfirmed]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="relative w-full max-w-lg rounded-xl border bg-card shadow-xl mx-4">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <h2 className="text-base font-semibold">
+            {state === "confirmed" ? "Payment Confirmed" : "Top Up Wallet"}
+          </h2>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-muted">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {state === "confirmed" ? (
+          <div className="p-8 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-sm text-muted-foreground">Your wallet has been topped up successfully.</p>
+          </div>
+        ) : (
+          <iframe
+            ref={iframeRef}
+            src={src}
+            className="w-full border-0"
+            style={{ minHeight: 480 }}
+            title="Top up wallet"
+          />
+        )}
+      </div>
     </div>
   );
 }

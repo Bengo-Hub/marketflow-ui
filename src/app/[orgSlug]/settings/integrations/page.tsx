@@ -30,6 +30,17 @@ export default function IntegrationsPage() {
     refetchInterval: 30_000,
   });
 
+  const { data: availableData } = useQuery({
+    queryKey: ["integrations-available"],
+    queryFn: async () => {
+      const r = await apiClient.get<{ available: string[] }>(`/api/v1/integrations/available`);
+      return r.data;
+    },
+    staleTime: 60_000,
+  });
+
+  const availableTypes = new Set(availableData?.available ?? []);
+
   const connect = useMutation({
     mutationFn: async (providerType: string) => {
       // Strip trailing "_ads" / "_calendar" — backend only knows google/meta/tiktok/etc.
@@ -73,7 +84,7 @@ export default function IntegrationsPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        {tenantIntegrations.map((it) => {
+        {tenantIntegrations.filter((it) => availableTypes.has(it.requiresPlatformConfig)).map((it) => {
           const existing = rowFor(it.id);
           const connected = !!existing?.connected;
           return (

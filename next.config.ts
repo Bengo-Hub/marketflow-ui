@@ -21,6 +21,7 @@ const pwaConfig = withPWA({
   disable: process.env.NODE_ENV === "development",
   workboxOptions: {
     disableDevLogs: true,
+    skipWaiting: false,
     runtimeCaching: [
       {
         urlPattern: /^https?.*/,
