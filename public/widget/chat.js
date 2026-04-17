@@ -48,7 +48,7 @@
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .panel{position:absolute;bottom:68px;right:0;width:370px;max-height:560px;background:#fff;border-radius:16px;
   box-shadow:0 10px 40px rgba(0,0,0,.2);display:none;flex-direction:column;overflow:hidden}
-@media(max-width:420px){.panel{position:fixed;inset:0;width:100%;max-height:100%;border-radius:0;bottom:0;right:0}}
+@media(max-width:420px){.panel{position:fixed;left:8px;right:8px;bottom:72px;top:auto;width:auto;max-height:60vh;border-radius:14px}}
 .panel.open{display:flex}
 .hdr{background:${brandColor};color:#fff;padding:14px 16px;font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
 .hdr .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;flex-shrink:0}
