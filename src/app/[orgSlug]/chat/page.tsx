@@ -57,10 +57,18 @@ export default function ChatPage() {
     setThinkingPhase(null);
   };
 
+  const sendMessageDirect = useCallback((text: string) => {
+    if (!text.trim() || isStreaming) return;
+    doSend(text.trim());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStreaming]);
+
   const sendMessage = async () => {
     if (!input.trim() || isStreaming) return;
+    doSend(input.trim());
+  };
 
-    const question = input.trim();
+  const doSend = async (question: string) => {
     setInput("");
 
     const userMsg: Message = { id: genId(), role: "user", content: question };
@@ -197,7 +205,9 @@ export default function ChatPage() {
       <Card className="flex-1 flex flex-col overflow-hidden border-0 shadow-md">
         {/* Messages area */}
         <CardContent className="flex-1 overflow-y-auto p-4 space-y-1">
-          {messages.length === 0 && <EmptyState />}
+          {messages.length === 0 && (
+            <EmptyState onSelect={(q) => { setInput(q); setTimeout(() => { setInput(q); sendMessageDirect(q); }, 50); }} />
+          )}
 
           {messages.map((msg) => (
             <ChatBubble key={msg.id} message={msg} />
@@ -251,7 +261,16 @@ export default function ChatPage() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ onSelect }: { onSelect: (q: string) => void }) {
+  const suggestions = [
+    "What is Forever Aloe Vera Gel?",
+    "Tell me about the C9 program",
+    "How does the business opportunity work?",
+    "Create a Google ad for Argi+",
+    "Set up a Meta lead ads campaign for C9",
+    "Generate my product shop link",
+  ];
+
   return (
     <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
       <div className="rounded-full bg-amber-50 p-4">
@@ -267,15 +286,11 @@ function EmptyState() {
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2 mt-2">
-        {[
-          "What is Forever Aloe Vera Gel?",
-          "Tell me about the C9 program",
-          "How does the business opportunity work?",
-          "Create a Google ad for Argi+",
-        ].map((q) => (
+        {suggestions.map((q) => (
           <button
             key={q}
-            className="rounded-full border px-3 py-1.5 text-xs hover:bg-muted transition"
+            onClick={() => onSelect(q)}
+            className="rounded-full border px-3 py-1.5 text-xs hover:bg-muted hover:border-amber-400 transition cursor-pointer"
           >
             {q}
           </button>
