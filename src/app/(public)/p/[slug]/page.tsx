@@ -51,8 +51,12 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
   const recruitLink = did ? `https://join.foreverliving.com/marketing/joinnow/applicationForm.do?action=display&store=${store}&distribID=${did}&menuoff=n&langID=${lang}` : "";
   const waDigits = (profile.whatsapp_number || "").replace(/[^0-9]/g, "");
   const waLink = waDigits ? `https://wa.me/${waDigits}?text=${encodeURIComponent(`Hi ${name}, I'm interested in learning more!`)}` : "";
-  const calcomUser = m.calcom_username;
-  const calcomEvent = m.calcom_event ?? "15min";
+  // Booking: prefer Google Calendar link, fallback to Cal.com
+  const googleCalLink = m.google_calendar_link as string | undefined;
+  const calcomUser = m.calcom_username as string | undefined;
+  const calcomEvent = (m.calcom_event as string) ?? "15min";
+  const bookingUrl = googleCalLink || (calcomUser ? `https://calendar.codevertexitsolutions.com/${calcomUser}/${calcomEvent}` : "");
+  const hasBooking = !!bookingUrl;
 
   return (
     <div className="min-h-screen bg-white">
@@ -237,8 +241,8 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
                       💬 WhatsApp Me
                     </a>
                   )}
-                  {calcomUser && (
-                    <a href={`#booking`}
+                  {hasBooking && (
+                    <a href="#booking"
                       className="inline-flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-medium hover:bg-gray-50 transition">
                       📅 Book a Call
                     </a>
@@ -298,15 +302,15 @@ export default async function FBOProfilePage({ params }: { params: Promise<{ slu
           </section>
         )}
 
-        {/* ══════ CAL.COM BOOKING ══════ */}
-        {calcomUser && (
+        {/* ══════ BOOKING (Google Calendar preferred, Cal.com fallback) ══════ */}
+        {hasBooking && (
           <section id="booking" className="py-8 border-t">
             <div className="overflow-hidden rounded-2xl border shadow-sm">
               <div className="border-b px-5 py-3" style={{ background: `${brandColor}15` }}>
                 <h2 className="text-lg font-bold">Book a Free Call with {name}</h2>
                 <p className="text-xs text-gray-500">15-minute intro — no obligation, just conversation.</p>
               </div>
-              <iframe src={`https://calendar.codevertexitsolutions.com/${calcomUser}/${calcomEvent}`}
+              <iframe src={bookingUrl}
                 className="h-[560px] w-full" title="Book a meeting" loading="lazy" />
             </div>
           </section>
