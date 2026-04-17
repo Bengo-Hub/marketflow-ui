@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BarChart3, Users, CheckCircle, Activity, TrendingUp } from "lucide-react";
 
 type Step = {
   delay_hours: number;
@@ -39,6 +40,23 @@ type Sequence = {
   updated_at: string;
 };
 
+type SequenceAnalytics = {
+  total_enrolled: number;
+  total_completed: number;
+  active_enrollments: number;
+  completion_rate: number;
+  enrollments_by_status?: Record<string, number>;
+};
+
+type Enrollment = {
+  id: string;
+  lead_id: string;
+  lead_name?: string;
+  status: string;
+  current_step: number;
+  enrolled_at: string;
+};
+
 const TRIGGERS = [
   { value: "lead.created", label: "New lead" },
   { value: "lead.qualified", label: "Lead qualified" },
@@ -46,10 +64,43 @@ const TRIGGERS = [
   { value: "order.placed", label: "Order placed (reorder)" },
 ];
 
+function useSequenceAnalytics(sequenceId: string | null) {
+  return useQuery<SequenceAnalytics | null>({
+    queryKey: ["sequence-analytics", sequenceId],
+    queryFn: async () => {
+      if (!sequenceId) return null;
+      try {
+        const r = await apiClient.get<{ data: SequenceAnalytics }>(
+          `/api/v1/sequences/${sequenceId}/analytics`,
+        );
+        return r.data.data ?? r.data;
+      } catch {
+        // Endpoint not available yet — return null so we fall back to inline fields
+        return null;
+      }
+    },
+    enabled: !!sequenceId,
+  });
+}
+
+/** Compute analytics from the sequence's own fields if the analytics endpoint is not available */
+function getInlineAnalytics(s: Sequence): SequenceAnalytics {
+  const active = Math.max(0, s.total_enrolled - s.total_completed);
+  const rate = s.total_enrolled > 0 ? (s.total_completed / s.total_enrolled) * 100 : 0;
+  return {
+    total_enrolled: s.total_enrolled,
+    total_completed: s.total_completed,
+    active_enrollments: active,
+    completion_rate: Math.round(rate * 10) / 10,
+  };
+}
+
 export default function SequencesPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Sequence | null>(null);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
+  const [detailsName, setDetailsName] = useState<string>("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["sequences"],
@@ -57,6 +108,24 @@ export default function SequencesPage() {
       const r = await apiClient.get<{ data: Sequence[] }>(`/api/v1/sequences?limit=100`);
       return r.data;
     },
+  });
+
+  const { data: detailAnalytics } = useSequenceAnalytics(detailsId);
+
+  const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
+    queryKey: ["sequence-enrollments", detailsId],
+    queryFn: async () => {
+      if (!detailsId) return null;
+      try {
+        const r = await apiClient.get<{ data: Enrollment[] }>(
+          `/api/v1/sequences/${detailsId}/enrollments?limit=50`,
+        );
+        return r.data.data ?? [];
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!detailsId,
   });
 
   const save = useMutation({
@@ -113,75 +182,188 @@ export default function SequencesPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Trigger</TableHead>
                 <TableHead>Steps</TableHead>
-                <TableHead>Enrolled</TableHead>
-                <TableHead>Completed</TableHead>
+                <TableHead>Analytics</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-40"></TableHead>
+                <TableHead className="w-48"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 6 }).map((_, j) => (
                       <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : data?.data?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     No sequences yet. Create one to start automating follow-up.
                   </TableCell>
                 </TableRow>
               ) : (
-                data?.data.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{s.trigger_event}</Badge>
-                    </TableCell>
-                    <TableCell>{s.steps?.length ?? 0}</TableCell>
-                    <TableCell>{s.total_enrolled}</TableCell>
-                    <TableCell>{s.total_completed}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          s.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {s.active ? "active" : "paused"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setEditing(s);
-                            setOpen(true);
-                          }}
+                data?.data.map((s) => {
+                  const analytics = getInlineAnalytics(s);
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">{s.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{s.trigger_event}</Badge>
+                      </TableCell>
+                      <TableCell>{s.steps?.length ?? 0}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1.5">
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <Users className="h-3 w-3" />
+                            {analytics.total_enrolled}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            {analytics.total_completed}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <Activity className="h-3 w-3" />
+                            {analytics.active_enrollments}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            {analytics.completion_rate}%
+                          </Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            s.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
+                          }`}
                         >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggle.mutate(s)}
-                        >
-                          {s.active ? "Pause" : "Resume"}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          {s.active ? "active" : "paused"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setDetailsId(s.id);
+                              setDetailsName(s.name);
+                            }}
+                          >
+                            <BarChart3 className="mr-1 h-3 w-3" />
+                            Details
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditing(s);
+                              setOpen(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toggle.mutate(s)}
+                          >
+                            {s.active ? "Pause" : "Resume"}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
+      {/* Sequence Detail / Enrollments Dialog */}
+      <Dialog open={!!detailsId} onOpenChange={(o) => { if (!o) setDetailsId(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Sequence Details: {detailsName}</DialogTitle>
+          </DialogHeader>
+
+          {/* Analytics Summary */}
+          {detailsId && (() => {
+            const seq = data?.data?.find((s) => s.id === detailsId);
+            const a = detailAnalytics ?? (seq ? getInlineAnalytics(seq) : null);
+            if (!a) return <Skeleton className="h-20" />;
+            return (
+              <div className="grid grid-cols-4 gap-3">
+                <StatBadge icon={<Users className="h-4 w-4" />} label="Enrolled" value={a.total_enrolled} />
+                <StatBadge icon={<CheckCircle className="h-4 w-4" />} label="Completed" value={a.total_completed} />
+                <StatBadge icon={<Activity className="h-4 w-4" />} label="Active" value={a.active_enrollments} />
+                <StatBadge icon={<TrendingUp className="h-4 w-4" />} label="Rate" value={`${a.completion_rate}%`} />
+              </div>
+            );
+          })()}
+
+          {/* Enrollments by Status */}
+          {detailAnalytics?.enrollments_by_status && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Enrollments by Status</h3>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(detailAnalytics.enrollments_by_status).map(([status, count]) => (
+                  <Badge key={status} variant="outline" className="text-xs">
+                    {status}: {count}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Enrollment List */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Recent Enrollments</h3>
+            {enrollmentsLoading ? (
+              <Skeleton className="h-24" />
+            ) : (enrollments ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No enrollments found for this sequence.
+              </p>
+            ) : (
+              <div className="max-h-60 overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Lead</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Step</TableHead>
+                      <TableHead>Enrolled</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(enrollments ?? []).map((e) => (
+                      <TableRow key={e.id}>
+                        <TableCell className="text-sm">{e.lead_name || e.lead_id}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">{e.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{e.current_step}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(e.enrolled_at).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsId(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create/Edit Sequence Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -342,7 +524,7 @@ export default function SequencesPage() {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? "Saving…" : editing.id ? "Update" : "Create"}
+                  {save.isPending ? "Saving..." : editing.id ? "Update" : "Create"}
                 </Button>
               </DialogFooter>
             </form>
@@ -359,5 +541,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1 block font-medium text-muted-foreground">{label}</span>
       {children}
     </label>
+  );
+}
+
+function StatBadge({ icon, label, value }: { icon: React.ReactNode; label: string; value: number | string }) {
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3 text-center">
+      <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+        {icon}
+        <span className="text-xs">{label}</span>
+      </div>
+      <div className="text-lg font-semibold">{value}</div>
+    </div>
   );
 }

@@ -1,13 +1,28 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DollarSign, Settings, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DollarSign, Pencil, Settings, Users } from "lucide-react";
+import { toast } from "sonner";
 
 const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://subscriptionsapi.codevertexitsolutions.com";
+const MARKETFLOW_API_URL = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexitsolutions.com";
 
 type ServiceChargePlan = {
   id: string;
@@ -34,7 +49,39 @@ type Plan = {
   tier_limits?: Record<string, any>;
 };
 
+type Tenant = {
+  id: string;
+  name: string;
+  slug: string;
+  plan_code?: string;
+  plan_name?: string;
+};
+
+type EditChargeForm = {
+  charge_value: number;
+  min_charge: number | undefined;
+  max_charge: number | undefined;
+  is_active: boolean;
+};
+
 export default function PlatformBillingPage() {
+  const qc = useQueryClient();
+
+  // ---- State for inline editing of service charge plans ----
+  const [editingCharge, setEditingCharge] = useState<ServiceChargePlan | null>(null);
+  const [chargeForm, setChargeForm] = useState<EditChargeForm>({
+    charge_value: 0,
+    min_charge: undefined,
+    max_charge: undefined,
+    is_active: true,
+  });
+
+  // ---- State for tenant plan override ----
+  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+
+  // ---- Queries ----
   const { data: chargePlans, isLoading: chargesLoading } = useQuery<ServiceChargePlan[]>({
     queryKey: ["service-charge-plans"],
     queryFn: async () => {
@@ -60,6 +107,85 @@ export default function PlatformBillingPage() {
       }
     },
   });
+
+  const { data: tenants, isLoading: tenantsLoading } = useQuery<Tenant[]>({
+    queryKey: ["admin-tenants"],
+    queryFn: async () => {
+      try {
+        const r = await apiClient.get<{ data: Tenant[] }>(`${MARKETFLOW_API_URL}/api/v1/admin/tenants`);
+        return r.data.data ?? [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // ---- Mutations ----
+  const updateCharge = useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: Partial<ServiceChargePlan> }) => {
+      return apiClient.put(`${SUBSCRIPTIONS_URL}/api/v1/service-charges/plans/${id}`, body);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["service-charge-plans"] });
+      setEditingCharge(null);
+      toast.success("Service charge plan updated");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to update service charge plan");
+    },
+  });
+
+  const overridePlan = useMutation({
+    mutationFn: async ({ tenantId, planId }: { tenantId: string; planId: string }) => {
+      return apiClient.put(`${SUBSCRIPTIONS_URL}/api/v1/subscriptions/${tenantId}/plan`, {
+        plan_id: planId,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-tenants"] });
+      setOverrideDialogOpen(false);
+      setSelectedTenantId(null);
+      setSelectedPlanId("");
+      toast.success("Tenant plan overridden successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to override tenant plan");
+    },
+  });
+
+  function openChargeEdit(plan: ServiceChargePlan) {
+    setEditingCharge(plan);
+    setChargeForm({
+      charge_value: plan.charge_value,
+      min_charge: plan.min_charge,
+      max_charge: plan.max_charge,
+      is_active: plan.is_active,
+    });
+  }
+
+  function handleChargeSave() {
+    if (!editingCharge) return;
+    updateCharge.mutate({
+      id: editingCharge.id,
+      body: {
+        charge_value: chargeForm.charge_value,
+        min_charge: chargeForm.min_charge,
+        max_charge: chargeForm.max_charge,
+        is_active: chargeForm.is_active,
+      },
+    });
+  }
+
+  function openOverrideDialog(tenantId: string) {
+    setSelectedTenantId(tenantId);
+    setSelectedPlanId("");
+    setOverrideDialogOpen(true);
+  }
+
+  function handleOverrideSave() {
+    if (!selectedTenantId || !selectedPlanId) return;
+    overridePlan.mutate({ tenantId: selectedTenantId, planId: selectedPlanId });
+  }
 
   return (
     <div className="space-y-8">
@@ -97,9 +223,19 @@ export default function PlatformBillingPage() {
                     <CardTitle className="text-base">{plan.name}</CardTitle>
                     <Badge variant="outline" className="mt-1 text-xs">{plan.code}</Badge>
                   </div>
-                  {plan.is_default && (
-                    <Badge className="bg-green-100 text-green-800 text-xs">Default</Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {plan.is_default && (
+                      <Badge className="bg-green-100 text-green-800 text-xs">Default</Badge>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openChargeEdit(plan)}
+                    >
+                      <Pencil className="mr-1 h-3 w-3" />
+                      Edit
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <p className="text-muted-foreground">{plan.description}</p>
@@ -135,11 +271,88 @@ export default function PlatformBillingPage() {
             ))}
           </div>
         )}
-        <p className="text-xs text-muted-foreground">
-          To edit charge values, update the <code>ServiceChargePlan</code> rows in subscriptions-api
-          or use the subscriptions admin UI. Changes take effect on the next campaign created.
-        </p>
       </section>
+
+      {/* Edit Service Charge Dialog */}
+      <Dialog open={!!editingCharge} onOpenChange={(o) => { if (!o) setEditingCharge(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Service Charge: {editingCharge?.name}</DialogTitle>
+          </DialogHeader>
+          {editingCharge && (
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleChargeSave();
+              }}
+            >
+              <label className="block text-xs">
+                <span className="mb-1 block font-medium text-muted-foreground">
+                  Charge Value {editingCharge.charge_type === "PERCENTAGE" ? "(%)" : "(KES)"}
+                </span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={chargeForm.charge_value}
+                  onChange={(e) => setChargeForm({ ...chargeForm, charge_value: Number(e.target.value) })}
+                  required
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-xs">
+                  <span className="mb-1 block font-medium text-muted-foreground">Min Charge (KES)</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={chargeForm.min_charge ?? ""}
+                    onChange={(e) =>
+                      setChargeForm({
+                        ...chargeForm,
+                        min_charge: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                  />
+                </label>
+                <label className="block text-xs">
+                  <span className="mb-1 block font-medium text-muted-foreground">Max Charge (KES)</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={chargeForm.max_charge ?? ""}
+                    onChange={(e) =>
+                      setChargeForm({
+                        ...chargeForm,
+                        max_charge: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                  />
+                </label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={chargeForm.is_active}
+                  onCheckedChange={(checked) =>
+                    setChargeForm({ ...chargeForm, is_active: Boolean(checked) })
+                  }
+                />
+                <span className="text-sm">{chargeForm.is_active ? "Active" : "Inactive"}</span>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditingCharge(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateCharge.isPending}>
+                  {updateCharge.isPending ? "Saving..." : "Save changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Subscription Plans */}
       <section className="space-y-4">
@@ -180,27 +393,108 @@ export default function PlatformBillingPage() {
         )}
       </section>
 
-      {/* Tenant Overview */}
+      {/* Tenant Subscriptions with Override */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-amber-500" />
           <h2 className="text-lg font-semibold">Tenant Subscriptions</h2>
         </div>
-        <Card>
-          <CardContent className="py-6 text-center text-sm text-muted-foreground">
-            Per-tenant subscription management is available in the{" "}
-            <a
-              href="https://subscriptionsapi.codevertexitsolutions.com/swagger/index.html"
-              target="_blank"
-              rel="noreferrer"
-              className="text-amber-600 underline"
-            >
-              subscriptions-api admin console
-            </a>
-            . Override plans, grant AI credits, or adjust limits per tenant from there.
-          </CardContent>
-        </Card>
+        {tenantsLoading ? (
+          <Skeleton className="h-40 rounded-xl" />
+        ) : (tenants ?? []).length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              No tenants found. Tenants will appear here once they register on the platform.
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tenant</TableHead>
+                    <TableHead>Slug</TableHead>
+                    <TableHead>Current Plan</TableHead>
+                    <TableHead className="w-32"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(tenants ?? []).map((tenant) => (
+                    <TableRow key={tenant.id}>
+                      <TableCell className="font-medium">{tenant.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{tenant.slug}</TableCell>
+                      <TableCell>
+                        {tenant.plan_name || tenant.plan_code ? (
+                          <Badge variant="outline">
+                            {tenant.plan_name || tenant.plan_code}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">No plan assigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openOverrideDialog(tenant.id)}
+                        >
+                          Override
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </section>
+
+      {/* Override Plan Dialog */}
+      <Dialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Override Tenant Plan</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleOverrideSave();
+            }}
+          >
+            <div className="text-sm text-muted-foreground">
+              Tenant: <span className="font-medium text-foreground">
+                {tenants?.find((t) => t.id === selectedTenantId)?.name ?? selectedTenantId}
+              </span>
+            </div>
+            <label className="block text-xs">
+              <span className="mb-1 block font-medium text-muted-foreground">Select Plan</span>
+              <Select value={selectedPlanId} onValueChange={(v) => setSelectedPlanId(v ?? "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(plans ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} ({p.plan_code}) - {p.base_price === 0 ? "Free" : `${p.currency} ${p.base_price}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOverrideDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={overridePlan.isPending || !selectedPlanId}>
+                {overridePlan.isPending ? "Saving..." : "Override Plan"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

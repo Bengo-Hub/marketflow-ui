@@ -17,6 +17,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BarChart3, Eye, MousePointerClick, DollarSign, Target, UserPlus } from "lucide-react";
+
+type CampaignMetrics = {
+  impressions: number;
+  clicks: number;
+  spend: number;
+  ctr: number;
+  cpc: number;
+  leads: number;
+  cost_per_lead: number;
+};
 
 type Campaign = {
   id: string;
@@ -28,6 +39,7 @@ type Campaign = {
   total_leads: number;
   total_conversions: number;
   total_spend?: number | null;
+  metrics?: CampaignMetrics | null;
   created_at: string;
 };
 
@@ -35,6 +47,7 @@ export default function CampaignsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Campaign>>({
     name: "",
     platform: "meta",
@@ -47,6 +60,17 @@ export default function CampaignsPage() {
       const r = await apiClient.get<{ data: Campaign[] }>(`/api/v1/campaigns?limit=100`);
       return r.data;
     },
+  });
+
+  // Fetch individual campaign with metrics when expanded
+  const { data: expandedCampaign, isLoading: expandedLoading } = useQuery({
+    queryKey: ["campaign-detail", expandedId],
+    queryFn: async () => {
+      if (!expandedId) return null;
+      const r = await apiClient.get<{ data: Campaign }>(`/api/v1/campaigns/${expandedId}`);
+      return r.data.data ?? r.data;
+    },
+    enabled: !!expandedId,
   });
 
   function resetForm() {
@@ -82,6 +106,23 @@ export default function CampaignsPage() {
     setOpen(true);
   }
 
+  function toggleExpand(id: string) {
+    setExpandedId((prev) => (prev === id ? null : id));
+  }
+
+  /** Resolve metrics: from the expanded detail fetch, from the list item, or null */
+  function getMetrics(campaign: Campaign): CampaignMetrics | null {
+    if (expandedId === campaign.id && expandedCampaign) {
+      const ec = expandedCampaign as Campaign;
+      return ec.metrics ?? null;
+    }
+    return campaign.metrics ?? null;
+  }
+
+  function hasAnyMetricValue(m: CampaignMetrics): boolean {
+    return m.impressions > 0 || m.clicks > 0 || m.spend > 0 || m.leads > 0;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -105,7 +146,7 @@ export default function CampaignsPage() {
                 <TableHead>Leads</TableHead>
                 <TableHead>Conversions</TableHead>
                 <TableHead>Spend</TableHead>
-                <TableHead className="w-32"></TableHead>
+                <TableHead className="w-40"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -124,32 +165,98 @@ export default function CampaignsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                data?.data.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell><Badge variant="outline">{c.platform}</Badge></TableCell>
-                    <TableCell>{c.status}</TableCell>
-                    <TableCell>{c.total_leads}</TableCell>
-                    <TableCell>{c.total_conversions}</TableCell>
-                    <TableCell>{c.total_spend ? `$${c.total_spend.toFixed(2)}` : "—"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openEdit(c)}>
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            if (confirm(`Delete campaign "${c.name}"?`)) del.mutate(c.id);
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                data?.data.map((c) => {
+                  const isExpanded = expandedId === c.id;
+                  const metrics = getMetrics(c);
+                  return (
+                    <TableRow key={c.id} className="group">
+                      <TableCell>
+                        <div>
+                          <span className="font-medium">{c.name}</span>
+                          {/* Inline metrics row when expanded */}
+                          {isExpanded && (
+                            <div className="mt-3">
+                              {expandedLoading ? (
+                                <Skeleton className="h-16 w-full" />
+                              ) : metrics && hasAnyMetricValue(metrics) ? (
+                                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                                  <MetricCell
+                                    icon={<Eye className="h-3.5 w-3.5" />}
+                                    label="Impressions"
+                                    value={metrics.impressions.toLocaleString()}
+                                  />
+                                  <MetricCell
+                                    icon={<MousePointerClick className="h-3.5 w-3.5" />}
+                                    label="Clicks"
+                                    value={metrics.clicks.toLocaleString()}
+                                  />
+                                  <MetricCell
+                                    icon={<DollarSign className="h-3.5 w-3.5" />}
+                                    label="Spend"
+                                    value={`$${metrics.spend.toFixed(2)}`}
+                                  />
+                                  <MetricCell
+                                    icon={<Target className="h-3.5 w-3.5" />}
+                                    label="CTR"
+                                    value={`${metrics.ctr.toFixed(2)}%`}
+                                  />
+                                  <MetricCell
+                                    icon={<MousePointerClick className="h-3.5 w-3.5" />}
+                                    label="CPC"
+                                    value={`$${metrics.cpc.toFixed(2)}`}
+                                  />
+                                  <MetricCell
+                                    icon={<UserPlus className="h-3.5 w-3.5" />}
+                                    label="Leads"
+                                    value={metrics.leads.toLocaleString()}
+                                  />
+                                  <MetricCell
+                                    icon={<DollarSign className="h-3.5 w-3.5" />}
+                                    label="CPL"
+                                    value={metrics.cost_per_lead > 0 ? `$${metrics.cost_per_lead.toFixed(2)}` : "--"}
+                                  />
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground italic py-2">
+                                  Metrics will appear once the campaign is active
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge variant="outline">{c.platform}</Badge></TableCell>
+                      <TableCell>{c.status}</TableCell>
+                      <TableCell>{c.total_leads}</TableCell>
+                      <TableCell>{c.total_conversions}</TableCell>
+                      <TableCell>{c.total_spend ? `$${c.total_spend.toFixed(2)}` : "--"}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toggleExpand(c.id)}
+                            title="View metrics"
+                          >
+                            <BarChart3 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => openEdit(c)}>
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm(`Delete campaign "${c.name}"?`)) del.mutate(c.id);
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -209,12 +316,24 @@ export default function CampaignsPage() {
                 Cancel
               </Button>
               <Button type="submit" disabled={save.isPending}>
-                {save.isPending ? (editingId ? "Saving…" : "Creating…") : editingId ? "Save changes" : "Create"}
+                {save.isPending ? (editingId ? "Saving..." : "Creating...") : editingId ? "Save changes" : "Create"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function MetricCell({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded border bg-muted/30 px-2 py-1.5 text-center">
+      <div className="flex items-center justify-center gap-1 text-muted-foreground">
+        {icon}
+        <span className="text-[10px] uppercase tracking-wide">{label}</span>
+      </div>
+      <div className="text-sm font-semibold mt-0.5">{value}</div>
     </div>
   );
 }
