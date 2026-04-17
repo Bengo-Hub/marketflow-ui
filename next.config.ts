@@ -4,6 +4,7 @@ import withPWA from "@ducanh2912/next-pwa";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  turbopack: {},
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "cdn.simpleicons.org" },
