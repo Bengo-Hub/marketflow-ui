@@ -197,20 +197,45 @@
   // Markdown: **bold**, *italic*, [link](url), bare URLs, `code`, ### headers, - lists
   function md(text) {
     if (!text) return '';
-    return escapeHTML(text)
-      // Headers: ### H3, ## H2
+    // Step 1: Extract URLs BEFORE escaping (& in URLs would become &amp;)
+    var urls = [];
+    var safe = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function(_, label, url) {
+      var i = urls.length;
+      urls.push({ label: label, url: url });
+      return '%%MDLINK' + i + '%%';
+    });
+    safe = safe.replace(/(https?:\/\/[^\s<>)\]]+)/g, function(url) {
+      // Strip trailing punctuation that's not part of the URL
+      var clean = url.replace(/[.,;:!?)]+$/, '');
+      var i = urls.length;
+      urls.push({ label: null, url: clean });
+      return '%%BAREURL' + i + '%%' + url.slice(clean.length);
+    });
+    // Step 2: Escape HTML
+    safe = escapeHTML(safe);
+    // Step 3: Apply markdown formatting
+    safe = safe
       .replace(/^### (.+)$/gm, '<h3 style="font-size:14px;font-weight:700;margin:8px 0 4px">$1</h3>')
       .replace(/^## (.+)$/gm, '<h2 style="font-size:15px;font-weight:700;margin:8px 0 4px">$1</h2>')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`(.+?)`/g, '<code>$1</code>')
-      // Markdown links: [text](url)
-      .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer" style="color:#2563eb;text-decoration:underline;word-break:break-all">$1</a>')
-      // Bare URLs (not already inside an href) — make clickable
-      .replace(/(?<!="|&quot;)(https?:\/\/[^\s<&]+)/g, '<a href="$1" target="_blank" rel="noreferrer" style="color:#2563eb;text-decoration:underline;word-break:break-all">$1</a>')
       .replace(/^- (.+)$/gm, '<li>$1</li>')
       .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
       .replace(/\n/g, '<br>');
+    // Step 4: Restore URLs as clickable links
+    var linkStyle = 'color:#2563eb;text-decoration:underline;word-break:break-all';
+    safe = safe.replace(/%%MDLINK(\d+)%%/g, function(_, i) {
+      var u = urls[parseInt(i)];
+      return '<a href="' + u.url + '" target="_blank" rel="noreferrer" style="' + linkStyle + '">' + escapeHTML(u.label) + '</a>';
+    });
+    safe = safe.replace(/%%BAREURL(\d+)%%/g, function(_, i) {
+      var u = urls[parseInt(i)];
+      // Show a short label for long URLs
+      var label = u.url.length > 50 ? u.url.replace(/^https?:\/\//, '').slice(0, 40) + '...' : u.url;
+      return '<a href="' + u.url + '" target="_blank" rel="noreferrer" style="' + linkStyle + '">' + escapeHTML(label) + '</a>';
+    });
+    return safe;
   }
 
   function renderAnswer(text, meta) {
