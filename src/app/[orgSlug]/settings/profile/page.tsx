@@ -8,11 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { STALE_TIMES } from "@/app/providers";
+import { AlertCircle, ExternalLink, CheckCircle2 } from "lucide-react";
 
-// Tenant-scoped FBO profile editor. Only fields that show on the public
-// /p/{slug} page or are safe for the tenant user to own belong here.
-// Platform secrets (Meta App, Groq key, etc.) are NOT on this page.
 type TenantProfile = {
   id: string;
   slug: string;
@@ -23,13 +22,7 @@ type TenantProfile = {
   flp_store_code?: string | null;
   flp_language?: string | null;
   business_type?: string;
-  metadata?: {
-    logo_url?: string;
-    bio?: string;
-    brand_primary_color?: string;
-    testimonials?: string[];
-    featured_products?: string[];
-  };
+  metadata?: Record<string, any>;
 };
 
 export default function ProfileSettingsPage() {
@@ -39,7 +32,7 @@ export default function ProfileSettingsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["tenant-profile", orgSlug],
     queryFn: async () => {
-      const res = await apiClient.get<TenantProfile>(`/api/v1/tenants/current`);
+      const res = await apiClient.get<TenantProfile>(`/api/v1/tenant/profile`);
       return res.data;
     },
     staleTime: STALE_TIMES.OPERATIONAL,
@@ -64,7 +57,7 @@ export default function ProfileSettingsPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      return apiClient.patch(`/api/v1/tenants/current`, {
+      return apiClient.patch(`/api/v1/tenant/profile`, {
         ...form,
         metadata: meta,
       });
@@ -76,14 +69,55 @@ export default function ProfileSettingsPage() {
     return <p className="text-sm text-muted-foreground">Loading profile…</p>;
   }
 
+  // Profile completeness check
+  const missing: string[] = [];
+  if (!data.whatsapp_number) missing.push("WhatsApp number");
+  if (!meta.bio) missing.push("Bio");
+  if (!data.fbo_distrib_id && data.business_type === "flp") missing.push("Distributor ID");
+  if (!meta.logo_url) missing.push("Logo");
+  const isComplete = missing.length === 0;
+  const profileUrl = `https://marketflow.codevertexitsolutions.com/p/${data.slug}`;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">FBO profile</h1>
-        <p className="text-muted-foreground">
-          Lives at <code>/p/{data.slug}</code>. Changes are published immediately.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Profile Settings</h1>
+          <p className="text-sm text-muted-foreground">
+            Your public page lives at{" "}
+            <a href={profileUrl} target="_blank" rel="noreferrer" className="text-amber-600 hover:underline font-medium">
+              /p/{data.slug} <ExternalLink className="inline h-3 w-3" />
+            </a>
+          </p>
+        </div>
+        <a href={profileUrl} target="_blank" rel="noreferrer">
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <ExternalLink className="h-3.5 w-3.5" /> View public page
+          </Button>
+        </a>
       </div>
+
+      {!isComplete && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Complete your profile for a better public page</p>
+            <p className="text-xs text-amber-600 mt-1">
+              Missing: {missing.map((m, i) => (
+                <Badge key={m} variant="outline" className="text-[10px] mx-0.5 border-amber-300 text-amber-700">
+                  {m}
+                </Badge>
+              ))}
+            </p>
+          </div>
+        </div>
+      )}
+      {isComplete && (
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <p className="text-sm text-green-700">Profile complete — your public page looks great!</p>
+        </div>
+      )}
 
       <form
         className="space-y-4"
@@ -97,11 +131,34 @@ export default function ProfileSettingsPage() {
             <Field label="Business name" required>
               <Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </Field>
-            <Field label="Bio">
+            <Field label="Bio (shown on public page hero)">
               <Textarea
                 rows={3}
                 value={meta.bio ?? ""}
                 onChange={(e) => setMeta({ ...meta, bio: e.target.value })}
+                placeholder="Tell visitors about yourself and your business..."
+              />
+            </Field>
+            <Field label="My Story (shown in the 'My Forever Story' section)">
+              <Textarea
+                rows={4}
+                value={meta.story ?? ""}
+                onChange={(e) => setMeta({ ...meta, story: e.target.value })}
+                placeholder="Share your journey — how you started, what drives you..."
+              />
+            </Field>
+            <Field label="Video URL (YouTube embed link)">
+              <Input
+                value={meta.video_url ?? ""}
+                onChange={(e) => setMeta({ ...meta, video_url: e.target.value })}
+                placeholder="https://www.youtube.com/embed/..."
+              />
+            </Field>
+            <Field label="Tagline">
+              <Input
+                value={meta.tagline ?? ""}
+                onChange={(e) => setMeta({ ...meta, tagline: e.target.value })}
+                placeholder="e.g. Forever Business Owner"
               />
             </Field>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

@@ -1,59 +1,117 @@
 "use client";
 
+import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Globe, Bell, ExternalLink, Settings } from "lucide-react";
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 
 export function AppHeader() {
   const { user, logout } = useAuthStore();
+  const router = useRouter();
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const initials = user?.fullName
-    ? user.fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    ? user.fullName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.email?.slice(0, 2).toUpperCase() || "MF";
 
+  const tenantSlug = user?.tenantSlug || orgSlug;
+  const publicUrl = `https://marketflow.codevertexitsolutions.com/p/${tenantSlug}`;
+
   return (
-    <header className="flex h-14 items-center gap-4 border-b bg-background px-4">
+    <header className="flex h-14 items-center gap-3 border-b bg-background px-4">
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-6" />
 
-      {/* Platform owner: tenant switcher pinned left so it's always reachable */}
       {user?.isPlatformOwner && <TenantSwitcher />}
 
       <div className="flex-1" />
 
+      {/* Public website link */}
+      <a
+        href={publicUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="hidden sm:inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-amber-300 transition"
+      >
+        <Globe className="h-3 w-3" />
+        My website
+        <ExternalLink className="h-2.5 w-2.5" />
+      </a>
+
+      {/* Notifications */}
+      <div className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 relative"
+          onClick={() => setShowNotifications(!showNotifications)}
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500" />
+        </Button>
+
+        {showNotifications && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+            <div className="absolute right-0 top-10 z-50 w-80 rounded-xl border bg-card shadow-lg">
+              <div className="border-b px-4 py-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Notifications</h3>
+                <Badge variant="outline" className="text-[10px]">0 new</Badge>
+              </div>
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                <Bell className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
+                No new notifications
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
       {user?.isPlatformOwner && (
-        <span className="hidden text-[10px] uppercase tracking-wider text-amber-700 sm:inline">
+        <Badge variant="outline" className="hidden sm:inline-flex text-[10px] text-amber-700 border-amber-200">
           Platform owner
-        </span>
+        </Badge>
       )}
 
+      {/* User menu */}
       <DropdownMenu>
         <DropdownMenuTrigger className="relative h-8 w-8 rounded-full outline-none cursor-pointer">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback style={{ backgroundColor: "var(--brand-primary)", color: "#000" }}>
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+          <Avatar className="h-8 w-8">
+            <AvatarFallback style={{ backgroundColor: "var(--brand-primary)", color: "#000" }}>
+              {initials}
+            </AvatarFallback>
+          </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <div className="flex items-center gap-2 p-2">
-            <div className="flex flex-col space-y-1">
+            <div className="flex flex-col space-y-0.5">
               <p className="text-sm font-medium">{user?.fullName || user?.email}</p>
               <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
           </div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push(`/${orgSlug}/settings/profile`)}>
             <User className="mr-2 h-4 w-4" />
             Profile
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push(`/${orgSlug}/settings`)}>
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => window.open(publicUrl, "_blank")}>
+            <Globe className="mr-2 h-4 w-4" />
+            View public page
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="text-destructive">
