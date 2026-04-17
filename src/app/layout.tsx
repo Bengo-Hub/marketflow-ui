@@ -10,8 +10,12 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "MarketFlow",
-  description: "AI-powered marketing automation for Forever Living Products FBOs",
-  icons: { icon: "/favicon.ico" },
+  description: "AI-powered marketing automation — chatbots, ad campaigns, funnels, and nurture sequences on autopilot.",
+  icons: { icon: "/favicon.svg", apple: "/icons/icon-192x192.png" },
+  manifest: "/manifest.json",
+  themeColor: "#f59e0b",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "MarketFlow" },
+  viewport: { width: "device-width", initialScale: 1, maximumScale: 5 },
 };
 
 export default function RootLayout({
