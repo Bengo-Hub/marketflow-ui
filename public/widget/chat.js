@@ -1,5 +1,5 @@
 /*!
- * MarketFlow embeddable chat widget
+ * MarketFlow embeddable chat widget v2
  *
  * Usage:
  *   <script src="https://marketflow.codevertexitsolutions.com/widget/chat.js"
@@ -7,8 +7,13 @@
  *           data-api-url="https://marketflowai.codevertexitsolutions.com"
  *           async></script>
  *
- * Renders inside a Shadow DOM root so host-page CSS can't leak in.
- * Streams responses via fetch + ReadableStream SSE.
+ * Features:
+ *   - Shadow DOM isolation (no CSS conflicts)
+ *   - Auto-greeting with wave animation after 3s
+ *   - Floating FAQ chips to jumpstart conversations
+ *   - Rich answer rendering (bold, links, product cards, action chips)
+ *   - Typing indicator with bouncing dots
+ *   - Mobile responsive (full-screen on small viewports)
  */
 (function () {
   'use strict';
@@ -16,182 +21,275 @@
   window.__mfWidgetLoaded = true;
 
   var script = document.currentScript;
-  var tenantID = script && script.dataset.tenant;
+  var tenantSlug = script && script.dataset.tenant;
   var apiURL = (script && script.dataset.apiUrl) || 'https://marketflowai.codevertexitsolutions.com';
-  if (!tenantID) {
-    console.warn('[marketflow-widget] data-tenant is required');
-    return;
-  }
+  var brandColor = (script && script.dataset.color) || '#f59e0b';
+  if (!tenantSlug) { console.warn('[mf-widget] data-tenant required'); return; }
 
   var host = document.createElement('div');
   host.id = 'mf-chat-root';
-  host.style.position = 'fixed';
-  host.style.bottom = '20px';
-  host.style.right = '20px';
-  host.style.zIndex = '2147483647';
+  host.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:2147483647';
   document.body.appendChild(host);
   var shadow = host.attachShadow({ mode: 'open' });
 
-  var STYLE = [
-    ':host,*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,sans-serif}',
-    '.btn{width:56px;height:56px;border-radius:50%;background:#16a34a;color:#fff;border:none;cursor:pointer;',
-    'box-shadow:0 4px 12px rgba(0,0,0,.2);font-size:24px;display:flex;align-items:center;justify-content:center}',
-    '.panel{position:absolute;bottom:72px;right:0;width:360px;height:520px;background:#fff;border-radius:12px;',
-    'box-shadow:0 10px 30px rgba(0,0,0,.2);display:none;flex-direction:column;overflow:hidden}',
-    '.panel.open{display:flex}',
-    '.hdr{background:#16a34a;color:#fff;padding:12px 16px;font-weight:600}',
-    '.body{flex:1;overflow-y:auto;padding:12px;background:#f9fafb}',
-    '.msg{max-width:80%;margin-bottom:8px;padding:8px 12px;border-radius:12px;line-height:1.4;font-size:14px}',
-    '.user{background:#16a34a;color:#fff;margin-left:auto;border-bottom-right-radius:2px}',
-    '.bot{background:#fff;color:#111827;border:1px solid #e5e7eb;border-bottom-left-radius:2px}',
-    '.typing{font-style:italic;color:#6b7280}',
-    '.inp{display:flex;padding:8px;border-top:1px solid #e5e7eb;background:#fff;gap:8px}',
-    '.inp input{flex:1;border:1px solid #e5e7eb;border-radius:20px;padding:8px 12px;font-size:14px;outline:none}',
-    '.inp button{background:#16a34a;color:#fff;border:none;border-radius:20px;padding:8px 16px;cursor:pointer}',
-    '.card{display:flex;gap:10px;padding:10px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;margin-bottom:8px;max-width:92%}',
-    '.card img{width:64px;height:64px;border-radius:8px;object-fit:cover;flex-shrink:0}',
-    '.card .c-body{flex:1;min-width:0}',
-    '.card .c-title{font-weight:600;font-size:13px;color:#111827;margin-bottom:2px}',
-    '.card .c-meta{font-size:11px;color:#6b7280;margin-bottom:6px}',
-    '.card .c-cta{display:inline-block;background:#16a34a;color:#fff;font-size:12px;padding:4px 10px;border-radius:14px;text-decoration:none}',
-    '.actions{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}',
-    '.action{font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid #16a34a;background:#fff;color:#16a34a;text-decoration:none;cursor:pointer}'
-  ].join('\n');
+  // ── Styles ────────────────────────────────────────────────────────
+  var css = `
+:host,*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+.fab{width:56px;height:56px;border-radius:50%;background:${brandColor};color:#fff;border:none;cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:22px;display:flex;align-items:center;justify-content:center;transition:transform .2s}
+.fab:hover{transform:scale(1.08)}
+.fab .wave{display:inline-block;animation:wave 1.5s ease-in-out 2}
+@keyframes wave{0%,100%{transform:rotate(0)}20%{transform:rotate(14deg)}40%{transform:rotate(-8deg)}60%{transform:rotate(14deg)}80%{transform:rotate(-4deg)}}
+.fab .close{font-size:18px}
+.greeting{position:absolute;bottom:68px;right:0;background:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.15);
+  font-size:13px;color:#333;max-width:220px;animation:fadeIn .3s;cursor:pointer;border:1px solid #eee}
+.greeting:after{content:'';position:absolute;bottom:-6px;right:20px;width:12px;height:12px;background:#fff;transform:rotate(45deg);border-right:1px solid #eee;border-bottom:1px solid #eee}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.panel{position:absolute;bottom:68px;right:0;width:370px;max-height:560px;background:#fff;border-radius:16px;
+  box-shadow:0 10px 40px rgba(0,0,0,.2);display:none;flex-direction:column;overflow:hidden}
+@media(max-width:420px){.panel{position:fixed;inset:0;width:100%;max-height:100%;border-radius:0;bottom:0;right:0}}
+.panel.open{display:flex}
+.hdr{background:${brandColor};color:#fff;padding:14px 16px;font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
+.hdr .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;flex-shrink:0}
+.hdr .sub{font-size:11px;font-weight:400;opacity:.85}
+.body{flex:1;overflow-y:auto;padding:12px;background:#f9fafb;scroll-behavior:smooth}
+.welcome{text-align:center;padding:16px 8px;color:#6b7280;font-size:13px}
+.welcome .hi{font-size:28px;margin-bottom:4px}
+.faqs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
+.faq{font-size:11px;padding:5px 10px;border-radius:16px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;transition:all .15s}
+.faq:hover{border-color:${brandColor};color:${brandColor}}
+.msg{max-width:82%;margin-bottom:6px;padding:8px 12px;border-radius:14px;line-height:1.5;font-size:13px;word-break:break-word}
+.msg a{color:${brandColor};text-decoration:underline}
+.msg strong,.msg b{font-weight:600}
+.msg ul,.msg ol{padding-left:16px;margin:4px 0}
+.msg li{margin-bottom:2px}
+.msg code{background:#f3f4f6;padding:1px 4px;border-radius:3px;font-size:12px}
+.user{background:${brandColor};color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+.bot{background:#fff;color:#111827;border:1px solid #e5e7eb;border-bottom-left-radius:4px}
+.dots{display:flex;gap:3px;padding:8px 12px;max-width:60px}
+.dots span{width:6px;height:6px;border-radius:50%;background:#9ca3af;animation:bounce .6s infinite}
+.dots span:nth-child(2){animation-delay:.15s}
+.dots span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.card{display:flex;gap:8px;padding:8px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;margin-bottom:6px;max-width:88%}
+.card img{width:56px;height:56px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.card .cb{flex:1;min-width:0}
+.card .ct{font-weight:600;font-size:12px;color:#111827}
+.card .cm{font-size:10px;color:#6b7280;margin:2px 0 4px}
+.card .cc{display:inline-block;background:${brandColor};color:#fff;font-size:11px;padding:3px 8px;border-radius:12px;text-decoration:none}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 6px}
+.chip{font-size:11px;padding:4px 10px;border-radius:12px;border:1px solid ${brandColor};background:#fff;color:${brandColor};text-decoration:none;cursor:pointer}
+.chip:hover{background:${brandColor}11}
+.inp{display:flex;padding:8px 10px;border-top:1px solid #e5e7eb;background:#fff;gap:6px;align-items:center}
+.inp input{flex:1;border:1px solid #e5e7eb;border-radius:20px;padding:8px 14px;font-size:13px;outline:none;transition:border .15s}
+.inp input:focus{border-color:${brandColor}}
+.inp button{background:${brandColor};color:#fff;border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.inp button:disabled{opacity:.4;cursor:not-allowed}
+.powered{text-align:center;padding:4px;font-size:9px;color:#9ca3af;background:#fff;border-top:1px solid #f3f4f6}
+.powered a{color:#6b7280;text-decoration:none}
+`;
+  var styleEl = document.createElement('style');
+  styleEl.textContent = css;
+  shadow.appendChild(styleEl);
 
-  var style = document.createElement('style');
-  style.textContent = STYLE;
-  shadow.appendChild(style);
+  // ── FAB button ────────────────────────────────────────────────────
+  var fab = document.createElement('button');
+  fab.className = 'fab';
+  fab.setAttribute('aria-label', 'Chat with us');
+  fab.innerHTML = '<span class="wave">👋</span>';
+  shadow.appendChild(fab);
 
-  var btn = document.createElement('button');
-  btn.className = 'btn';
-  btn.setAttribute('aria-label', 'Open chat');
-  btn.textContent = '\uD83D\uDCAC';
-  shadow.appendChild(btn);
+  // ── Greeting bubble (auto-shows after 3s) ─────────────────────────
+  var greeting = document.createElement('div');
+  greeting.className = 'greeting';
+  greeting.style.display = 'none';
+  greeting.innerHTML = '👋 Hi there! How can I help you today?';
+  shadow.appendChild(greeting);
 
+  var greetingTimer = setTimeout(function () {
+    if (!panelOpen) {
+      greeting.style.display = 'block';
+      // Auto-hide after 8s
+      setTimeout(function () { greeting.style.display = 'none'; }, 8000);
+    }
+  }, 3000);
+
+  // ── Panel ─────────────────────────────────────────────────────────
   var panel = document.createElement('div');
   panel.className = 'panel';
   panel.innerHTML = [
-    '<div class="hdr">Chat with us</div>',
-    '<div class="body" id="mf-body"></div>',
-    '<form class="inp" id="mf-form"><input id="mf-input" placeholder="Ask anything..." autocomplete="off" /><button type="submit">Send</button></form>'
+    '<div class="hdr"><span class="dot"></span><div><div>Chat with us</div><div class="sub">Typically replies instantly</div></div></div>',
+    '<div class="body" id="mf-body">',
+    '<div class="welcome"><div class="hi">👋</div>Hi there!<br>Ask me anything about our products or business.<div class="faqs" id="mf-faqs"></div></div>',
+    '</div>',
+    '<form class="inp" id="mf-form"><input id="mf-input" placeholder="Ask anything..." autocomplete="off" /><button type="submit" id="mf-send">▶</button></form>',
+    '<div class="powered">Powered by <a href="https://marketflow.codevertexitsolutions.com" target="_blank">MarketFlow</a></div>',
   ].join('');
   shadow.appendChild(panel);
 
-  btn.addEventListener('click', function () { panel.classList.toggle('open'); });
+  var panelOpen = false;
+  fab.addEventListener('click', function () {
+    panelOpen = !panelOpen;
+    panel.classList.toggle('open');
+    greeting.style.display = 'none';
+    clearTimeout(greetingTimer);
+    fab.innerHTML = panelOpen ? '<span class="close">✕</span>' : '<span class="wave">💬</span>';
+    if (panelOpen) shadow.getElementById('mf-input').focus();
+  });
+  greeting.addEventListener('click', function () {
+    greeting.style.display = 'none';
+    panelOpen = true;
+    panel.classList.add('open');
+    fab.innerHTML = '<span class="close">✕</span>';
+    shadow.getElementById('mf-input').focus();
+  });
+
+  // ── FAQ chips ─────────────────────────────────────────────────────
+  var faqs = shadow.getElementById('mf-faqs');
+  var faqList = [
+    'What products do you offer?',
+    'How does the business work?',
+    'Tell me about C9',
+    'How can I join?',
+  ];
+  faqList.forEach(function (q) {
+    var chip = document.createElement('button');
+    chip.className = 'faq';
+    chip.textContent = q;
+    chip.addEventListener('click', function () { sendMessage(q); });
+    faqs.appendChild(chip);
+  });
 
   var body = shadow.getElementById('mf-body');
   var form = shadow.getElementById('mf-form');
   var input = shadow.getElementById('mf-input');
+  var sendBtn = shadow.getElementById('mf-send');
   var sessionID = null;
+  var sending = false;
 
-  function append(role, text) {
+  function scrollBottom() { body.scrollTop = body.scrollHeight; }
+
+  function appendMsg(role, html) {
     var d = document.createElement('div');
     d.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
-    d.textContent = text;
+    d.innerHTML = html;
     body.appendChild(d);
-    body.scrollTop = body.scrollHeight;
+    scrollBottom();
     return d;
   }
 
-  // renderRichAnswer looks for assistant-emitted structured blocks (markdown
-  // links + shop.foreverliving.com / wa.me / join.foreverliving.com URLs) and
-  // upgrades them to product cards / action chips so the chat feels like a
-  // storefront instead of a plain text transcript.
-  function renderRichAnswer(text, meta) {
-    var container = document.createElement('div');
-    container.className = 'msg bot';
-    container.textContent = text;
-    body.appendChild(container);
+  function showDots() {
+    var d = document.createElement('div');
+    d.className = 'msg bot dots';
+    d.innerHTML = '<span></span><span></span><span></span>';
+    body.appendChild(d);
+    scrollBottom();
+    return d;
+  }
 
-    // Product cards — agent tool results include a `products` array when
-    // get_product was invoked. See marketflow-ai/internal/agent/tools/get_product.go.
+  // Basic markdown: **bold**, *italic*, [link](url), `code`, - lists
+  function md(text) {
+    if (!text) return '';
+    return escapeHTML(text)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+      .replace(/^- (.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function renderAnswer(text, meta) {
+    // Clear welcome message on first answer
+    var welcome = body.querySelector('.welcome');
+    if (welcome) welcome.remove();
+
+    appendMsg('bot', md(text));
+
+    // Product cards
     if (meta && Array.isArray(meta.products)) {
       meta.products.forEach(function (p) {
         var card = document.createElement('div');
         card.className = 'card';
         card.innerHTML =
           (p.image_url ? '<img src="' + escapeAttr(p.image_url) + '" alt="" />' : '') +
-          '<div class="c-body">' +
-          '<div class="c-title">' + escapeHTML(p.name || p.product_code || 'Product') + '</div>' +
-          '<div class="c-meta">' +
-            (p.price ? escapeHTML(p.price) + ' · ' : '') +
-            (p.cc_value ? 'CC ' + escapeHTML(String(p.cc_value)) + ' · ' : '') +
-            (p.product_code ? '#' + escapeHTML(p.product_code) : '') +
-          '</div>' +
-          (p.buy_url ? '<a class="c-cta" target="_blank" rel="noreferrer" href="' + escapeAttr(p.buy_url) + '">Buy now</a>' : '') +
+          '<div class="cb"><div class="ct">' + escapeHTML(p.name || p.product_code || 'Product') + '</div>' +
+          '<div class="cm">' + (p.price ? escapeHTML(p.price) + ' · ' : '') + (p.cc_value ? 'CC ' + escapeHTML(String(p.cc_value)) : '') + '</div>' +
+          (p.buy_url ? '<a class="cc" target="_blank" rel="noreferrer" href="' + escapeAttr(p.buy_url) + '">Buy now</a>' : '') +
           '</div>';
         body.appendChild(card);
       });
     }
 
-    // Action chips — detect wa.me / cal.com / join FLP links in the answer
-    // and surface them as buttons at the end of the bubble.
-    var urlMatches = (text || '').match(/https?:\/\/[^\s)]+/g) || [];
+    // Action chips from URLs in response
+    var urls = (text || '').match(/https?:\/\/[^\s)]+/g) || [];
     var chips = [];
-    urlMatches.forEach(function (u) {
-      if (/wa\.me/.test(u) && !chips.find(function(c){return c.type==='whatsapp';})) {
-        chips.push({ type: 'whatsapp', label: 'WhatsApp', href: u });
-      } else if (/cal(endar)?\./.test(u) && !chips.find(function(c){return c.type==='book';})) {
-        chips.push({ type: 'book', label: 'Schedule call', href: u });
-      } else if (/join\.foreverliving\.com/.test(u) && !chips.find(function(c){return c.type==='join';})) {
-        chips.push({ type: 'join', label: 'Join my team', href: u });
-      }
+    urls.forEach(function (u) {
+      if (/wa\.me/.test(u)) chips.push({ label: '💬 WhatsApp', href: u });
+      else if (/cal(endar)?\./.test(u)) chips.push({ label: '📅 Book call', href: u });
+      else if (/join\.foreverliving/.test(u)) chips.push({ label: '🤝 Join team', href: u });
+      else if (/shop\.foreverliving/.test(u)) chips.push({ label: '🛒 Shop', href: u });
     });
-    if (chips.length > 0) {
+    if (chips.length) {
       var row = document.createElement('div');
-      row.className = 'actions';
+      row.className = 'chips';
       chips.forEach(function (c) {
         var a = document.createElement('a');
-        a.className = 'action';
-        a.target = '_blank';
-        a.rel = 'noreferrer';
-        a.href = c.href;
-        a.textContent = c.label;
+        a.className = 'chip'; a.target = '_blank'; a.rel = 'noreferrer';
+        a.href = c.href; a.textContent = c.label;
         row.appendChild(a);
       });
       body.appendChild(row);
     }
-
-    body.scrollTop = body.scrollHeight;
-    return container;
+    scrollBottom();
   }
 
   function escapeHTML(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
-      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
   function escapeAttr(s) { return escapeHTML(s); }
 
-  form.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    var q = input.value.trim();
-    if (!q) return;
+  async function sendMessage(q) {
+    if (sending || !q) return;
+    sending = true;
+    sendBtn.disabled = true;
     input.value = '';
-    append('user', q);
-    var typing = append('bot', '...');
-    typing.classList.add('typing');
+
+    // Remove welcome
+    var welcome = body.querySelector('.welcome');
+    if (welcome) welcome.remove();
+
+    appendMsg('user', escapeHTML(q));
+    var dots = showDots();
 
     try {
       var res = await fetch(apiURL + '/api/v1/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantID },
+        headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
         body: JSON.stringify({ question: q, session_id: sessionID, stream: false })
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var data = await res.json();
       if (data.session_id) sessionID = data.session_id;
       var answer = (data.result && data.result.response) || data.response || '';
-      // Pull any structured meta the agent loop left on the response envelope
-      // (products array, trace, etc.). Falls back to plain text on older APIs.
       var meta = (data.result && data.result.meta) || data.meta || null;
-      // Replace the "..." placeholder with the rich rendering.
-      body.removeChild(typing);
-      renderRichAnswer(answer, meta);
+      body.removeChild(dots);
+      renderAnswer(answer, meta);
     } catch (err) {
-      typing.classList.remove('typing');
-      typing.textContent = 'Sorry — something went wrong. Please try again.';
-      console.error('[marketflow-widget]', err);
+      body.removeChild(dots);
+      appendMsg('bot', '😔 Sorry, I couldn\'t process that. Please try again.');
+      console.error('[mf-widget]', err);
+    } finally {
+      sending = false;
+      sendBtn.disabled = false;
     }
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    sendMessage(input.value.trim());
   });
 })();
