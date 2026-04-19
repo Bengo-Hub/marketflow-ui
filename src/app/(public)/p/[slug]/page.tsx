@@ -29,6 +29,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const tagline = (m.tagline as string) || (profile.business_type === "flp" ? "Forever Business Owner" : "Business Owner");
   const bio = (m.bio as string) || "Forever Living Products is the largest grower, manufacturer and distributor of Aloe Vera products in the world.";
   const story = (m.story as string) || "Forever Living Products was founded in 1978 and has grown into a global wellness empire operating in over 160 countries. We are the world's largest grower of aloe vera with our own plantations, IASC certified, USDA and EU Organic certified.";
+  const opportunity = (m.opportunity_text as string) || "As a Forever Business Owner, you earn through retail profit (30-48%), team building bonuses, and leadership rewards. With the Forever2Drive car bonus and global travel incentives, this is a true legacy business you can pass to the next generation.";
   const videoUrl = (m.video_url as string) || FALLBACK_VIDEO;
   const isFLP = profile.business_type === "flp";
   const s = profile.flp_store_code || "KEN", l = profile.flp_language || "en", d = profile.fbo_distrib_id || "";
@@ -98,9 +99,11 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         {isFLP && (
           <section className="py-8 border-t">
             <h2 className="text-xl font-bold text-center">About the Opportunity</h2>
-            <p className="mt-2 text-sm text-gray-500 text-center max-w-xl mx-auto leading-relaxed">
-              As a Forever Business Owner, you earn through retail profit (30-48%), team building bonuses, and leadership rewards. With the Forever2Drive car bonus and global travel incentives, this is a true legacy business you can pass to the next generation.
-            </p>
+            <div className="mt-4 space-y-4 text-sm text-gray-500 text-center max-w-xl mx-auto leading-relaxed">
+              {opportunity.split("\n\n").map((para, i) => (
+                <p key={i}>{para}</p>
+              ))}
+            </div>
             <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
                 { e: "💰", t: "30-48% Retail Profit", d: "Immediate margin on every sale." },
@@ -123,6 +126,9 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                   <p className="text-[10px] text-gray-400 mt-0.5">$400-$800/month car bonus.</p>
                 </div>
               </div>
+            </div>
+            <div className="mt-8 pt-6 border-t border-gray-100 text-[11px] text-gray-400 italic text-center max-w-xl mx-auto leading-relaxed">
+              *Individual results may vary. Forever makes no guarantees on income or success. Your success depends on your effort, commitment, skill, and leadership abilities, and how effectively you exercise those qualities. Please see Forever’s Annual Income Disclosure Statement at <a href="https://foreverliving.com/income" target="_blank" rel="noreferrer" className="underline hover:text-gray-600">foreverliving.com/income</a> for more information.
             </div>
           </section>
         )}
