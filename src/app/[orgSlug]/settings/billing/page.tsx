@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CreditCard, Wallet, Zap, TrendingUp, ArrowUpRight, Info, X } from "lucide-react";
 
 const TREASURY_UI_URL = process.env.NEXT_PUBLIC_TREASURY_UI_URL || "https://books.codevertexitsolutions.com";
-const TREASURY_URL = process.env.NEXT_PUBLIC_TREASURY_URL || "https://booksapi.codevertexitsolutions.com";
+const TREASURY_URL = process.env.NEXT_PUBLIC_TREASURY_API_URL || "https://booksapi.codevertexitsolutions.com";
 const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://subscriptionsapi.codevertexitsolutions.com";
 
 type Subscription = {
