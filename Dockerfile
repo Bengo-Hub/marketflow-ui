@@ -5,7 +5,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 FROM base AS deps
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml .npmrc ./
 # Use shamefully-hoist like pos-ui to flatten dependencies and allow build scripts
 # This works around pnpm v10+ restrictions on native module build scripts
 RUN pnpm install --shamefully-hoist
