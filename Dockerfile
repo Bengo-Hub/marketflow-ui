@@ -1,17 +1,15 @@
 FROM node:22-alpine AS base
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
 FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
-COPY package.json pnpm-lock.yaml .npmrc ./
-# Use shamefully-hoist like pos-ui to flatten dependencies and allow build scripts
-# This works around pnpm v10+ restrictions on native module build scripts
-RUN pnpm install --shamefully-hoist
+RUN npm install -g pnpm@10
+COPY package.json pnpm-lock.yaml* .npmrc* ./
+RUN pnpm install --shamefully-hoist --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app
+RUN npm install -g pnpm@10
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
