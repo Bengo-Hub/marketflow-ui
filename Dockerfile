@@ -6,7 +6,9 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 FROM base AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --config.ignore-scripts=false
+# First install to rebuild build metadata without frozen-lockfile
+# This allows pnpm to recalculate which packages can run build scripts
+RUN pnpm install --config.ignore-scripts=false && pnpm install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app
