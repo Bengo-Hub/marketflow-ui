@@ -1,2 +1,2 @@
-side - effects - cache - readonly = false
-enable - pre - post - scripts = true
+side-effects-cache-readonly = false
+enable-pre-post-scripts = true

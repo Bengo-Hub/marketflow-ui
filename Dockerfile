@@ -6,9 +6,9 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 FROM base AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-# First install to rebuild build metadata without frozen-lockfile
-# This allows pnpm to recalculate which packages can run build scripts
-RUN pnpm install --config.ignore-scripts=false && pnpm install --frozen-lockfile
+# Use shamefully-hoist like pos-ui to flatten dependencies and allow build scripts
+# This works around pnpm v10+ restrictions on native module build scripts
+RUN pnpm install --shamefully-hoist
 
 FROM base AS builder
 WORKDIR /app
