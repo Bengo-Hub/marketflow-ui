@@ -1,0 +1,240 @@
+[
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "What is Codevertex IT Solutions?",
+    "content": "Codevertex IT Solutions is a technology company based in Kisumu, Kenya, building enterprise software, AI-powered tools, and providing tech education through Digitika. We serve businesses across Africa with solutions including CRM, POS, ordering, logistics, ISP billing, ERP, and financial management systems. Our mission is to democratize enterprise software for African businesses.",
+    "tags": ["company", "overview", "codevertex", "kenya", "kisumu"]
+  },
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "What services does Codevertex offer?",
+    "content": "Codevertex offers a full suite of enterprise software: (1) MarketFlow CRM — AI-powered customer relationship management; (2) Ordering Platform — e-commerce and order management; (3) POS System — point-of-sale for retail; (4) Logistics & TruLoad — fleet and delivery management; (5) ISP Billing — internet service provider billing; (6) ERP — enterprise resource planning; (7) Finance Suite — treasury and financial management; (8) Digitika — tech education and bootcamps; (9) Auth/SSO — unified authentication; (10) Subscriptions — plan and billing management.",
+    "tags": ["services", "products", "overview", "platform"]
+  },
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "How do I contact Codevertex?",
+    "content": "You can reach Codevertex IT Solutions through: Website: https://codevertexitsolutions.com | Email: info@codevertexitsolutions.com | Phone: Available on the website | Physical office: Kisumu, Kenya. For support tickets, use the support portal or ask Vera to create a ticket for you.",
+    "tags": ["contact", "support", "email", "phone", "location"]
+  },
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "Who are Codevertex's clients and partners?",
+    "content": "Codevertex works with organizations including Maseno University, KCA University, Danka Africa Ltd, Boxcraft Kenya, and various SMEs and enterprises across East Africa. Our graduates work at companies including Safaricom, Boxcraft, Danka Africa, Maseno University, and GLUK.",
+    "tags": ["clients", "partners", "universities", "companies", "africa"]
+  },
+  {
+    "scope": "platform",
+    "category": "marketflow_crm",
+    "title": "What is MarketFlow CRM?",
+    "content": "MarketFlow is an AI-enhanced Customer Relationship Management (CRM) platform built by Codevertex. It helps businesses manage leads, run AI-powered marketing campaigns, track customer interactions, book meetings, and automate follow-ups. MarketFlow is powered by Vera, the Codevertex AI assistant, which can answer customer questions, generate content, and qualify leads automatically.",
+    "tags": ["marketflow", "crm", "leads", "marketing", "ai", "vera"]
+  },
+  {
+    "scope": "platform",
+    "category": "marketflow_crm",
+    "title": "What can MarketFlow do for my business?",
+    "content": "MarketFlow enables: (1) Lead capture and management with AI scoring; (2) AI-generated marketing campaigns and email copy; (3) Embeddable AI chat widget (Vera) for your website; (4) Meeting booking and calendar integration; (5) Pipeline management and deal tracking; (6) Multi-tenant support for agencies managing multiple clients; (7) Integration with WhatsApp, Google Calendar, and Meta platforms.",
+    "tags": ["marketflow", "features", "leads", "campaigns", "integration"]
+  },
+  {
+    "scope": "platform",
+    "category": "marketflow_crm",
+    "title": "How do I embed the Vera chat widget on my website?",
+    "content": "Add this script tag to your website's HTML before the closing </body> tag: <script src=\"https://marketflow.codevertexitsolutions.com/widget/chat.js\" data-tenant=\"your-tenant-slug\" data-mode=\"tenant\" data-api-url=\"https://marketflowai.codevertexitsolutions.com\" async></script>. Replace 'your-tenant-slug' with your MarketFlow tenant ID. For platform mode (all Codevertex services), use data-mode=\"platform\".",
+    "tags": ["widget", "vera", "embed", "chat", "javascript", "installation"]
+  },
+  {
+    "scope": "platform",
+    "category": "auth_sso",
+    "title": "What is Codevertex SSO?",
+    "content": "Codevertex provides a unified Single Sign-On (SSO) system at sso.codevertexitsolutions.com. It supports OAuth 2.0 / OIDC protocols with Google, Microsoft, and GitHub providers. The SSO system handles authentication for all Codevertex services — users log in once and access all authorized applications. It uses JWT tokens with JWKS-based verification.",
+    "tags": ["sso", "auth", "login", "oauth", "jwt", "security"]
+  },
+  {
+    "scope": "platform",
+    "category": "auth_sso",
+    "title": "How does Codevertex handle user authentication?",
+    "content": "Authentication is managed by the auth-api service at sso.codevertexitsolutions.com. It supports: (1) Email/password login; (2) Google OAuth; (3) Microsoft OAuth; (4) GitHub OAuth; (5) Just-in-time (JIT) user provisioning for new SSO users; (6) RBAC (Role-Based Access Control) for authorization; (7) Multi-tenant isolation — users see only their tenant's data.",
+    "tags": ["auth", "security", "oauth", "rbac", "tenants", "sso"]
+  },
+  {
+    "scope": "platform",
+    "category": "ordering_pos",
+    "title": "What is the Codevertex Ordering Platform?",
+    "content": "The Codevertex Ordering Platform is a full-stack e-commerce and order management system. It supports product catalogs, customer orders, payment processing via Paystack (with treasury integration at books.codevertexitsolutions.com), order tracking, and fulfillment workflows. It integrates with the POS system and inventory management for unified stock control.",
+    "tags": ["ordering", "ecommerce", "products", "payments", "paystack"]
+  },
+  {
+    "scope": "platform",
+    "category": "ordering_pos",
+    "title": "What is the Codevertex POS system?",
+    "content": "The Codevertex Point-of-Sale (POS) system is designed for retail businesses. Features include: barcode scanning, real-time inventory sync, cash and card payments (Paystack integration), receipt printing, end-of-day reports, multi-location support, and employee session management. It synchronizes with the central inventory and ordering systems.",
+    "tags": ["pos", "point of sale", "retail", "payments", "inventory", "barcode"]
+  },
+  {
+    "scope": "platform",
+    "category": "ordering_pos",
+    "title": "How does payment processing work?",
+    "content": "Codevertex uses Paystack for payment processing. The treasury service (books.codevertexitsolutions.com) handles payment intents — when a customer is ready to pay, they are redirected to the treasury portal with a secure payment link. Supported payment methods include M-Pesa, card payments, and bank transfers. All transactions are logged in the finance service.",
+    "tags": ["payments", "paystack", "mpesa", "treasury", "billing"]
+  },
+  {
+    "scope": "platform",
+    "category": "finance_treasury",
+    "title": "What is the Codevertex Finance Suite?",
+    "content": "The Codevertex Finance Suite manages all financial operations: invoicing, payment tracking, treasury management, transaction ledgers, and financial reporting. The treasury portal at books.codevertexitsolutions.com handles secure payment collection. The finance service integrates with all other Codevertex services for unified financial visibility.",
+    "tags": ["finance", "invoicing", "treasury", "payments", "accounting", "reports"]
+  },
+  {
+    "scope": "platform",
+    "category": "logistics_tracking",
+    "title": "What is TruLoad?",
+    "content": "TruLoad is Codevertex's logistics and fleet management solution. It enables route planning, driver assignment, delivery tracking, and proof-of-delivery. TruLoad integrates with the ordering platform for automatic dispatch when orders are fulfilled. It supports real-time GPS tracking and delivery status updates sent via the notifications service.",
+    "tags": ["truload", "logistics", "delivery", "tracking", "fleet", "drivers"]
+  },
+  {
+    "scope": "platform",
+    "category": "logistics_tracking",
+    "title": "How does the logistics service work?",
+    "content": "The logistics service handles: (1) Shipment creation when orders are confirmed; (2) Driver/vehicle assignment; (3) Route optimization; (4) Real-time status updates (pending → dispatched → in-transit → delivered); (5) Proof of delivery capture; (6) Integration with TruLoad for fleet operations; (7) Customer notifications via SMS/email at each stage.",
+    "tags": ["logistics", "shipments", "delivery", "routes", "tracking"]
+  },
+  {
+    "scope": "platform",
+    "category": "isp_billing",
+    "title": "What is ISP Billing?",
+    "content": "Codevertex ISP Billing is a specialized billing and subscriber management system for Internet Service Providers. Features include: subscriber registration and KYC, data plan management, automatic billing cycles, payment integration (M-Pesa/card), bandwidth quota tracking, radius authentication integration, and automated suspension/reactivation. Built for ISPs operating in Kenya and East Africa.",
+    "tags": ["isp", "billing", "internet", "subscribers", "mpesa", "radius"]
+  },
+  {
+    "scope": "platform",
+    "category": "subscriptions",
+    "title": "How does the Codevertex subscriptions system work?",
+    "content": "The subscriptions service manages plan tiers, billing cycles, and feature entitlements for all Codevertex products. Tenants subscribe to plans that define feature access, usage limits (API calls, users, storage), and billing amounts. The service integrates with Paystack for recurring billing, emits usage events for metered features, and enforces quotas across all connected services.",
+    "tags": ["subscriptions", "plans", "billing", "quotas", "tiers", "entitlements"]
+  },
+  {
+    "scope": "platform",
+    "category": "subscriptions",
+    "title": "What subscription plans does Codevertex offer?",
+    "content": "Codevertex offers tiered subscription plans for its enterprise software. Plans vary by number of users, API call limits, storage, feature access, and support level. Contact the sales team at info@codevertexitsolutions.com or book a demo to get a quote tailored to your business needs. Educational pricing is available for institutions.",
+    "tags": ["pricing", "plans", "tiers", "enterprise", "subscription"]
+  },
+  {
+    "scope": "platform",
+    "category": "notifications",
+    "title": "How does Codevertex handle notifications?",
+    "content": "The notifications service delivers messages across multiple channels: Email (transactional and marketing), SMS (Africa's Talking / direct gateway), WhatsApp Business API, and push notifications (mobile apps). Notifications are event-driven via NATS JetStream — any service publishes events and the notifications service handles delivery. SMS and WhatsApp are never rate-limited by subscription plan (they have their own cost models).",
+    "tags": ["notifications", "email", "sms", "whatsapp", "push", "alerts"]
+  },
+  {
+    "scope": "platform",
+    "category": "erp",
+    "title": "What ERP features does Codevertex offer?",
+    "content": "Codevertex ERP provides: inventory management with multi-warehouse support, purchase order management, supplier management, stock movement tracking, bill of materials (for manufacturing), financial ledgers, HR modules, and reporting dashboards. It integrates natively with the ordering, POS, and finance services for real-time data sync.",
+    "tags": ["erp", "inventory", "purchasing", "hr", "manufacturing", "warehousing"]
+  },
+  {
+    "scope": "platform",
+    "category": "ticketing",
+    "title": "How does the Codevertex ticketing system work?",
+    "content": "The ticketing service handles support requests for both tenants (businesses using Codevertex software) and their end customers. Features include: ticket creation via web, API, or AI (Vera creates tickets automatically when she can't resolve an issue); priority levels (low/medium/high/urgent); category routing (billing/technical/sales/general); AI-assisted triage; and SLA tracking. Tickets can be created programmatically using the S2S API.",
+    "tags": ["ticketing", "support", "tickets", "help desk", "sla", "ai triage"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_courses",
+    "title": "What is Digitika?",
+    "content": "Digitika is Codevertex's technology education arm. We offer practical, industry-focused courses in programming, data science, cybersecurity, and digital business. Digitika courses are designed for professionals who want to upskill, fresh graduates entering tech, and businesses training their teams. Our graduates work at companies like Safaricom, Boxcraft, Danka Africa, and leading universities.",
+    "tags": ["digitika", "education", "courses", "training", "tech", "upskilling"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_courses",
+    "title": "What courses does Digitika offer?",
+    "content": "Digitika offers: (1) Code-Starter Bootcamp — 10-week intensive full-stack web development (KSh 30,000); (2) ICDL Certification — international computer driving licence for office software; (3) Data Science & Analytics — Python, data visualization, machine learning; (4) Cybersecurity Fundamentals — network security, ethical hacking basics; (5) Digital Marketing — social media, SEO, paid ads; (6) Project Management — Agile, Scrum, PMP prep. Check https://codevertexitsolutions.com/digitika for current availability.",
+    "tags": ["courses", "bootcamp", "icdl", "data science", "cybersecurity", "digital marketing"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "What is the Code-Starter Bootcamp?",
+    "content": "The Code-Starter Bootcamp is Digitika's flagship 10-week intensive program teaching full-stack web development. Students learn HTML, CSS, JavaScript, React, Node.js, databases (PostgreSQL/MySQL), and how to deploy real projects. The bootcamp is hands-on with daily coding, project work, and mentorship. Upon completion, graduates receive a Codevertex-certified Code-Starter certificate. Alumni have gone on to work at top companies across Kenya.",
+    "tags": ["code-starter", "bootcamp", "web development", "fullstack", "javascript", "react"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "What is the Code-Starter Bootcamp curriculum?",
+    "content": "Code-Starter 10-week curriculum: Week 1: Web Fundamentals (HTML5, CSS3, responsive design); Week 2: JavaScript Essentials (variables, functions, DOM); Week 3: Advanced JavaScript (ES6+, async, APIs); Week 4: React Fundamentals (components, hooks, state); Week 5: React Advanced (routing, context, forms); Week 6: Backend Basics (Node.js, Express, REST APIs); Week 7: Databases (SQL, PostgreSQL, Prisma ORM); Week 8: Authentication & Security (JWT, sessions, OWASP basics); Week 9: Deployment & DevOps (Git, Docker basics, cloud hosting); Week 10: Capstone Project (build and deploy a full-stack app).",
+    "tags": ["curriculum", "bootcamp", "javascript", "react", "node.js", "sql", "docker"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "What does the Code-Starter Bootcamp include?",
+    "content": "Code-Starter Bootcamp includes: Daily live coding sessions and lectures; 1-on-1 mentorship with industry professionals; Access to the Codevertex student hub (Kisumu); Project-based learning with 3+ real projects; Career support and job placement assistance; Laptop loan program (subject to availability); Certificate of completion recognized by industry partners; Lifetime access to alumni network and resources.",
+    "tags": ["bootcamp", "includes", "mentorship", "projects", "certificate", "career", "laptop"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "How much does the Code-Starter Bootcamp cost?",
+    "content": "Code-Starter Bootcamp pricing: Full payment: KSh 30,000 (save KSh 2,000). Installment Plan 1 (2 payments): KSh 18,000 first payment + KSh 12,000 second payment. Installment Plan 2 (3 payments): KSh 12,000 + KSh 10,000 + KSh 8,000. Payment is processed securely through M-Pesa or card via Paystack. Group/corporate discounts available for 3+ enrollees from the same organization.",
+    "tags": ["pricing", "cost", "installments", "payment", "mpesa", "bootcamp"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "How do I enroll in the Code-Starter Bootcamp?",
+    "content": "To enroll in the Code-Starter Bootcamp: (1) Visit https://codevertexitsolutions.com/digitika; (2) Click 'Enroll Now' on the Code-Starter card; (3) Fill in the enrollment form (name, email, phone, experience level); (4) Choose your payment plan; (5) Complete payment via M-Pesa or card; (6) Receive confirmation email with cohort start date and pre-course materials. You can also ask Vera (this AI) to start the enrollment process for you.",
+    "tags": ["enrollment", "how to enroll", "register", "sign up", "bootcamp"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "Where is the Code-Starter Bootcamp held?",
+    "content": "The Code-Starter Bootcamp is held at the Codevertex Hub in Kisumu, Kenya. Classes run Monday to Friday. Some cohorts include a hybrid option (online + in-person) for students outside Kisumu. Online-only cohorts are available for international students. Contact info@codevertexitsolutions.com for the current cohort schedule and mode of delivery.",
+    "tags": ["location", "kisumu", "kenya", "in-person", "online", "hybrid", "schedule"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "Do I need programming experience to join Code-Starter?",
+    "content": "No prior programming experience is required for the Code-Starter Bootcamp. The program is designed for complete beginners as well as those with some coding exposure who want structured, practical training. Pre-course materials (basic computer skills, typing, internet fundamentals) are provided to all enrolled students to ensure everyone starts from the same baseline.",
+    "tags": ["requirements", "beginners", "no experience", "prerequisites", "bootcamp"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "What companies have hired Code-Starter graduates?",
+    "content": "Code-Starter graduates have been hired by or work with: Safaricom (Kenya's leading telecoms), Boxcraft Kenya (logistics tech), Danka Africa (enterprise solutions), Maseno University (academic IT roles), Great Lakes University of Kisumu (GLUK), and various startups and SMEs across East Africa. Our job placement team maintains active relationships with these hiring partners.",
+    "tags": ["alumni", "graduates", "jobs", "hiring", "safaricom", "companies"]
+  },
+  {
+    "scope": "platform",
+    "category": "pricing_plans",
+    "title": "How is Codevertex software priced?",
+    "content": "Codevertex enterprise software is priced on a subscription model based on: number of users, transaction volumes, features enabled, and support level. We offer Starter, Growth, and Enterprise tiers. Educational and NGO discounts are available. For a custom quote, contact sales@codevertexitsolutions.com or book a demo via the website. All plans include access to Vera AI and core features.",
+    "tags": ["pricing", "plans", "subscription", "enterprise", "starter", "growth"]
+  },
+  {
+    "scope": "platform",
+    "category": "onboarding_howto",
+    "title": "How do I get started with Codevertex?",
+    "content": "Getting started with Codevertex: (1) Visit https://codevertexitsolutions.com and click 'Get Started'; (2) Book a free demo with our sales team; (3) We'll assess your needs and recommend the right plan; (4) Your account is provisioned in your own isolated tenant; (5) Our onboarding team helps configure your workspace, import data, and train your team; (6) Go live with ongoing support from our customer success team.",
+    "tags": ["onboarding", "getting started", "demo", "setup", "implementation"]
+  },
+  {
+    "scope": "platform",
+    "category": "onboarding_howto",
+    "title": "What support does Codevertex provide?",
+    "content": "Codevertex support includes: (1) In-app AI support via Vera (24/7 — this chat); (2) Email support at support@codevertexitsolutions.com; (3) Ticketing system for tracked issue resolution (2–4 hour response SLA for high priority); (4) Dedicated customer success manager for Enterprise plans; (5) Documentation and knowledge base; (6) Training sessions for new team members. For urgent issues, create a ticket with 'urgent' priority.",
+    "tags": ["support", "help", "email", "tickets", "sla", "training", "customer success"]
+  }
+]

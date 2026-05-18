@@ -37,6 +37,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const recruit = d ? `https://join.foreverliving.com/marketing/joinnow/applicationForm.do?action=display&store=${s}&distribID=${d}&menuoff=n&langID=${l}` : "";
   const waD = (profile.whatsapp_number || "").replace(/[^0-9]/g, "");
   const wa = waD ? `https://wa.me/${waD}?text=${encodeURIComponent(`Hi ${name}, I'm interested!`)}` : "";
+  const contactEmail = (m.contact_email as string | undefined) || "";
   const gcal = m.google_calendar_link as string | undefined;
   const ccUser = m.calcom_username as string | undefined;
   const booking = gcal || (ccUser ? `https://calendar.codevertexitsolutions.com/${ccUser}/${m.calcom_event || "15min"}` : "");
@@ -67,6 +68,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
           <p className="mt-2 text-xs sm:text-sm opacity-70 max-w-md mx-auto leading-relaxed">{bio}</p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             {wa && <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-[#25D366] px-4 py-2 text-xs sm:text-sm font-medium shadow hover:bg-[#1DA851] transition">💬 WhatsApp</a>}
+            {!wa && contactEmail && <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(`Hi ${name}, I'm interested`)}`} className="rounded-full bg-[#4F46E5] px-4 py-2 text-xs sm:text-sm font-medium shadow hover:bg-[#4338CA] transition text-white">✉️ Email Me</a>}
             {shop && <a href={shop} target="_blank" rel="noreferrer" className="rounded-full bg-white/20 backdrop-blur border border-white/30 px-4 py-2 text-xs sm:text-sm font-medium hover:bg-white/30 transition">🛒 Shop</a>}
             {recruit && <a href={recruit} target="_blank" rel="noreferrer" className="rounded-full bg-white/20 backdrop-blur border border-white/30 px-4 py-2 text-xs sm:text-sm font-medium hover:bg-white/30 transition">🤝 Join Team</a>}
           </div>
@@ -145,6 +147,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 <p className="text-sm text-gray-500 leading-relaxed">{story}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {wa && <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-[#25D366] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#1DA851] transition">💬 Chat</a>}
+                  {!wa && contactEmail && <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(`Hi ${name}, I'd like to know more`)}`} className="rounded-full bg-[#4F46E5] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#4338CA] transition">✉️ Email</a>}
                   {booking && <a href="#booking" className="rounded-full border px-4 py-1.5 text-xs font-medium hover:bg-gray-50 transition">📅 Book a Call</a>}
                 </div>
               </div>
@@ -168,8 +171,11 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                     <a href="#booking" className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-amber-600 transition">📅 Book a Call</a>
                   ) : wa ? (
                     <a href={`https://wa.me/${waD}?text=${encodeURIComponent(`Hi ${name}, I'd like to book a one-on-one meeting with you!`)}`} target="_blank" rel="noreferrer" className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-amber-600 transition">📅 Book a Meeting</a>
+                  ) : contactEmail ? (
+                    <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(`Hi ${name}, I'd like to book a meeting`)}`} className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-amber-600 transition">📅 Book a Meeting</a>
                   ) : null}
                   {wa && <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-[#25D366] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#1DA851] transition">💬 WhatsApp</a>}
+                  {!wa && contactEmail && <a href={`mailto:${contactEmail}`} className="rounded-full bg-[#25D366] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#1DA851] transition">✉️ Email</a>}
                 </div>
               </div>
             </div>
@@ -235,6 +241,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
             <p className="mt-1 text-xs opacity-90">Chat with me or ask our AI assistant about products and the business opportunity.</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {wa && <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-white px-5 py-2 text-xs font-medium shadow hover:shadow-md transition" style={{ color: brand }}>💬 WhatsApp</a>}
+              {!wa && contactEmail && <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(`Hi ${name}, I'm ready to get started`)}`} className="rounded-full bg-white px-5 py-2 text-xs font-medium shadow hover:shadow-md transition" style={{ color: brand }}>✉️ Email Me</a>}
               {shop && <a href={shop} target="_blank" rel="noreferrer" className="rounded-full border border-white/30 px-5 py-2 text-xs font-medium text-white hover:bg-white/10 transition">🛒 Products</a>}
             </div>
           </div>

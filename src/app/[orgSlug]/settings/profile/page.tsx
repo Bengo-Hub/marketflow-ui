@@ -161,6 +161,14 @@ export default function ProfileSettingsPage() {
                 placeholder="e.g. Forever Business Owner"
               />
             </Field>
+            <Field label="Contact email (shown when WhatsApp is not set)">
+              <Input
+                type="email"
+                value={meta.contact_email ?? ""}
+                onChange={(e) => setMeta({ ...meta, contact_email: e.target.value })}
+                placeholder="you@example.com"
+              />
+            </Field>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="WhatsApp number">
                 <Input
