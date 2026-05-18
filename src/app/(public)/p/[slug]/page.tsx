@@ -36,7 +36,8 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const shop = d ? `https://shop.foreverliving.com/retail/entry/Shop.do?store=${s}&language=${l}&distribID=${d}` : "";
   const recruit = d ? `https://join.foreverliving.com/marketing/joinnow/applicationForm.do?action=display&store=${s}&distribID=${d}&menuoff=n&langID=${l}` : "";
   const waD = (profile.whatsapp_number || "").replace(/[^0-9]/g, "");
-  const wa = waD ? `https://wa.me/${waD}?text=${encodeURIComponent(`Hi ${name}, I'm interested!`)}` : "";
+  const waReal = waD && !/0{5,}/.test(waD) && !/(\d)\1{5,}/.test(waD);
+  const wa = waReal ? `https://wa.me/${waD}?text=${encodeURIComponent(`Hi ${name}, I'm interested!`)}` : "";
   const contactEmail = (m.contact_email as string | undefined) || "";
   const gcal = m.google_calendar_link as string | undefined;
   const ccUser = m.calcom_username as string | undefined;
@@ -75,7 +76,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* ═══ WHAT IS FOREVER LIVING ═══ */}
         {isFLP && (
@@ -84,12 +85,12 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
             <p className="mt-2 text-sm text-gray-500 max-w-xl mx-auto leading-relaxed">
               Forever Living Products is the world&apos;s largest grower, manufacturer and distributor of aloe vera. For over 46 years, operating in 160+ countries, IASC certified, with products containing up to 99.7% pure stabilized aloe vera gel.
             </p>
-            <div className="mt-5 flex justify-center gap-4 sm:gap-6">
-              {PRODUCTS.map((p) => (
-                <a key={p.code} href={shop ? `${shop}&itemCode=${p.code}` : "#"} target="_blank" rel="noreferrer" className="group text-center w-24 sm:w-28">
+            <div className="mt-5 flex flex-wrap justify-center gap-4 sm:gap-6">
+              {PRODUCTS.slice(0, 4).map((p) => (
+                <a key={p.code} href={shop ? `${shop}&itemCode=${p.code}` : "#"} target="_blank" rel="noreferrer" className="group text-center w-20 sm:w-24">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.img} alt={p.name} className="mx-auto h-16 sm:h-20 w-16 sm:w-20 object-contain rounded-lg group-hover:scale-105 transition" loading="lazy" />
-                  <p className="mt-1 text-[10px] sm:text-xs text-gray-500 group-hover:text-amber-600 transition">{p.name}</p>
+                  <img src={p.img} alt={p.name} className="mx-auto h-16 sm:h-20 w-16 sm:w-20 object-contain rounded-xl group-hover:scale-105 transition" loading="lazy" />
+                  <p className="mt-1 text-[10px] sm:text-xs text-gray-500 group-hover:text-amber-600 transition leading-tight">{p.name}</p>
                 </a>
               ))}
             </div>
@@ -184,21 +185,42 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
         {/* ═══ FEATURED PRODUCTS ═══ */}
         {isFLP && d && (
-          <section className="py-8 border-t">
-            <h2 className="text-xl font-bold text-center">Featured Products</h2>
-            <div className="mt-5 grid grid-cols-3 gap-3">
+          <section className="py-10 border-t">
+            <div className="text-center mb-7">
+              <h2 className="text-2xl font-bold text-gray-900">Featured Products</h2>
+              <p className="mt-1.5 text-sm text-gray-400">Tap any product to shop directly in the Forever Living store</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
               {PRODUCTS.map((p) => (
                 <a key={p.code} href={`${shop}&itemCode=${p.code}`} target="_blank" rel="noreferrer"
-                  className="group rounded-xl border p-3 text-center hover:shadow-md hover:border-amber-200 transition">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.img} alt={p.name} className="mx-auto h-20 w-20 object-contain group-hover:scale-105 transition" loading="lazy" />
-                  <div className="mt-2 text-[10px] text-gray-400">#{p.code} · CC {p.cc}</div>
-                  <h3 className="text-xs font-semibold group-hover:text-amber-600 transition">{p.name}</h3>
-                  <p className="mt-0.5 text-[9px] text-gray-400 line-clamp-2">{p.desc}</p>
+                  className="group relative flex flex-col rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm hover:shadow-xl hover:border-amber-200 hover:-translate-y-0.5 transition-all duration-300">
+                  {/* Image area */}
+                  <div className="bg-gradient-to-b from-gray-50 to-white flex items-center justify-center h-44 sm:h-48 p-5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.img} alt={p.name} className="h-36 sm:h-40 w-full object-contain group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                  </div>
+                  {/* Details area */}
+                  <div className="flex flex-col flex-1 p-3.5 border-t border-gray-50">
+                    <span className="inline-block self-start text-[9px] font-semibold tracking-wide uppercase text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 mb-2">#{p.code}</span>
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900 group-hover:text-amber-600 transition-colors leading-snug">{p.name}</h3>
+                    <p className="mt-1 text-[10px] sm:text-[11px] text-gray-400 line-clamp-2 leading-relaxed flex-1">{p.desc}</p>
+                    <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-gray-50">
+                      <span className="text-[9px] text-gray-300 font-medium">CC {p.cc}</span>
+                      <span className="text-[10px] font-semibold text-amber-500 group-hover:text-amber-600 transition-colors">Shop →</span>
+                    </div>
+                  </div>
                 </a>
               ))}
             </div>
-            {shop && <div className="mt-3 text-center"><a href={shop} target="_blank" rel="noreferrer" className="text-xs font-medium hover:underline" style={{ color: brand }}>View all products →</a></div>}
+            {shop && (
+              <div className="mt-7 text-center">
+                <a href={shop} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border px-6 py-2.5 text-sm font-medium hover:shadow-md transition-all duration-200"
+                  style={{ color: brand, borderColor: brand }}>
+                  View All Products →
+                </a>
+              </div>
+            )}
           </section>
         )}
 
@@ -256,7 +278,11 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 }
 
 const PRODUCTS = [
-  { code: "015", name: "Aloe Vera Gel", cc: "0.103", desc: "Pure inner leaf gel for digestive wellness.", img: "https://gallery.foreverliving.com/gallery/FLP/image/2016_Product_Images/Aloe-Vera-Gel_Large.png" },
-  { code: "C9", name: "C9 Clean 9", cc: "2.000", desc: "9-day nutritional cleanse program.", img: "https://gallery.foreverliving.com/gallery/KEN/image/products/C9_1.jpg" },
-  { code: "473", name: "Forever Argi+", cc: "0.300", desc: "L-Arginine + vitamin complex for vitality.", img: "/images/public-profile/argi-plus.jpg" },
+  { code: "015", name: "Aloe Vera Gel", cc: "0.103", desc: "Pure stabilized inner leaf gel for digestive wellness and natural hydration.", img: "/images/public-profile/featured-products/aloe-vera-gel.jpg" },
+  { code: "376", name: "Arctic Sea", cc: "0.163", desc: "Omega-3 DHA & EPA for heart health, brain function, and joint support.", img: "/images/public-profile/featured-products/artic-sea.jpg" },
+  { code: "257", name: "Forever Kids", cc: "0.278", desc: "Chewable phytonutrient-rich multivitamins designed for growing children.", img: "/images/public-profile/featured-products/forever-kids.jpg" },
+  { code: "VIT", name: "Forever Gummies", cc: "0.250", desc: "Delicious vitamin gummies packed with essential nutrients the whole family loves.", img: "/images/public-profile/featured-products/forever-gummy.jpg" },
+  { code: "028", name: "Bright Toothgel", cc: "0.080", desc: "Fluoride-free aloe vera toothgel for gentle whitening and lasting freshness.", img: "/images/public-profile/featured-products/tooth-gel.jpg" },
+  { code: "071", name: "Forever Deodorant", cc: "0.088", desc: "Aluminum-free aloe vera deodorant for all-day freshness without harsh chemicals.", img: "/images/public-profile/featured-products/deordorant.jpg" },
+  { code: "026", name: "Aloe Lips", cc: "0.046", desc: "Soothing aloe vera lip balm that moisturizes and protects lips all day long.", img: "/images/public-profile/featured-products/aloe-lips" },
 ];
