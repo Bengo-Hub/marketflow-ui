@@ -6,7 +6,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 FROM base AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --allow-scripts
+RUN pnpm install --frozen-lockfile --config.ignore-scripts=false
 
 FROM base AS builder
 WORKDIR /app
