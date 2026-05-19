@@ -34,15 +34,26 @@
   var waNumber      = (script && script.dataset.whatsapp)      || '';  // e.g. "254712345678"
   var phoneNumber   = (script && script.dataset.phone)         || '';  // e.g. "+254712345678"
   var callUrl       = (script && script.dataset.callUrl)       || '';  // custom Calendly / booking URL
+  var emailAddress  = (script && script.dataset.email)         || '';  // fallback contact email
+  var subtitle      = (script && script.dataset.subtitle)      || '';  // header subtitle override
+  var themeMode     = (script && script.dataset.theme)         || 'auto'; // "auto" | "light" | "dark"
   var autoOpen      = script && script.dataset.autoopen === 'true';
 
-  var waHref  = waNumber  ? 'https://wa.me/' + waNumber  : '';
-  var callHref = callUrl || (phoneNumber ? 'tel:' + phoneNumber : '');
+  var waHref   = waNumber    ? 'https://wa.me/' + waNumber  : '';
+  var callHref = callUrl    || (phoneNumber ? 'tel:' + phoneNumber : '');
+  var emailHref = emailAddress ? 'mailto:' + emailAddress : '';
+
+  // Dynamic subtitle — explicit override > niche default
+  var subtitleText = subtitle || (
+    businessType === 'flp'        ? 'Forever Living &middot; Online' :
+    businessType === 'codevertex' ? 'Codevertex AI &middot; Online'  :
+                                    'AI Assistant &middot; Online'
+  );
 
   // Session history
   var SESSION_KEY = 'vera_session_' + tenantSlug;
   var sessionID   = null;
-  try { sessionID = sessionStorage.getItem(SESSION_KEY); } catch (e) {}
+  try { sessionID = sessionStorage.getItem(SESSION_KEY); } catch { }
 
   // ── Host + Shadow DOM ────────────────────────────────────────────
   var host = document.createElement('div');
@@ -268,11 +279,63 @@
 .powered{text-align:center;padding:5px;font-size:10px;color:#cbd5e1;background:#fff;border-top:1px solid #f1f5f9}\
 .powered a{color:#94a3b8;text-decoration:none}\
 .powered a:hover{color:' + primaryColor + '}\
+\
+:host(.dark) .panel{background:#1e2535;border-color:rgba(255,255,255,.06)}\
+:host(.dark) .body{background:#131c2e}\
+:host(.dark) .bot{background:#2a3448;color:#f1f5f9;border-color:#374357}\
+:host(.dark) .typing{background:#2a3448;border-color:#374357}\
+:host(.dark) .typing-text{color:#94a3b8}\
+:host(.dark) .greeting{background:#1e2535;color:#e2e8f0;border-color:#374357}\
+:host(.dark) .greeting::after{background:#1e2535;border-color:#374357}\
+:host(.dark) .inp{background:#1e2535;border-top-color:#374357}\
+:host(.dark) .inp input{background:#131c2e;color:#f1f5f9;border-color:#374357}\
+:host(.dark) .inp input::placeholder{color:#64748b}\
+:host(.dark) .powered{background:#1e2535;border-top-color:#374357;color:#475569}\
+:host(.dark) .powered a{color:#64748b}\
+:host(.dark) .welcome{color:#94a3b8}\
+:host(.dark) .welcome-title{color:#f1f5f9}\
+:host(.dark) .welcome-sub{color:#64748b}\
+:host(.dark) .welcome-icon{background:' + primaryColor + '22}\
+:host(.dark) .faq{background:#2a3448;color:#cbd5e1;border-color:#374357}\
+:host(.dark) .faq:hover{background:' + primaryColor + '1a}\
+:host(.dark) .vera-form{background:#2a3448;border-color:#374357}\
+:host(.dark) .vera-form input,:host(.dark) .vera-form textarea,:host(.dark) .vera-form select{background:#131c2e;color:#f1f5f9;border-color:#374357}\
+:host(.dark) .vera-form .vf-title{color:#f1f5f9}\
+:host(.dark) .card{background:#2a3448;border-color:#374357}\
+:host(.dark) .card .ct{color:#f1f5f9}\
+:host(.dark) .card .cm{color:#94a3b8}\
+:host(.dark) .body::-webkit-scrollbar-thumb{background:#374357}\
 ';
 
   var styleEl = document.createElement('style');
   styleEl.textContent = css;
   shadow.appendChild(styleEl);
+
+  // ── Dark / light mode ────────────────────────────────────────────
+  function isDarkHost() {
+    if (themeMode === 'dark') return true;
+    if (themeMode === 'light') return false;
+    // auto: check host page class first, then system preference
+    var htmlEl = document.documentElement;
+    if (htmlEl.classList.contains('dark') || htmlEl.getAttribute('data-theme') === 'dark') return true;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function applyTheme() {
+    if (isDarkHost()) { host.classList.add('dark'); }
+    else              { host.classList.remove('dark'); }
+  }
+  applyTheme();
+
+  // React to host-page theme class changes (Tailwind dark mode toggle, etc.)
+  if (window.MutationObserver) {
+    new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+  }
+  // React to OS-level dark mode changes
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) { mq.addEventListener('change', applyTheme); }
+    else if (mq.addListener)  { mq.addListener(applyTheme); } // Safari <14 fallback
+  }
 
   // ── FAB ─────────────────────────────────────────────────────────
   var fab = document.createElement('button');
@@ -309,11 +372,16 @@
     return '<button class="faq" data-q="' + escAttr(q) + '">' + escHTML(q) + '</button>';
   }).join('');
 
-  // WhatsApp & call header buttons
+  // Header action buttons: WhatsApp → email fallback → call → close
   var hdrActions = '';
   if (waHref) {
     hdrActions += '<a class="hdr-btn" href="' + escAttr(waHref) + '" target="_blank" rel="noreferrer" title="WhatsApp us">' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>' +
+      '</a>';
+  } else if (emailHref) {
+    // Email fallback when no WhatsApp (e.g. FLP pages with dummy phone)
+    hdrActions += '<a class="hdr-btn" href="' + escAttr(emailHref) + '" title="Email us">' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 4 10 9 10-9"/></svg>' +
       '</a>';
   }
   if (callHref) {
@@ -332,7 +400,7 @@
     '  <div class="hdr-avatar">V</div>',
     '  <div class="hdr-info">',
     '    <div class="hdr-name"><span class="hdr-dot"></span>' + escHTML(widgetTitle) + '</div>',
-    '    <div class="hdr-sub">Codevertex AI &middot; Online</div>',
+    '    <div class="hdr-sub">' + subtitleText + '</div>',
     '  </div>',
     '  <div class="hdr-actions">' + hdrActions + '</div>',
     '</div>',
@@ -823,7 +891,7 @@
       var data = await res.json();
       if (data.session_id) {
         sessionID = data.session_id;
-        try { sessionStorage.setItem(SESSION_KEY, sessionID); } catch (e) {}
+        try { sessionStorage.setItem(SESSION_KEY, sessionID); } catch { }
       }
 
       var answer = (data.result && data.result.response) || data.response || '';
