@@ -265,7 +265,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         </section>
       </main>
 
-      <script async src="/widget/chat.js" data-tenant={profile.slug} data-api-url={AI} data-color={brand} data-autoopen="true" />
+      <script async src="/widget/chat.js" data-tenant={profile.slug} data-api-url={AI} data-primary-color={brand} data-accent-color={brand} data-autoopen="true" data-business-type={isFLP ? "flp" : "generic"} />
       <script dangerouslySetInnerHTML={{ __html: `(function(){try{var s=${JSON.stringify(profile.slug)},a=${JSON.stringify(API)};var f=function(t,m){try{fetch(a+'/api/v1/public/profile-events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:s,event_type:t,referrer:document.referrer,metadata:m||{}}),keepalive:true}).catch(function(){});}catch(e){}};f('page_view');document.addEventListener('click',function(e){var el=e.target;while(el&&el.nodeType===1){var h=el.getAttribute&&el.getAttribute('href');if(h){if(/wa\\.me/.test(h))return f('whatsapp_click');if(/cal/.test(h))return f('book_click');if(/shop\\.foreverliving/.test(h))return f('product_click',{href:h});if(/join\\.foreverliving/.test(h))return f('cta_click',{cta:'join'});}el=el.parentNode;}},true);}catch(e){}})();` }} />
       <footer className="border-t py-3 text-center text-[10px] text-gray-400">Powered by <a href={APP} className="font-medium hover:underline text-gray-500">MarketFlow</a></footer>
     </div>

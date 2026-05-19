@@ -24,15 +24,16 @@
   window.__veraLoaded = true;
 
   var script = document.currentScript;
-  var tenantSlug    = (script && script.dataset.tenant)       || 'codevertex';
-  var apiURL        = (script && script.dataset.apiUrl)       || 'https://marketflowai.codevertexitsolutions.com';
-  var mode          = (script && script.dataset.mode)         || 'tenant';
-  var primaryColor  = (script && script.dataset.primaryColor) || '#EC4899';
-  var accentColor   = (script && script.dataset.accentColor)  || '#7C3AED';
-  var widgetTitle   = (script && script.dataset.widgetTitle)  || 'Vera';
-  var waNumber      = (script && script.dataset.whatsapp)     || '';   // e.g. "254712345678"
-  var phoneNumber   = (script && script.dataset.phone)        || '';   // e.g. "+254712345678"
-  var callUrl       = (script && script.dataset.callUrl)      || '';   // custom Calendly / booking URL
+  var tenantSlug    = (script && script.dataset.tenant)        || 'codevertex';
+  var apiURL        = (script && script.dataset.apiUrl)        || 'https://marketflowai.codevertexitsolutions.com';
+  var mode          = (script && script.dataset.mode)          || 'tenant';
+  var businessType  = (script && script.dataset.businessType)  || '';  // "flp" | "generic" | "" (auto-detect)
+  var primaryColor  = (script && script.dataset.primaryColor)  || '#EC4899';
+  var accentColor   = (script && script.dataset.accentColor)   || '#7C3AED';
+  var widgetTitle   = (script && script.dataset.widgetTitle)   || 'Vera';
+  var waNumber      = (script && script.dataset.whatsapp)      || '';  // e.g. "254712345678"
+  var phoneNumber   = (script && script.dataset.phone)         || '';  // e.g. "+254712345678"
+  var callUrl       = (script && script.dataset.callUrl)       || '';  // custom Calendly / booking URL
   var autoOpen      = script && script.dataset.autoopen === 'true';
 
   var waHref  = waNumber  ? 'https://wa.me/' + waNumber  : '';
@@ -489,16 +490,18 @@
   function maybeShowForm(text, meta) {
     var t = text.toLowerCase();
     var intent = (meta && meta.intent) || '';
+    if (shadow.querySelector('.vera-form')) return; // only one form at a time
 
+    // Support / escalate — all niches
     if (intent === 'escalate' || intent === 'support_request' ||
-        t.includes('ticket') || t.includes('report') || (t.includes('not working') && !shadow.querySelector('.vera-form'))) {
+        t.includes('ticket') || t.includes('report') || t.includes('not working')) {
       buildForm({
         title: '🎫 Create Support Ticket',
         submitLabel: 'Submit Ticket →',
         fields: [
-          { name: 'name', type: 'text', label: 'Your name', required: true },
-          { name: 'email', type: 'email', label: 'Email', required: true },
-          { name: 'issue', type: 'textarea', label: 'Describe your issue', required: true },
+          { name: 'name',  type: 'text',     label: 'Your name',         required: true },
+          { name: 'email', type: 'email',    label: 'Email',              required: true },
+          { name: 'issue', type: 'textarea', label: 'Describe your issue',required: true },
           { name: 'priority', type: 'select', label: 'Priority', options: ['Low', 'Medium', 'High — urgent'] },
         ],
       }, function (data, wrap) {
@@ -508,10 +511,8 @@
           headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
           body: JSON.stringify({ name: data.name, email: data.email, description: data.issue, priority: (data.priority || 'medium').toLowerCase(), session_id: sessionID }),
         }).then(function (r) { return r.json(); }).then(function (d) {
-          appendMsg('bot', md('Ticket **#' + (d.ticket_ref || d.id || 'CVX-???') + '** created. Our team will respond to **' + data.email + '** within 2–4 hours.'));
-          if (waHref) {
-            renderActionChips([{ label: '💬 WhatsApp for urgent help', href: waHref }]);
-          }
+          appendMsg('bot', md('Ticket **#' + (d.ticket_ref || d.id || 'REF-???') + '** created. Our team will respond to **' + data.email + '** within 2–4 hours.'));
+          if (waHref) renderActionChips([{ label: '💬 WhatsApp for urgent help', href: waHref }]);
         }).catch(function () {
           appendMsg('bot', md('Ticket submitted! We\'ll respond to **' + data.email + '** within 4 hours.'));
         });
@@ -519,14 +520,45 @@
       return;
     }
 
-    if (intent === 'course_inquiry' || t.includes('enroll') || t.includes('register') || t.includes('sign up for') || t.includes('apply for')) {
+    // FLP: Join the Business / recruitment
+    if (businessType === 'flp' && (intent === 'recruitment' || intent === 'business_opp' ||
+        t.includes('join') || t.includes('fbo') || t.includes('sign up') || t.includes('start a business') ||
+        t.includes('become') || t.includes('business opportunity') || t.includes('earn'))) {
+      buildForm({
+        title: '🤝 Join the Business',
+        submitLabel: 'Send Interest →',
+        fields: [
+          { name: 'name',  type: 'text',  label: 'Full name',        required: true },
+          { name: 'email', type: 'email', label: 'Email',             required: true },
+          { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',  required: true },
+          { name: 'country', type: 'text', label: 'Country', placeholder: 'e.g. Kenya' },
+          { name: 'goal', type: 'select', label: 'Main goal', options: ['Extra income', 'Full-time business', 'Personal use & discounts', 'Just exploring'] },
+        ],
+      }, function (data, wrap) {
+        wrap.remove();
+        fetch(apiURL + '/api/v1/public/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
+          body: JSON.stringify({ ...data, source: 'vera_widget_flp', session_id: sessionID }),
+        }).catch(function () {});
+        appendMsg('bot', md('Interest received! 🎉 Your FBO will reach out to **' + data.phone + '** to walk you through getting started.\n\nYou can also connect directly:'));
+        var chips = [];
+        if (waHref) chips.push({ label: '💬 WhatsApp your FBO', href: waHref });
+        renderActionChips(chips);
+      });
+      return;
+    }
+
+    // Codevertex: course enrollment
+    if ((businessType === 'codevertex' || businessType === '') &&
+        (intent === 'course_inquiry' || t.includes('enroll') || t.includes('register') || t.includes('apply for') || t.includes('sign up for'))) {
       buildForm({
         title: '🎓 Course Enrollment',
         submitLabel: 'Submit Enrollment →',
         fields: [
-          { name: 'name', type: 'text', label: 'Full name', required: true },
-          { name: 'email', type: 'email', label: 'Email', required: true },
-          { name: 'phone', type: 'text', label: 'Phone / WhatsApp', required: true },
+          { name: 'name',  type: 'text',  label: 'Full name',        required: true },
+          { name: 'email', type: 'email', label: 'Email',             required: true },
+          { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',  required: true },
           { name: 'experience', type: 'select', label: 'Experience level', options: ['Complete Beginner', 'Some Basics', 'Intermediate', 'Advanced'] },
           { name: 'howHeard', type: 'select', label: 'How did you hear about us?', options: ['Social Media', 'WhatsApp', 'Referral', 'Google Search', 'Other'] },
         ],
@@ -545,40 +577,59 @@
       return;
     }
 
+    // Book a call / meeting — all niches (with niche-appropriate topics)
     if (t.includes('book') || t.includes('call') || t.includes('schedule') || t.includes('demo') || t.includes('meeting')) {
+      var topicOptions = businessType === 'flp'
+        ? ['Product info session', 'Business opportunity intro', 'Getting started as an FBO', 'General questions']
+        : businessType === 'codevertex'
+        ? ['Software Development', 'AI / Analytics', 'Digitika Training', 'Platform Demo', 'General Inquiry']
+        : ['Product / service demo', 'Business consultation', 'Partnership enquiry', 'General Inquiry'];
+
       buildForm({
-        title: '📅 Book a Discovery Call',
+        title: '📅 Book a Call',
         submitLabel: 'Book Call →',
         fields: [
-          { name: 'name', type: 'text', label: 'Full name', required: true },
-          { name: 'email', type: 'email', label: 'Email', required: true },
-          { name: 'phone', type: 'text', label: 'Phone / WhatsApp', required: true },
-          { name: 'time', type: 'text', label: 'Preferred date & time', placeholder: 'e.g. Tuesday 2pm EAT' },
-          { name: 'topic', type: 'select', label: 'Topic', options: ['Software Development', 'AI / Analytics', 'Digitika Training', 'Platform Demo', 'General Inquiry'] },
+          { name: 'name',  type: 'text',  label: 'Full name',               required: true },
+          { name: 'email', type: 'email', label: 'Email',                    required: true },
+          { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',         required: true },
+          { name: 'time',  type: 'text',  label: 'Preferred date & time', placeholder: 'e.g. Tuesday 2pm EAT' },
+          { name: 'topic', type: 'select', label: 'Topic', options: topicOptions },
         ],
       }, function (data, wrap) {
         wrap.remove();
-        appendMsg('bot', md('Call request saved! Our team will reach out to **' + data.email + '** within 2 hours to confirm.\n\nNeed to talk now?'));
+        fetch(apiURL + '/api/v1/public/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
+          body: JSON.stringify({ ...data, source: 'vera_widget_booking', session_id: sessionID }),
+        }).catch(function () {});
+        appendMsg('bot', md('Call request saved! We\'ll reach out to **' + data.email + '** within 2 hours to confirm.\n\nNeed to talk now?'));
         var chips = [];
         if (waHref) chips.push({ label: '💬 WhatsApp now', href: waHref });
-        if (callHref) chips.push({ label: '📞 Call us now', href: callHref });
+        if (callHref) chips.push({ label: '📞 Call now', href: callHref });
         renderActionChips(chips);
       });
       return;
     }
 
-    if (t.includes('contact') || t.includes('message') || t.includes('email')) {
+    // Generic contact / message — all niches
+    if (t.includes('contact') || t.includes('message') || t.includes('email') || t.includes('reach') || t.includes('talk')) {
       buildForm({
         title: '✉️ Send a Message',
         submitLabel: 'Send Message →',
         fields: [
-          { name: 'name', type: 'text', label: 'Your name', required: true },
-          { name: 'email', type: 'email', label: 'Email', required: true },
-          { name: 'message', type: 'textarea', label: 'Your message', required: true },
+          { name: 'name',    type: 'text',     label: 'Your name',    required: true },
+          { name: 'email',   type: 'email',    label: 'Email',         required: true },
+          { name: 'message', type: 'textarea', label: 'Your message',  required: true },
         ],
       }, function (data, wrap) {
         wrap.remove();
+        fetch(apiURL + '/api/v1/public/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
+          body: JSON.stringify({ ...data, source: 'vera_widget_contact', session_id: sessionID }),
+        }).catch(function () {});
         appendMsg('bot', md('Message received! We\'ll respond to **' + data.email + '** within 24 hours.'));
+        if (waHref) renderActionChips([{ label: '💬 WhatsApp for a faster reply', href: waHref }]);
       });
     }
   }
@@ -761,7 +812,7 @@
           'X-Tenant-ID': tenantSlug,
           'X-Widget-Mode': mode,
         },
-        body: JSON.stringify({ question: q, session_id: sessionID, stream: false, context: { mode: mode } }),
+        body: JSON.stringify({ question: q, session_id: sessionID, stream: false, business_type: businessType }),
       });
 
       clearInterval(typingInterval);
