@@ -107,28 +107,23 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 <p key={i}>{para}</p>
               ))}
             </div>
-            <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {[
-                { e: "💰", t: "30-48% Retail Profit", d: "Immediate margin on every sale." },
-                { e: "👥", t: "Build a Team", d: "Earn bonuses from your team volume." },
-                { e: "🌍", t: "Global Travel", d: "All-expenses-paid incentive trips." },
-                { e: "🏆", t: "Inheritable Business", d: "Pass it to the next generation." },
+                { img: "/images/public-profile/retail-profit.jpg", t: "30-48% Retail Profit", d: "Immediate margin on every sale." },
+                { img: "/images/public-profile/build-a-team.jpg", t: "Build a Team", d: "Earn bonuses from your team volume." },
+                { img: "/images/public-profile/forever2drive-image.png", t: "🚗 Forever2Drive", d: "$400-$800/month car bonus." },
+                { img: "/images/public-profile/global-travel.jpg", t: "🌍 Global Travel", d: "All-expenses-paid incentive trips." },
+                { img: "/images/public-profile/inheritable-business.jpg", t: "🏆 Inheritable Business", d: "Pass it to the next generation." },
               ].map((b) => (
-                <div key={b.t} className="rounded-lg border p-3 hover:shadow-sm transition">
-                  <span className="text-lg">{b.e}</span>
-                  <h3 className="mt-1 text-xs font-semibold">{b.t}</h3>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{b.d}</p>
+                <div key={b.t} className="rounded-lg border overflow-hidden hover:shadow-sm transition">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={b.img} alt={b.t} className="w-full h-28 object-cover" loading="lazy" />
+                  <div className="p-3">
+                    <h3 className="text-xs font-semibold">{b.t}</h3>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{b.d}</p>
+                  </div>
                 </div>
               ))}
-              {/* Forever2Drive with image */}
-              <div className="rounded-lg border overflow-hidden hover:shadow-sm transition col-span-2 sm:col-span-1">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/public-profile/forever2drive-image.jpg" alt="Forever2Drive" className="w-full h-24 object-cover" loading="lazy" />
-                <div className="p-3">
-                  <h3 className="text-xs font-semibold">🚗 Forever2Drive</h3>
-                  <p className="text-[10px] text-gray-400 mt-0.5">$400-$800/month car bonus.</p>
-                </div>
-              </div>
             </div>
             <div className="mt-8 pt-6 border-t border-gray-100 text-[11px] text-gray-400 italic text-center max-w-xl mx-auto leading-relaxed">
               *Individual results may vary. Forever makes no guarantees on income or success. Your success depends on your effort, commitment, skill, and leadership abilities, and how effectively you exercise those qualities. Please see Forever’s Annual Income Disclosure Statement at <a href="https://foreverliving.com/income" target="_blank" rel="noreferrer" className="underline hover:text-gray-600">foreverliving.com/income</a> for more information.
@@ -280,9 +275,9 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 const PRODUCTS = [
   { code: "015", name: "Aloe Vera Gel", cc: "0.103", desc: "Pure stabilized inner leaf gel for digestive wellness and natural hydration.", img: "/images/public-profile/featured-products/aloe-vera-gel.jpg" },
   { code: "376", name: "Arctic Sea", cc: "0.163", desc: "Omega-3 DHA & EPA for heart health, brain function, and joint support.", img: "/images/public-profile/featured-products/artic-sea.jpg" },
-  { code: "257", name: "Forever Kids", cc: "0.278", desc: "Chewable phytonutrient-rich multivitamins designed for growing children.", img: "/images/public-profile/featured-products/forever-kids.jpg" },
-  { code: "VIT", name: "Forever Gummies", cc: "0.250", desc: "Delicious vitamin gummies packed with essential nutrients the whole family loves.", img: "/images/public-profile/featured-products/forever-gummy.jpg" },
+  { code: "354", name: "Forever Kids", cc: "0.278", desc: "Chewable phytonutrient-rich multivitamins designed for growing children.", img: "/images/public-profile/featured-products/forever-kids.jpg" },
+  { code: "284", name: "Avocado Soap", cc: "0.113", desc: "Moisturizing soap with natural avocado oil and aloe vera for soft, nourished skin.", img: "/images/public-profile/featured-products/avocado-soap.jpg" },
   { code: "028", name: "Bright Toothgel", cc: "0.080", desc: "Fluoride-free aloe vera toothgel for gentle whitening and lasting freshness.", img: "/images/public-profile/featured-products/tooth-gel.jpg" },
-  { code: "071", name: "Forever Deodorant", cc: "0.088", desc: "Aluminum-free aloe vera deodorant for all-day freshness without harsh chemicals.", img: "/images/public-profile/featured-products/deordorant.jpg" },
-  { code: "026", name: "Aloe Lips", cc: "0.046", desc: "Soothing aloe vera lip balm that moisturizes and protects lips all day long.", img: "/images/public-profile/featured-products/aloe-lips" },
+  { code: "067", name: "Forever Deodorant", cc: "0.088", desc: "Aluminum-free aloe vera deodorant for all-day freshness without harsh chemicals.", img: "/images/public-profile/featured-products/deordorant.jpg" },
+  { code: "022", name: "Aloe Lips", cc: "0.046", desc: "Soothing aloe vera lip balm that moisturizes and protects lips all day long.", img: "/images/public-profile/featured-products/aloe-lips.jpg" },
 ];
