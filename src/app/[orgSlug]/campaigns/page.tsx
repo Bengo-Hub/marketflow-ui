@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart3, Eye, MousePointerClick, DollarSign, Target, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 
 type CampaignMetrics = {
   impressions: number;
@@ -87,12 +88,26 @@ export default function CampaignsPage() {
       qc.invalidateQueries({ queryKey: ["campaigns"] });
       setOpen(false);
       resetForm();
+      toast.success(editingId ? "Campaign updated" : "Campaign created");
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to save campaign"
+      );
     },
   });
 
   const del = useMutation({
     mutationFn: async (id: string) => apiClient.delete(`/api/v1/campaigns/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["campaigns"] });
+      toast.success("Campaign deleted");
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete campaign"
+      );
+    },
   });
 
   function openEdit(c: Campaign) {

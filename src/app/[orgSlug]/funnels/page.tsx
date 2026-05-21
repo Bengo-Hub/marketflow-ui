@@ -25,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
 type Funnel = {
   id: string;
@@ -71,8 +72,14 @@ export default function FunnelsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["funnels"] });
+      toast.success(editing?.id ? "Funnel updated" : "Funnel created");
       setOpen(false);
       setEditing(null);
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to save funnel"
+      );
     },
   });
 
@@ -82,11 +89,24 @@ export default function FunnelsPage() {
         status: f.status === "published" ? "draft" : "published",
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["funnels"] }),
+    onError: (err: unknown) => {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update funnel status"
+      );
+    },
   });
 
   const del = useMutation({
     mutationFn: async (id: string) => apiClient.delete(`/api/v1/funnels/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["funnels"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["funnels"] });
+      toast.success("Funnel deleted");
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete funnel"
+      );
+    },
   });
 
   function newFunnel() {
