@@ -100,8 +100,8 @@ export default function PlatformBillingPage() {
     queryKey: ["subscription-plans"],
     queryFn: async () => {
       try {
-        const r = await apiClient.get<{ data: Plan[] }>(`${SUBSCRIPTIONS_URL}/api/v1/plans`);
-        return (r.data.data ?? []).filter((p: Plan) => p.plan_code?.startsWith("MF_") || p.name?.toLowerCase().includes("market"));
+        const r = await apiClient.get<{ data: Plan[] }>(`${SUBSCRIPTIONS_URL}/api/v1/plans?service=marketflow&active=true`);
+        return r.data.data ?? [];
       } catch {
         return [];
       }
