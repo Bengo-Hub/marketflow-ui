@@ -97,7 +97,7 @@ export default function BillingPage() {
   }, [qc]);
 
   const openUpgrade = () => {
-    window.open(`${SUBSCRIPTIONS_URL}/plans`, "_blank");
+    window.open(`${SUBSCRIPTIONS_URL}/plans?service=marketflow`, "_blank");
   };
 
   const topUpIframeSrc = (() => {
