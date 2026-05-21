@@ -38,6 +38,21 @@
   var subtitle      = (script && script.dataset.subtitle)      || '';  // header subtitle override
   var themeMode     = (script && script.dataset.theme)         || 'auto'; // "auto" | "light" | "dark"
   var autoOpen      = script && script.dataset.autoopen === 'true';
+  // Authenticated user context — passed from SSO dashboard (VeraWidget.tsx)
+  // or any host page that has the user's identity. Empty on public pages.
+  var authUserID    = (script && script.dataset.userId)        || '';
+  var authUserEmail = (script && script.dataset.userEmail)     || '';
+  var authUserName  = (script && script.dataset.userName)      || '';
+  var authUserRole  = (script && script.dataset.userRole)      || '';
+  // OTP endpoints — provided by the SSO dashboard for email verification
+  // before a helpdesk ticket is submitted.
+  var otpSendEndpoint   = (script && script.dataset.otpSendEndpoint)   || '';
+  var otpVerifyEndpoint = (script && script.dataset.otpVerifyEndpoint) || '';
+  // Derive the base URL for OTP calls (same origin as the host page when
+  // running inside the dashboard; falls back to empty for public pages).
+  var otpBaseURL = otpSendEndpoint
+    ? (otpSendEndpoint.startsWith('http') ? '' : window.location.origin)
+    : '';
 
   var waHref   = waNumber    ? 'https://wa.me/' + waNumber  : '';
   var callHref = callUrl    || (phoneNumber ? 'tel:' + phoneNumber : '');
@@ -524,6 +539,16 @@
         el.placeholder = f.placeholder || f.label + (f.required ? ' *' : '');
       }
       el.id = 'vf-' + f.name;
+      // Pre-fill with default value when provided (e.g. authenticated user data)
+      if (f.defaultValue) {
+        el.value = f.defaultValue;
+        // Lock pre-filled auth fields to prevent accidental override
+        if (f.name === 'email' && authUserEmail) {
+          el.readOnly = true;
+          el.style.opacity = '0.7';
+          el.title = 'Verified email from your account';
+        }
+      }
       wrap.appendChild(el);
       fields[f.name] = el;
     });
@@ -554,6 +579,125 @@
     return wrap;
   }
 
+  // ── OTP email verification ───────────────────────────────────────
+  // Shows an inline OTP entry form. Calls otpSendEndpoint to dispatch the
+  // code, then otpVerifyEndpoint to confirm. Invokes onSuccess() when verified.
+  function showOTPVerification(email, name, onSuccess) {
+    var wrap = document.createElement('div');
+    wrap.className = 'vera-form';
+
+    var sent = false;
+    var sending = false;
+
+    var titleEl = document.createElement('div');
+    titleEl.className = 'vf-title';
+    titleEl.innerHTML = '🔐 Verify your email<button class="vf-close" aria-label="Close">&#x2715;</button>';
+    titleEl.querySelector('.vf-close').addEventListener('click', function () {
+      wrap.remove();
+      appendMsg('bot', md('Verification cancelled. Let me know if you\'d like to try again.'));
+    });
+    wrap.appendChild(titleEl);
+
+    var infoEl = document.createElement('p');
+    infoEl.style.cssText = 'font-size:12px;color:#6b7280;margin-bottom:8px;line-height:1.5';
+    infoEl.textContent = 'We\'ll send a one-time code to ' + email + ' to verify your email before creating the ticket.';
+    wrap.appendChild(infoEl);
+
+    var otpInput = document.createElement('input');
+    otpInput.type = 'text';
+    otpInput.placeholder = 'Enter 6-digit code';
+    otpInput.maxLength = 6;
+    otpInput.style.letterSpacing = '4px';
+    otpInput.style.textAlign = 'center';
+    otpInput.style.fontSize = '20px';
+    otpInput.style.display = 'none';
+    wrap.appendChild(otpInput);
+
+    var errorEl = document.createElement('p');
+    errorEl.style.cssText = 'font-size:11px;color:#ef4444;margin-bottom:4px;display:none';
+    wrap.appendChild(errorEl);
+
+    var sendBtn = document.createElement('button');
+    sendBtn.className = 'vf-submit';
+    sendBtn.textContent = 'Send verification code →';
+    wrap.appendChild(sendBtn);
+
+    body.appendChild(wrap);
+    scrollBottom();
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+
+    sendBtn.addEventListener('click', function () {
+      if (sending) return;
+
+      if (!sent) {
+        // Send OTP
+        sending = true;
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending…';
+
+        var sendURL = otpBaseURL + otpSendEndpoint;
+        fetch(sendURL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email: email }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('send failed');
+          sent = true;
+          sending = false;
+          otpInput.style.display = 'block';
+          otpInput.focus();
+          sendBtn.textContent = 'Verify code →';
+          sendBtn.disabled = false;
+          infoEl.textContent = 'Code sent to ' + email + '. It expires in 5 minutes.';
+        }).catch(function () {
+          sending = false;
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Retry sending code';
+          showError('Failed to send code. Please try again.');
+        });
+        return;
+      }
+
+      // Verify OTP
+      var code = otpInput.value.trim();
+      if (code.length < 4) {
+        showError('Please enter the full verification code.');
+        return;
+      }
+      sending = true;
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Verifying…';
+      errorEl.style.display = 'none';
+
+      var verifyURL = otpBaseURL + otpVerifyEndpoint;
+      fetch(verifyURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: email, otp: code }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('invalid');
+        wrap.remove();
+        onSuccess();
+      }).catch(function () {
+        sending = false;
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Verify code →';
+        showError('Invalid or expired code. Please try again.');
+      });
+    });
+
+    // Allow pressing Enter in the OTP field to submit
+    otpInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); sendBtn.click(); }
+    });
+  }
+
   // ── Intent → form mapping ────────────────────────────────────────
   function maybeShowForm(text, meta) {
     var t = text.toLowerCase();
@@ -563,27 +707,54 @@
     // Support / escalate — all niches
     if (intent === 'escalate' || intent === 'support_request' ||
         t.includes('ticket') || t.includes('report') || t.includes('not working')) {
+      var ticketFields = [
+        { name: 'name',  type: 'text',     label: 'Your name',          required: true,
+          defaultValue: authUserName || '' },
+        { name: 'email', type: 'email',    label: 'Email',               required: true,
+          defaultValue: authUserEmail || '' },
+        { name: 'issue', type: 'textarea', label: 'Describe your issue', required: true },
+        { name: 'priority', type: 'select', label: 'Priority', options: ['Low', 'Medium', 'High — urgent'] },
+      ];
       buildForm({
         title: '🎫 Create Support Ticket',
         submitLabel: 'Submit Ticket →',
-        fields: [
-          { name: 'name',  type: 'text',     label: 'Your name',         required: true },
-          { name: 'email', type: 'email',    label: 'Email',              required: true },
-          { name: 'issue', type: 'textarea', label: 'Describe your issue',required: true },
-          { name: 'priority', type: 'select', label: 'Priority', options: ['Low', 'Medium', 'High — urgent'] },
-        ],
+        fields: ticketFields,
       }, function (data, wrap) {
-        wrap.remove();
-        fetch(apiURL + '/api/v1/public/tickets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
-          body: JSON.stringify({ name: data.name, email: data.email, description: data.issue, priority: (data.priority || 'medium').toLowerCase(), session_id: sessionID }),
-        }).then(function (r) { return r.json(); }).then(function (d) {
-          appendMsg('bot', md('Ticket **#' + (d.ticket_ref || d.id || 'REF-???') + '** created. Our team will respond to **' + data.email + '** within 2–4 hours.'));
-          if (waHref) renderActionChips([{ label: '💬 WhatsApp for urgent help', href: waHref }]);
-        }).catch(function () {
-          appendMsg('bot', md('Ticket submitted! We\'ll respond to **' + data.email + '** within 4 hours.'));
-        });
+        var doSubmit = function (verifiedEmail) {
+          wrap.remove();
+          // Route platform tickets to codevertex tenant; tenant tickets stay on tenant slug
+          var ticketTenant = (mode === 'platform') ? 'codevertex' : tenantSlug;
+          fetch(apiURL + '/api/v1/public/tickets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': ticketTenant },
+            body: JSON.stringify({
+              name: data.name,
+              email: verifiedEmail || data.email,
+              description: data.issue,
+              priority: (data.priority || 'medium').toLowerCase().replace(' — urgent', '').trim(),
+              session_id: sessionID,
+              source: mode === 'platform' ? 'vera_platform' : 'vera_widget',
+              requester_user_id: authUserID || undefined,
+            }),
+          }).then(function (r) { return r.json(); }).then(function (d) {
+            appendMsg('bot', md('Ticket **#' + (d.ticket_number || d.ticket_ref || d.id || 'REF-???') + '** created. Our team will respond to **' + (verifiedEmail || data.email) + '** within 2–4 hours.'));
+            if (waHref) renderActionChips([{ label: '💬 WhatsApp for urgent help', href: waHref }]);
+          }).catch(function () {
+            appendMsg('bot', md('Ticket submitted! We\'ll respond to **' + (verifiedEmail || data.email) + '** within 4 hours.'));
+          });
+        };
+
+        // If OTP endpoints are configured AND the user is not already authenticated
+        // via the SSO dashboard (authUserEmail present = already verified), require
+        // email verification before submitting the ticket.
+        var emailToVerify = data.email;
+        var alreadyVerified = authUserEmail && authUserEmail.toLowerCase() === emailToVerify.toLowerCase();
+        if (otpSendEndpoint && !alreadyVerified) {
+          wrap.remove();
+          showOTPVerification(emailToVerify, data.name, function () { doSubmit(emailToVerify); });
+        } else {
+          doSubmit(emailToVerify);
+        }
       });
       return;
     }
