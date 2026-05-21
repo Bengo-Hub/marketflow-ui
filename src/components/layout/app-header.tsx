@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, User, Globe, Bell, ExternalLink, Settings } from "lucide-react";
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
+import { OutletFilter } from "@/components/layout/outlet-filter";
 
 export function AppHeader() {
   const { user, logout } = useAuthStore();
@@ -34,6 +35,9 @@ export function AppHeader() {
       <Separator orientation="vertical" className="h-6" />
 
       {user?.isPlatformOwner && <TenantSwitcher />}
+
+      {/* Outlet filter for HQ/admin users (non-platform owners with multi-outlet tenants) */}
+      <OutletFilter />
 
       <div className="flex-1" />
 

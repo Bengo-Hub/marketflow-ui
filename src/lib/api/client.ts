@@ -53,11 +53,24 @@ const attachTenantHeaders = (config: InternalAxiosRequestConfig) => {
     // Regular tenant user: include UUID too (matches storage).
     config.headers["X-Tenant-ID"] = tenantId;
   }
+
+  // Attach outlet ID if set (for outlet-scoped requests)
+  const outletId = outletIdGetter() || localStorage.getItem("marketflow-selected-outlet-id");
+  if (outletId) {
+    config.headers["X-Outlet-ID"] = outletId;
+  }
+
   return config;
 };
 
 apiClient.interceptors.request.use(attachTenantHeaders);
 aiClient.interceptors.request.use(attachTenantHeaders);
+
+// Outlet ID getter — set by outlet-filter component
+let outletIdGetter: () => string | null = () => null;
+export function attachOutletIdGetter(getter: () => string | null) {
+  outletIdGetter = getter;
+}
 
 // 401 callback — set by auth provider to handle logout
 let on401Callback: (() => void) | null = null;

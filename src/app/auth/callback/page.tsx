@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { useOutletFilterStore } from "@/store/outlet-filter";
 
 function CallbackHandler() {
   const searchParams = useSearchParams();
@@ -21,6 +22,25 @@ function CallbackHandler() {
       const returnTo = sessionStorage.getItem("sso_return_to");
       sessionStorage.removeItem("sso_return_to");
       const user = useAuthStore.getState().user;
+
+      // Auto-preselect outlet from JWT claims for non-platform, non-HQ users.
+      if (user && !user.isPlatformOwner) {
+        const storedOutlet = localStorage.getItem("marketflow-selected-outlet-id");
+        if (!storedOutlet) {
+          const jwtOutletId = (user as any)?.outlet_id || (user as any)?.outletId;
+          const isHqUser = (user as any)?.is_hq_user || (user as any)?.isHqUser;
+          if (jwtOutletId && !isHqUser) {
+            useOutletFilterStore.getState().selectOutlet({
+              id: jwtOutletId,
+              code: (user as any)?.outlet_code ?? '',
+              name: (user as any)?.outlet_code ?? '',
+              useCase: (user as any)?.outlet_use_case,
+            });
+            localStorage.setItem("marketflow-selected-outlet-id", jwtOutletId);
+          }
+        }
+      }
+
       if (returnTo) {
         router.replace(returnTo);
         return;
