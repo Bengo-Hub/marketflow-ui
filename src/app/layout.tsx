@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -10,14 +10,20 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#f59e0b",
+};
+
 export const metadata: Metadata = {
   title: "MarketFlow",
   description: "AI-powered marketing automation — chatbots, ad campaigns, funnels, and nurture sequences on autopilot.",
   icons: { icon: "/favicon.svg", apple: "/icons/icon-192x192.png" },
   manifest: "/manifest.json",
-  themeColor: "#f59e0b",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "MarketFlow" },
-  viewport: { width: "device-width", initialScale: 1, maximumScale: 5 },
 };
 
 export default function RootLayout({

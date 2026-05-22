@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthState>()(
       error: null,
 
       initialize: async () => {
-        const { session } = get();
+        const { session, user } = get();
         if (!session?.accessToken) {
           set({ status: "unauthenticated" });
           return;
@@ -63,13 +63,22 @@ export const useAuthStore = create<AuthState>()(
         apiClient.defaults.headers.common.Authorization = `Bearer ${session.accessToken}`;
         aiClient.defaults.headers.common.Authorization = `Bearer ${session.accessToken}`;
 
+        // Hydrate from storage if user profile exists and token hasn't expired.
+        if (user && session.expiresAt) {
+          const expiresAt = new Date(session.expiresAt).getTime();
+          if (Date.now() < expiresAt - 60_000) {
+            set({ status: "authenticated", isAuthenticated: true, lastAuthenticatedAt: Date.now() });
+            return;
+          }
+        }
+
         set({ status: "loading" });
 
         try {
-          const user = await fetchProfile(session.accessToken);
-          get().syncTenantToStorage(user);
+          const freshUser = await fetchProfile(session.accessToken);
+          get().syncTenantToStorage(freshUser);
           set({
-            user,
+            user: freshUser,
             status: "authenticated",
             isAuthenticated: true,
             lastAuthenticatedAt: Date.now(),

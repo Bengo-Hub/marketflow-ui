@@ -1,25 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Download, Share, X } from "lucide-react";
+import { requestAppPermissions } from "@/hooks/use-app-permissions";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-const DISMISS_KEY = "mf-pwa-dismiss";
-const DISMISS_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+const DISMISS_KEY = "mf_pwa_install_dismissed_until";
+const RE_PROMPT_MS = 24 * 60 * 60 * 1000;
 
 function isDismissedRecently(): boolean {
   if (typeof window === "undefined") return false;
-  try {
-    const raw = localStorage.getItem(DISMISS_KEY);
-    if (!raw) return false;
-    const data = JSON.parse(raw);
-    return data.dismissed && Date.now() - data.timestamp < DISMISS_COOLDOWN_MS;
-  } catch {
-    return false;
-  }
+  return Date.now() < parseInt(localStorage.getItem(DISMISS_KEY) ?? "0", 10);
 }
 
 function isStandalone(): boolean {
@@ -27,94 +22,142 @@ function isStandalone(): boolean {
   return window.matchMedia("(display-mode: standalone)").matches;
 }
 
+function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return (
+    /iphone|ipad|ipod/i.test(navigator.userAgent) &&
+    !(window as unknown as { MSStream?: unknown }).MSStream
+  );
+}
+
 export function InstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [ios, setIos] = useState(false);
+  const promptRef = useRef<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    if (isStandalone()) return;
+    if (isStandalone() || isDismissedRecently()) return;
 
-    function handlePrompt(e: Event) {
-      e.preventDefault();
-      const evt = e as BeforeInstallPromptEvent;
-      setDeferredPrompt(evt);
-
-      if (isDismissedRecently()) return;
-
-      timerRef.current = setTimeout(() => {
-        setVisible(true);
-      }, 5000);
+    if (isIOS()) {
+      setIos(true);
+      setTimeout(() => setVisible(true), 3000);
+      return;
     }
 
-    window.addEventListener("beforeinstallprompt", handlePrompt);
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      promptRef.current = e as BeforeInstallPromptEvent;
+      if (!isDismissedRecently()) setTimeout(() => setVisible(true), 5000);
+    };
+
+    const onInstalled = () => setVisible(false);
+
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    const timer = setInterval(() => {
+      if (!isDismissedRecently() && promptRef.current) setVisible(true);
+    }, RE_PROMPT_MS);
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", handlePrompt);
-      if (timerRef.current) clearTimeout(timerRef.current);
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+      clearInterval(timer);
     };
   }, []);
 
-  const handleInstall = useCallback(async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
+  const dismiss = useCallback(() => {
+    localStorage.setItem(DISMISS_KEY, String(Date.now() + RE_PROMPT_MS));
     setVisible(false);
+  }, []);
 
-    if (outcome === "accepted" && "Notification" in window) {
-      await Notification.requestPermission();
-    }
-  }, [deferredPrompt]);
-
-  const handleDismiss = useCallback(() => {
+  const install = useCallback(async () => {
+    if (!promptRef.current) return;
+    await promptRef.current.prompt();
+    const { outcome } = await promptRef.current.userChoice;
     setVisible(false);
-    try {
-      localStorage.setItem(
-        DISMISS_KEY,
-        JSON.stringify({ dismissed: true, timestamp: Date.now() }),
-      );
-    } catch {
-      // localStorage may be unavailable
+    if (outcome === "accepted") {
+      await requestAppPermissions();
     }
   }, []);
 
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 p-4">
-      <div className="mx-auto flex max-w-lg items-center gap-4 rounded-xl bg-amber-400 p-4 text-black shadow-lg">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/icons/icon-96x96.png"
-          alt="MarketFlow"
-          width={48}
-          height={48}
-          className="shrink-0 rounded-lg"
-        />
-
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">Install MarketFlow</p>
-          <p className="text-xs opacity-80">
-            Add to your home screen for quick access and offline use.
-          </p>
+    <div
+      className="fixed bottom-4 right-4 z-50 w-[min(22rem,calc(100vw-2rem))]"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+    >
+      <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+        <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+          <div className="h-11 w-11 rounded-xl overflow-hidden border border-border shrink-0 flex items-center justify-center bg-amber-400/10">
+            {ios ? (
+              <Share className="h-5 w-5 text-amber-500" />
+            ) : (
+              <img
+                src="/icons/icon-96x96.png"
+                alt="MarketFlow"
+                className="h-9 w-9 rounded-lg object-cover"
+              />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm leading-tight">Install MarketFlow</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+              {ios
+                ? "Add to Home Screen for quick access."
+                : "AI-powered marketing — available offline."}
+            </p>
+          </div>
+          <button
+            onClick={dismiss}
+            className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-accent shrink-0 transition-colors -mt-1 -mr-1"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
         </div>
 
-        <div className="flex shrink-0 gap-2">
-          <button
-            onClick={handleDismiss}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-amber-500/40"
-          >
-            Dismiss
-          </button>
-          <button
-            onClick={handleInstall}
-            className="rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-black/80"
-          >
-            Install
-          </button>
-        </div>
+        {ios ? (
+          <ol className="px-4 pb-4 space-y-2 text-xs text-muted-foreground">
+            <li className="flex items-center gap-2.5">
+              <span className="h-5 w-5 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center text-[10px] font-bold shrink-0">
+                1
+              </span>
+              Tap{" "}
+              <Share className="h-3.5 w-3.5 inline mx-0.5 text-amber-500 shrink-0" />{" "}
+              <strong className="text-foreground">Share</strong> in Safari
+            </li>
+            <li className="flex items-center gap-2.5">
+              <span className="h-5 w-5 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center text-[10px] font-bold shrink-0">
+                2
+              </span>
+              Tap{" "}
+              <strong className="text-foreground">"Add to Home Screen"</strong>
+            </li>
+            <li className="flex items-center gap-2.5">
+              <span className="h-5 w-5 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center text-[10px] font-bold shrink-0">
+                3
+              </span>
+              Tap <strong className="text-foreground">"Add"</strong>
+            </li>
+          </ol>
+        ) : (
+          <div className="flex items-center gap-2 px-4 pb-4">
+            <button
+              onClick={dismiss}
+              className="flex-1 text-sm text-muted-foreground py-2 px-3 rounded-xl hover:bg-accent transition-colors"
+            >
+              Later
+            </button>
+            <button
+              onClick={install}
+              className="flex-1 text-sm bg-amber-400 text-black py-2 px-3 rounded-xl hover:bg-amber-500 transition-colors font-semibold flex items-center justify-center gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5 shrink-0" />
+              Install
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
