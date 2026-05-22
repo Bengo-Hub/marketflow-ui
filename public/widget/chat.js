@@ -1231,6 +1231,10 @@
                 sessionID = evt.data.session_id;
                 try { sessionStorage.setItem(SESSION_KEY, sessionID); } catch { }
               }
+            } else if (evt.type === 'replace' && evt.content) {
+              accumulated = evt.content;
+              botBubble.innerHTML = md(accumulated);
+              scrollBottom();
             } else if (evt.type === 'delta' && evt.content) {
               accumulated += evt.content;
               botBubble.innerHTML = md(accumulated);
