@@ -43,15 +43,14 @@ MarketFlow UI is the React/Next.js frontend for the MarketFlow CRM platform. It 
 
 **File:** `public/widget/chat.js`
 
-### v4 — PLANNED
+### v4 — COMPLETE (2026-05-22)
 
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| SSE streaming support | HIGH | Faster perceived response |
-| Course card component | MEDIUM | Rich display when KB returns course data |
-| Service status chips | LOW | Quick links to live service dashboards |
-| Conversation history (sessionStorage) | MEDIUM | Persist last 5 exchanges |
-| Full-screen mobile takeover (<480px) | LOW | Better mobile UX |
+| Feature | Priority | Status |
+|---------|----------|--------|
+| SSE streaming support | HIGH | ✅ Done — ReadableStream token-by-token rendering |
+| Conversation history (sessionStorage) | MEDIUM | ✅ Done — last 5 Q&A pairs restored on widget open |
+| Course card component | MEDIUM | ✅ Done — rendered after stream completes from meta.courses |
+| Full-screen mobile takeover (<480px) | LOW | ✅ Done — `position:fixed;inset:0` at <480px |
 
 ---
 
@@ -121,12 +120,24 @@ ANTHROPIC_API_KEY=<replace-me>  # fallback only
 
 ---
 
+## Completed in Sprint 13 (2026-05-22)
+
+| Task | Status |
+|------|--------|
+| CRM pages: Deals, Accounts, Activities, Tasks, Segments | ✅ Done |
+| Lead detail page + activity timeline | ✅ Done |
+| Contact detail page + 360° view tab | ✅ Done |
+| Settings: Custom Fields page | ✅ Done |
+| Settings: Custom Agents page | ✅ Done |
+| Sidebar: collapsible groups with tenant branding (pos-ui pattern) | ✅ Done |
+| API layer: deals, pipelines, accounts, activities, tasks, custom-fields, custom-agents, suggestions, segments | ✅ Done |
+| chat.js v4: SSE streaming, conversation history, full-screen mobile | ✅ Done |
+| Streaming support in widget (SSE) | ✅ Done |
+| Ticketing AI triage endpoint (marketflow-ai) | ✅ Done (see marketflow-ai docs) |
+
 ## Remaining Tasks
 
 | Task | Priority | Sprint |
 |------|----------|--------|
-| Streaming support in widget (SSE) | MEDIUM | 4 |
-| Course card rich component in widget | MEDIUM | 4 |
-| CRM AI dashboard widgets | LOW | 6 |
+| CRM AI dashboard widgets (pipeline health card, lead score card) | LOW | 14 |
 | KB seeding to production | HIGH | Now |
-| Ticketing AI triage endpoint (marketflow-ai) | HIGH | 5 |
