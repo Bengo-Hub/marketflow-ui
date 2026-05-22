@@ -24,32 +24,75 @@
   window.__veraLoaded = true;
 
   var script = document.currentScript;
-  var tenantSlug    = (script && script.dataset.tenant)        || 'codevertex';
-  var apiURL        = (script && script.dataset.apiUrl)        || 'https://marketflowai.codevertexitsolutions.com';
-  var mode          = (script && script.dataset.mode)          || 'tenant';
-  var businessType  = (script && script.dataset.businessType)  || '';  // "flp" | "generic" | "" (auto-detect)
-  var primaryColor  = (script && script.dataset.primaryColor)  || '#EC4899';
-  var accentColor   = (script && script.dataset.accentColor)   || '#7C3AED';
-  var widgetTitle   = (script && script.dataset.widgetTitle)   || 'Vera';
-  var waNumber      = (script && script.dataset.whatsapp)      || '';  // e.g. "254712345678"
-  var phoneNumber   = (script && script.dataset.phone)         || '';  // e.g. "+254712345678"
-  var callUrl       = (script && script.dataset.callUrl)       || '';  // custom Calendly / booking URL
-  var emailAddress  = (script && script.dataset.email)         || '';  // fallback contact email
-  var subtitle      = (script && script.dataset.subtitle)      || '';  // header subtitle override
-  var themeMode     = (script && script.dataset.theme)         || 'auto'; // "auto" | "light" | "dark"
-  var autoOpen      = script && script.dataset.autoopen === 'true';
-  // Authenticated user context — passed from SSO dashboard (VeraWidget.tsx)
-  // or any host page that has the user's identity. Empty on public pages.
-  var authUserID    = (script && script.dataset.userId)        || '';
-  var authUserEmail = (script && script.dataset.userEmail)     || '';
-  var authUserName  = (script && script.dataset.userName)      || '';
-  var authUserRole  = (script && script.dataset.userRole)      || '';
-  // OTP endpoints — provided by the SSO dashboard for email verification
-  // before a helpdesk ticket is submitted.
-  var otpSendEndpoint   = (script && script.dataset.otpSendEndpoint)   || '';
-  var otpVerifyEndpoint = (script && script.dataset.otpVerifyEndpoint) || '';
-  // Derive the base URL for OTP calls (same origin as the host page when
-  // running inside the dashboard; falls back to empty for public pages).
+
+  // ── Allowed API hosts — data-api-url must match to prevent data exfiltration ──
+  var ALLOWED_API_HOSTS = ['marketflowai.codevertexitsolutions.com'];
+  function validateApiUrl(url) {
+    try {
+      var p = new URL(url);
+      if (ALLOWED_API_HOSTS.indexOf(p.hostname) === -1) {
+        console.warn('[vera] Unauthorized data-api-url — using default');
+        return 'https://marketflowai.codevertexitsolutions.com';
+      }
+      return url.replace(/\/$/, '');
+    } catch (e) { return 'https://marketflowai.codevertexitsolutions.com'; }
+  }
+
+  // ── Sanitize / validate all data attributes ──────────────────────────────────
+  var _rawApiUrl   = (script && script.dataset.apiUrl) || 'https://marketflowai.codevertexitsolutions.com';
+  var apiURL       = validateApiUrl(_rawApiUrl);
+
+  // Enum-validate mode — only 'platform' or 'tenant' are valid
+  var _rawMode     = (script && script.dataset.mode) || 'tenant';
+  var mode         = (_rawMode === 'platform' || _rawMode === 'tenant') ? _rawMode : 'tenant';
+
+  // Tenant slug — alphanumeric + hyphens only, max 64 chars
+  var _rawTenant   = (script && script.dataset.tenant) || 'codevertex';
+  var tenantSlug   = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]?$/.test(_rawTenant) ? _rawTenant : 'codevertex';
+
+  var businessType = (script && script.dataset.businessType) || '';
+  var primaryColor = (script && script.dataset.primaryColor) || '#EC4899';
+  var accentColor  = (script && script.dataset.accentColor)  || '#7C3AED';
+  var widgetTitle  = (script && script.dataset.widgetTitle)  || 'Vera';
+  var waNumber     = (script && script.dataset.whatsapp)     || '';
+  var phoneNumber  = (script && script.dataset.phone)        || '';
+  var callUrl      = (script && script.dataset.callUrl)      || '';
+  var emailAddress = (script && script.dataset.email)        || '';
+  var subtitle     = (script && script.dataset.subtitle)     || '';
+  var themeMode    = (script && script.dataset.theme)        || 'auto';
+  var autoOpen     = script && script.dataset.autoopen === 'true';
+
+  // Authenticated user context — these come from the SSO dashboard session
+  // (VeraWidget.tsx) where the host page has a verified JWT. On public pages
+  // these are empty. NOTE: data attributes here are informational for UX pre-fill
+  // only (e.g. defaulting the name field in a support ticket form); they are NOT
+  // used for authentication — the backend ignores them. The backend derives user
+  // identity from the JWT in the Authorization header, not from these values.
+  var authUserID    = (script && script.dataset.userId)    || '';
+  var authUserEmail = (script && script.dataset.userEmail) || '';
+  var authUserName  = (script && script.dataset.userName)  || '';
+  var authUserRole  = (script && script.dataset.userRole)  || '';
+
+  // OTP endpoints — only accepted when they share the same origin as the host
+  // page. A cross-origin OTP endpoint would let an attacker route verification
+  // codes through their server.
+  var otpSendEndpoint   = '';
+  var otpVerifyEndpoint = '';
+  (function () {
+    var rawSend   = (script && script.dataset.otpSendEndpoint)   || '';
+    var rawVerify = (script && script.dataset.otpVerifyEndpoint) || '';
+    if (!rawSend || !rawVerify) return;
+    try {
+      var sendOrigin   = new URL(rawSend,   window.location.origin).origin;
+      var verifyOrigin = new URL(rawVerify, window.location.origin).origin;
+      if (sendOrigin === window.location.origin && verifyOrigin === window.location.origin) {
+        otpSendEndpoint   = rawSend;
+        otpVerifyEndpoint = rawVerify;
+      } else {
+        console.warn('[vera] OTP endpoints rejected — cross-origin');
+      }
+    } catch (e) { /* invalid URL — leave endpoints empty */ }
+  }());
   var otpBaseURL = otpSendEndpoint
     ? (otpSendEndpoint.startsWith('http') ? '' : window.location.origin)
     : '';
@@ -79,6 +122,26 @@
   function saveHistory() {
     try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory.slice(-5))); } catch { }
   }
+
+  // ── Client-side rate limiting ─────────────────────────────────────────────
+  // 10 messages per 60 s sliding window + 2 s minimum gap between messages.
+  var MSG_LIMIT      = 10;
+  var MSG_WINDOW_MS  = 60_000;
+  var MSG_COOLDOWN_MS = 2_000;
+  var MAX_MSG_LENGTH = 800;
+  var msgTimestamps  = [];
+
+  function isRateLimited() {
+    var now = Date.now();
+    msgTimestamps = msgTimestamps.filter(function (t) { return now - t < MSG_WINDOW_MS; });
+    if (msgTimestamps.length >= MSG_LIMIT) return true;
+    if (msgTimestamps.length > 0 && now - msgTimestamps[msgTimestamps.length - 1] < MSG_COOLDOWN_MS) return true;
+    return false;
+  }
+
+  // Form submission guard — max 3 form submissions per widget session to prevent spam.
+  var formSubmitCount = 0;
+  var FORM_SUBMIT_LIMIT = 3;
 
   // ── Host + Shadow DOM ────────────────────────────────────────────
   var host = document.createElement('div');
@@ -726,6 +789,8 @@
     var t = text.toLowerCase();
     var intent = (meta && meta.intent) || '';
     if (shadow.querySelector('.vera-form')) return; // only one form at a time
+    // Enforce per-session form submission limit to prevent lead/ticket spam.
+    if (formSubmitCount >= FORM_SUBMIT_LIMIT) return;
 
     // Support / escalate — all niches
     if (intent === 'escalate' || intent === 'support_request' ||
@@ -760,9 +825,11 @@
               requester_user_id: authUserID || undefined,
             }),
           }).then(function (r) { return r.json(); }).then(function (d) {
+            formSubmitCount++;
             appendMsg('bot', md('Ticket **#' + (d.ticket_number || d.ticket_ref || d.id || 'REF-???') + '** created. Our team will respond to **' + (verifiedEmail || data.email) + '** within 2–4 hours.'));
             if (waHref) renderActionChips([{ label: '💬 WhatsApp for urgent help', href: waHref }]);
           }).catch(function () {
+            formSubmitCount++;
             appendMsg('bot', md('Ticket submitted! We\'ll respond to **' + (verifiedEmail || data.email) + '** within 4 hours.'));
           });
         };
@@ -803,6 +870,7 @@
           headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
           body: JSON.stringify({ ...data, source: 'vera_widget_flp', session_id: sessionID }),
         }).catch(function () {});
+        formSubmitCount++;
         appendMsg('bot', md('Interest received! 🎉 Your FBO will reach out to **' + data.phone + '** to walk you through getting started.\n\nYou can also connect directly:'));
         var chips = [];
         if (waHref) chips.push({ label: '💬 WhatsApp your FBO', href: waHref });
@@ -831,6 +899,7 @@
           headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
           body: JSON.stringify({ ...data, session_id: sessionID }),
         }).catch(function () {});
+        formSubmitCount++;
         appendMsg('bot', md('Enrollment received! 🎉 Our team will contact **' + data.email + '** within a few hours with payment and cohort details.'));
         var chips = [{ label: '🎓 View all courses', href: 'https://codevertexitsolutions.com/digitika' }];
         if (waHref) chips.push({ label: '💬 WhatsApp us', href: waHref });
@@ -890,6 +959,7 @@
           headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
           body: JSON.stringify({ ...data, source: 'vera_widget_contact', session_id: sessionID }),
         }).catch(function () {});
+        formSubmitCount++;
         appendMsg('bot', md('Message received! We\'ll respond to **' + data.email + '** within 24 hours.'));
         if (waHref) renderActionChips([{ label: '💬 WhatsApp for a faster reply', href: waHref }]);
       });
@@ -1008,7 +1078,7 @@
           '<div class="cb"><div class="ct">' + escHTML(c.name || c.title) + '</div>' +
           '<div class="cm">' + escHTML(c.duration || '') + (c.mode ? ' &middot; ' + escHTML(c.mode) : '') + '</div>' +
           (c.price ? '<div class="cm" style="font-weight:700;color:' + primaryColor + '">KSh ' + escHTML(String(c.price)) + '</div>' : '') +
-          '<a class="cc-link" href="' + escAttr(c.enroll_url || 'https://codevertexitsolutions.com/digitika') + '" target="_blank" rel="noreferrer">View course &rarr;</a>' +
+          '<a class="cc-link" href="' + escAttr(safeUrl(c.enroll_url || 'https://codevertexitsolutions.com/digitika')) + '" target="_blank" rel="noreferrer">View course &rarr;</a>' +
           '</div>';
         body.appendChild(card);
       });
@@ -1022,7 +1092,7 @@
           (p.image_url ? '<img src="' + escAttr(p.image_url) + '" alt="" loading="lazy" />' : '') +
           '<div class="cb"><div class="ct">' + escHTML(p.name || p.product_code || 'Product') + '</div>' +
           '<div class="cm">' + (p.price ? escHTML(p.price) + ' &middot; ' : '') + (p.cc_value ? 'CC ' + escHTML(String(p.cc_value)) : '') + '</div>' +
-          (p.buy_url ? '<a class="cc-link" target="_blank" rel="noreferrer" href="' + escAttr(p.buy_url) + '">View &rarr;</a>' : '') +
+          (p.buy_url ? '<a class="cc-link" target="_blank" rel="noreferrer" href="' + escAttr(safeUrl(p.buy_url)) + '">View &rarr;</a>' : '') +
           '</div>';
         body.appendChild(card);
       });
@@ -1046,10 +1116,36 @@
   }
   function escAttr(s) { return escHTML(s); }
 
+  // safeUrl blocks javascript: and data: URLs that could execute code in card links.
+  function safeUrl(url) {
+    if (!url) return '#';
+    try {
+      var p = new URL(url);
+      if (p.protocol === 'javascript:' || p.protocol === 'data:' || p.protocol === 'vbscript:') return '#';
+      return url;
+    } catch (e) {
+      // Relative URL — allow it
+      if (url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) return url;
+      return '#';
+    }
+  }
+
   // ── Send message (SSE streaming) ─────────────────────────────────
   async function sendMessage(q) {
     q = (q || '').trim();
     if (!q || sending) return;
+
+    // Client-side guards (message length + rate limit)
+    if (q.length > MAX_MSG_LENGTH) {
+      appendMsg('bot', md('Message too long. Please keep messages under ' + MAX_MSG_LENGTH + ' characters.'));
+      return;
+    }
+    if (isRateLimited()) {
+      appendMsg('bot', md('Please wait a moment before sending another message.'));
+      return;
+    }
+    msgTimestamps.push(Date.now());
+
     sending = true;
     var sendBtn = form.querySelector('button[type="submit"]');
     if (sendBtn) sendBtn.disabled = true;
@@ -1162,7 +1258,7 @@
                 '<div class="cb"><div class="ct">' + escHTML(c.name || c.title) + '</div>' +
                 '<div class="cm">' + escHTML(c.duration || '') + (c.mode ? ' &middot; ' + escHTML(c.mode) : '') + '</div>' +
                 (c.price ? '<div class="cm" style="font-weight:700;color:' + primaryColor + '">KSh ' + escHTML(String(c.price)) + '</div>' : '') +
-                '<a class="cc-link" href="' + escAttr(c.enroll_url || 'https://codevertexitsolutions.com/digitika') + '" target="_blank" rel="noreferrer">View course &rarr;</a>' +
+                '<a class="cc-link" href="' + escAttr(safeUrl(c.enroll_url || 'https://codevertexitsolutions.com/digitika')) + '" target="_blank" rel="noreferrer">View course &rarr;</a>' +
                 '</div>';
               body.appendChild(card);
             });
@@ -1175,7 +1271,7 @@
                 (p.image_url ? '<img src="' + escAttr(p.image_url) + '" alt="" loading="lazy" />' : '') +
                 '<div class="cb"><div class="ct">' + escHTML(p.name || p.product_code || 'Product') + '</div>' +
                 '<div class="cm">' + (p.price ? escHTML(p.price) + ' &middot; ' : '') + (p.cc_value ? 'CC ' + escHTML(String(p.cc_value)) : '') + '</div>' +
-                (p.buy_url ? '<a class="cc-link" target="_blank" rel="noreferrer" href="' + escAttr(p.buy_url) + '">View &rarr;</a>' : '') +
+                (p.buy_url ? '<a class="cc-link" target="_blank" rel="noreferrer" href="' + escAttr(safeUrl(p.buy_url)) + '">View &rarr;</a>' : '') +
                 '</div>';
               body.appendChild(card);
             });
