@@ -66,9 +66,19 @@
   );
 
   // Session history
-  var SESSION_KEY = 'vera_session_' + tenantSlug;
-  var sessionID   = null;
+  var SESSION_KEY   = 'vera_session_' + tenantSlug;
+  var HISTORY_KEY   = 'vera_history_' + tenantSlug;
+  var sessionID     = null;
+  var chatHistory   = []; // [{q, a}] last 5 pairs, persisted in sessionStorage
   try { sessionID = sessionStorage.getItem(SESSION_KEY); } catch { }
+  try {
+    var _h = sessionStorage.getItem(HISTORY_KEY);
+    if (_h) chatHistory = JSON.parse(_h);
+  } catch { }
+
+  function saveHistory() {
+    try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory.slice(-5))); } catch { }
+  }
 
   // ── Host + Shadow DOM ────────────────────────────────────────────
   var host = document.createElement('div');
@@ -131,7 +141,8 @@
 }\
 .panel.open{display:flex;animation:slideUp .25s ease-out}\
 @media(max-width:480px){\
-  .panel{position:fixed;left:10px;right:10px;bottom:80px;top:auto;width:auto;max-height:78vh;border-radius:18px}\
+  .panel{position:fixed;inset:0;bottom:0;left:0;right:0;top:0;width:100%;max-height:100%;border-radius:0;z-index:2147483646}\
+  .fab{bottom:16px;right:16px}\
 }\
 @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}\
 \
@@ -439,9 +450,21 @@
 
   var panelOpen = false;
 
+  var historyRestored = false;
+  function restoreHistory() {
+    if (historyRestored || chatHistory.length === 0) return;
+    historyRestored = true;
+    removeWelcome();
+    chatHistory.forEach(function (pair) {
+      appendMsg('user', escHTML(pair.q));
+      appendMsg('bot', md(pair.a));
+    });
+  }
+
   function openPanel() {
     panelOpen = true;
     panel.classList.add('open');
+    restoreHistory();
     fab.innerHTML = '<div class="close-icon">&#x2715;</div>';
     var inp = shadow.getElementById('vera-input');
     if (inp) inp.focus();
@@ -1023,7 +1046,7 @@
   }
   function escAttr(s) { return escHTML(s); }
 
-  // ── Send message ──────────────────────────────────────────────────
+  // ── Send message (SSE streaming) ─────────────────────────────────
   async function sendMessage(q) {
     q = (q || '').trim();
     if (!q || sending) return;
@@ -1035,14 +1058,6 @@
     appendMsg('user', escHTML(q));
     var typingEl = showTyping('Vera is thinking');
 
-    var typingStates = ['Vera is thinking', 'Searching knowledge base', 'Writing response'];
-    var stateIdx = 0;
-    var typingInterval = setInterval(function () {
-      stateIdx = (stateIdx + 1) % typingStates.length;
-      var textEl = typingEl.querySelector('.typing-text');
-      if (textEl) textEl.textContent = typingStates[stateIdx];
-    }, 1800);
-
     try {
       var res = await fetch(apiURL + '/api/v1/public/chat', {
         method: 'POST',
@@ -1051,30 +1066,132 @@
           'X-Tenant-ID': tenantSlug,
           'X-Widget-Mode': mode,
         },
-        body: JSON.stringify({ question: q, session_id: sessionID, stream: false, business_type: businessType }),
+        body: JSON.stringify({
+          question: q,
+          session_id: sessionID,
+          stream: true,
+          business_type: businessType,
+        }),
       });
-
-      clearInterval(typingInterval);
-      if (typingEl.parentNode) body.removeChild(typingEl);
 
       if (!res.ok) throw new Error('HTTP ' + res.status);
 
-      var data = await res.json();
-      if (data.session_id) {
-        sessionID = data.session_id;
-        try { sessionStorage.setItem(SESSION_KEY, sessionID); } catch { }
+      var contentType = res.headers.get('Content-Type') || '';
+      var isSSE = contentType.indexOf('text/event-stream') !== -1;
+
+      if (!isSSE || !res.body) {
+        // Fallback: non-streaming JSON response
+        if (typingEl.parentNode) body.removeChild(typingEl);
+        var data = await res.json();
+        if (data.session_id) {
+          sessionID = data.session_id;
+          try { sessionStorage.setItem(SESSION_KEY, sessionID); } catch { }
+        }
+        var answer = (data.result && data.result.response) || data.response || '';
+        var meta   = (data.result && data.result.meta) || data.meta || null;
+        if (answer) {
+          renderAnswer(answer, meta);
+          chatHistory.push({ q: q, a: answer });
+          saveHistory();
+        } else {
+          appendMsg('bot', md("I didn't get a response. Please try again."));
+        }
+        return;
       }
 
-      var answer = (data.result && data.result.response) || data.response || '';
-      var meta   = (data.result && data.result.meta) || data.meta || null;
+      // SSE: stream tokens into a live bubble
+      if (typingEl.parentNode) body.removeChild(typingEl);
 
-      if (answer) {
-        renderAnswer(answer, meta);
+      var botBubble = document.createElement('div');
+      botBubble.className = 'msg bot';
+      body.appendChild(botBubble);
+      scrollBottom();
+
+      var accumulated = '';
+      var finalMeta   = null;
+      var reader      = res.body.getReader();
+      var decoder     = new TextDecoder();
+      var buffer      = '';
+
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+
+        // Parse SSE lines from buffer
+        var lines = buffer.split('\n');
+        buffer = lines.pop(); // keep incomplete last line
+
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line.startsWith('data:')) continue;
+          var raw = line.slice(5).trim();
+          if (raw === '[DONE]') { reader.cancel(); break; }
+          try {
+            var evt = JSON.parse(raw);
+            if (evt.type === 'meta') {
+              finalMeta = evt.data;
+              if (evt.data && evt.data.session_id) {
+                sessionID = evt.data.session_id;
+                try { sessionStorage.setItem(SESSION_KEY, sessionID); } catch { }
+              }
+            } else if (evt.type === 'delta' && evt.content) {
+              accumulated += evt.content;
+              botBubble.innerHTML = md(accumulated);
+              scrollBottom();
+            } else if (evt.session_id) {
+              sessionID = evt.session_id;
+              try { sessionStorage.setItem(SESSION_KEY, sessionID); } catch { }
+            }
+          } catch { /* non-JSON line — ignore */ }
+        }
+      }
+
+      // Finalize bubble with full rendered markdown
+      if (accumulated) {
+        botBubble.innerHTML = md(accumulated);
+        chatHistory.push({ q: q, a: accumulated });
+        saveHistory();
+        // Render meta cards + action chips after streaming completes
+        if (finalMeta) {
+          if (Array.isArray(finalMeta.courses)) {
+            finalMeta.courses.slice(0, 2).forEach(function (c) {
+              var card = document.createElement('div');
+              card.className = 'card';
+              card.innerHTML =
+                '<div class="cb"><div class="ct">' + escHTML(c.name || c.title) + '</div>' +
+                '<div class="cm">' + escHTML(c.duration || '') + (c.mode ? ' &middot; ' + escHTML(c.mode) : '') + '</div>' +
+                (c.price ? '<div class="cm" style="font-weight:700;color:' + primaryColor + '">KSh ' + escHTML(String(c.price)) + '</div>' : '') +
+                '<a class="cc-link" href="' + escAttr(c.enroll_url || 'https://codevertexitsolutions.com/digitika') + '" target="_blank" rel="noreferrer">View course &rarr;</a>' +
+                '</div>';
+              body.appendChild(card);
+            });
+          }
+          if (Array.isArray(finalMeta.products)) {
+            finalMeta.products.slice(0, 3).forEach(function (p) {
+              var card = document.createElement('div');
+              card.className = 'card';
+              card.innerHTML =
+                (p.image_url ? '<img src="' + escAttr(p.image_url) + '" alt="" loading="lazy" />' : '') +
+                '<div class="cb"><div class="ct">' + escHTML(p.name || p.product_code || 'Product') + '</div>' +
+                '<div class="cm">' + (p.price ? escHTML(p.price) + ' &middot; ' : '') + (p.cc_value ? 'CC ' + escHTML(String(p.cc_value)) : '') + '</div>' +
+                (p.buy_url ? '<a class="cc-link" target="_blank" rel="noreferrer" href="' + escAttr(p.buy_url) + '">View &rarr;</a>' : '') +
+                '</div>';
+              body.appendChild(card);
+            });
+          }
+          if (!shadow.querySelector('.vera-form')) {
+            maybeShowForm(accumulated, finalMeta);
+          } else {
+            renderActionChips(extractChips(accumulated, finalMeta));
+          }
+        }
       } else {
-        appendMsg('bot', md('I didn\'t get a response. Please try again.'));
+        botBubble.innerHTML = md("I didn't get a response. Please try again.");
       }
+      scrollBottom();
+
     } catch (err) {
-      clearInterval(typingInterval);
       if (typingEl.parentNode) body.removeChild(typingEl);
       var fallbackChips = [];
       if (waHref) fallbackChips.push({ label: '💬 WhatsApp us', href: waHref });
