@@ -135,6 +135,18 @@ ANTHROPIC_API_KEY=<replace-me>  # fallback only
 | Streaming support in widget (SSE) | ✅ Done |
 | Ticketing AI triage endpoint (marketflow-ai) | ✅ Done (see marketflow-ai docs) |
 
+## Completed in Sprint 13b — Vera AI Security Hardening (2026-05-22)
+
+| Task | Status |
+|------|--------|
+| chat.js: data-api-url validated against allowed host list | ✅ Done |
+| chat.js: data-mode/data-tenant enum + slug validation | ✅ Done |
+| chat.js: OTP endpoints cross-origin rejection | ✅ Done |
+| chat.js: client-side rate limiting (10 msg/60s + 2s cooldown) | ✅ Done |
+| chat.js: message length cap (800 chars) | ✅ Done |
+| chat.js: safeUrl() blocks javascript:/data: in card links | ✅ Done |
+| chat.js: form submission limit (max 3/session) | ✅ Done |
+
 ## Remaining Tasks
 
 | Task | Priority | Sprint |
