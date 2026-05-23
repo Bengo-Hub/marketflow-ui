@@ -2,9 +2,23 @@
   {
     "scope": "platform",
     "category": "platform_overview",
-    "title": "What is Codevertex IT Solutions?",
-    "content": "Codevertex IT Solutions is a technology company based in Kisumu, Kenya, building enterprise software, AI-powered tools, and providing tech education through Digitika. We serve businesses across Africa with solutions including CRM, POS, ordering, logistics, ISP billing, ERP, and financial management systems. Our mission is to democratize enterprise software for African businesses.",
-    "tags": ["company", "overview", "codevertex", "kenya", "kisumu"]
+    "title": "What is Codevertex Africa Limited?",
+    "content": "Codevertex Africa Limited is a Private Limited Company incorporated in Kenya on 21 May 2026 (Company No: PVT-VQ1OEVB3, KRA PIN: P052543168K). Formerly operating as Codevertex IT Solutions (established 2020), the company builds enterprise software, AI-powered tools, and provides tech education through Digitika Academy. We serve businesses across Africa with solutions including CRM, POS, ordering, logistics, ISP billing, ERP, and financial management systems.",
+    "tags": ["company", "overview", "codevertex", "kenya", "kisumu", "incorporated", "pvt"]
+  },
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "Codevertex Africa Limited — Company Registration & Legal Details",
+    "content": "Codevertex Africa Limited is a Private Limited Company incorporated in Kenya on 21 May 2026 under the Companies Act, 2015. Company Number: PVT-VQ1OEVB3. KRA PIN: P052543168K. Nominal share capital: KES 100,000 (1,000 ordinary shares at KES 100 each). Registered office: Pioneer House, Oginga-Odinga Road, Kisumu CBD, Kisumu East District, Kisumu County. Postal address: P.O. Box 49, 40100 – Kisumu, Kenya. Primary phone: +254 742 201 368. Email: info@codevertexitsolutions.com.",
+    "tags": ["company", "registration", "incorporated", "legal", "pvt", "pvt-vq1oevb3", "kra", "pin", "p052543168k"]
+  },
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "Codevertex Africa Limited — Founders and Leadership",
+    "content": "Codevertex Africa Limited was co-founded by three Kenyan nationals: Robinson Bill Obura (Director & Shareholder, 350 ordinary shares, 35%), Titus Ooko Owuor (Director & Shareholder, 350 ordinary shares, 35%), and Ryan Mwakala Njumwa (Shareholder, 300 ordinary shares, 30%). Robinson Bill Obura and Titus Ooko Owuor serve as Co-Directors responsible for strategic vision and operational leadership. Ryan Mwakala Njumwa provides strategic investment and board-level oversight.",
+    "tags": ["founders", "directors", "leadership", "robinson", "bill", "titus", "ryan", "shareholders", "ownership"]
   },
   {
     "scope": "platform",
@@ -17,7 +31,7 @@
     "scope": "platform",
     "category": "platform_overview",
     "title": "How do I contact Codevertex?",
-    "content": "You can reach Codevertex IT Solutions through: Website: https://codevertexitsolutions.com | Email: info@codevertexitsolutions.com | Phone: Available on the website | Physical office: Kisumu, Kenya. For support tickets, use the support portal or ask Vera to create a ticket for you.",
+    "content": "You can reach Codevertex Africa Limited through: Website: https://codevertexitsolutions.com | Email: info@codevertexitsolutions.com | Phone: +254 742 201 368 | +254 743 793 901 | Physical office: Pioneer House, Oginga-Odinga Road, Kisumu CBD, Kenya. For support tickets, use the support portal or ask Vera to create a ticket for you.",
     "tags": ["contact", "support", "email", "phone", "location"]
   },
   {
