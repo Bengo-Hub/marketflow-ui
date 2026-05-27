@@ -62,6 +62,11 @@
   var themeMode    = (script && script.dataset.theme)        || 'auto';
   var autoOpen     = script && script.dataset.autoopen === 'true';
 
+  // Persona — a locked label forwarded to the backend so it can enforce the
+  // correct system prompt for this embed. Must be alphanumeric+hyphens only.
+  var _rawPersona = (script && script.dataset.persona) || '';
+  var persona = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]?$/.test(_rawPersona) ? _rawPersona : '';
+
   // Authenticated user context — these come from the SSO dashboard session
   // (VeraWidget.tsx) where the host page has a verified JWT. On public pages
   // these are empty. NOTE: data attributes here are informational for UX pre-fill
@@ -103,9 +108,11 @@
 
   // Dynamic subtitle — explicit override > niche default
   var subtitleText = subtitle || (
-    businessType === 'flp'        ? 'Forever Living &middot; Online' :
-    businessType === 'codevertex' ? 'Codevertex AI &middot; Online'  :
-                                    'AI Assistant &middot; Online'
+    businessType === 'flp'            ? 'Forever Living &middot; Online'   :
+    businessType === 'codevertex'     ? 'Codevertex AI &middot; Online'    :
+    businessType === 'cafe'           ? widgetTitle + ' &middot; Online'   :
+    businessType === 'marketflow-crm' ? 'MarketFlow CRM &middot; Online'   :
+                                        'AI Assistant &middot; Online'
   );
 
   // Session history
@@ -427,20 +434,23 @@
   }
 
   // ── FAB ─────────────────────────────────────────────────────────
+  var fabInitial = escHTML(widgetTitle.charAt(0).toUpperCase());
   var fab = document.createElement('button');
   fab.className = 'fab';
-  fab.setAttribute('aria-label', 'Chat with Vera');
-  fab.innerHTML = '<div class="avatar">V</div><div class="pulse"></div>';
+  fab.setAttribute('aria-label', 'Chat with ' + escHTML(widgetTitle));
+  fab.innerHTML = '<div class="avatar">' + fabInitial + '</div><div class="pulse"></div>';
   shadow.appendChild(fab);
 
   // ── Greeting bubble ──────────────────────────────────────────────
   var greeting = document.createElement('div');
   greeting.className = 'greeting';
   greeting.style.display = 'none';
+  shadow.appendChild(greeting);
+
+  // Greeting bubble text — persona-aware
   greeting.textContent = mode === 'platform'
     ? 'Hi! I\'m Vera, Codevertex AI. How can I help?'
-    : 'Hi! I\'m Vera. Ask me anything!';
-  shadow.appendChild(greeting);
+    : 'Hi! I\'m ' + widgetTitle + '. How can I help?';
 
   var greetingTimer = setTimeout(function () {
     if (!panelOpen) {
@@ -453,9 +463,14 @@
   }, 2500);
 
   // ── FAQ chips ────────────────────────────────────────────────────
-  var platformFaqs = ['What is MarketFlow?', 'Tell me about Digitika courses', 'How does ordering work?', 'Get support'];
-  var tenantFaqs   = ['What products do you offer?', 'How does the business work?', 'How can I join?', 'Book a call'];
-  var faqList = mode === 'platform' ? platformFaqs : tenantFaqs;
+  var platformFaqs      = ['What is MarketFlow?', 'Tell me about Digitika courses', 'How does ordering work?', 'Get support'];
+  var tenantFaqs        = ['What products do you offer?', 'How does the business work?', 'How can I join?', 'Book a call'];
+  var cafeFaqs          = ['View our menu', 'Book a table', 'Upcoming events', 'Opening hours'];
+  var marketflowCrmFaqs = ['What is MarketFlow CRM?', 'CRM features', 'Request a demo', 'Pricing & plans'];
+  var faqList = mode === 'platform' ? platformFaqs
+    : businessType === 'cafe'           ? cafeFaqs
+    : businessType === 'marketflow-crm' ? marketflowCrmFaqs
+    : tenantFaqs;
 
   var faqHTML = faqList.map(function (q) {
     return '<button class="faq" data-q="' + escAttr(q) + '">' + escHTML(q) + '</button>';
@@ -486,7 +501,7 @@
 
   panel.innerHTML = [
     '<div class="hdr">',
-    '  <div class="hdr-avatar">V</div>',
+    '  <div class="hdr-avatar">' + fabInitial + '</div>',
     '  <div class="hdr-info">',
     '    <div class="hdr-name"><span class="hdr-dot"></span>' + escHTML(widgetTitle) + '</div>',
     '    <div class="hdr-sub">' + subtitleText + '</div>',
@@ -495,9 +510,9 @@
     '</div>',
     '<div class="body" id="vera-body">',
     '  <div class="welcome" id="vera-welcome">',
-    '    <div class="welcome-icon">V</div>',
-    '    <div class="welcome-title">Hello! I\'m Vera</div>',
-    '    <div class="welcome-sub">Your Codevertex AI assistant.<br>Ask me anything.</div>',
+    '    <div class="welcome-icon">' + escHTML(widgetTitle.charAt(0).toUpperCase()) + '</div>',
+    '    <div class="welcome-title">Hello! I\'m ' + escHTML(widgetTitle) + '</div>',
+    '    <div class="welcome-sub">' + subtitleText + '<br>Ask me anything.</div>',
     '    <div class="faqs" id="vera-faqs">' + faqHTML + '</div>',
     '  </div>',
     '</div>',
@@ -535,7 +550,7 @@
   function closePanel() {
     panelOpen = false;
     panel.classList.remove('open');
-    fab.innerHTML = '<div class="avatar">V</div><div class="pulse"></div>';
+    fab.innerHTML = '<div class="avatar">' + fabInitial + '</div><div class="pulse"></div>';
   }
 
   fab.addEventListener('click', function () {
@@ -1130,18 +1145,45 @@
     }
   }
 
+  // ── Prompt-injection guard ───────────────────────────────────────
+  // Patterns that try to override the AI persona or system prompt.
+  // Blocked client-side so the backend never sees them; the backend enforces
+  // the same restriction via X-Widget-Persona, but defence-in-depth matters.
+  var INJECTION_PATTERNS = [
+    /ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|context)/i,
+    /you\s+are\s+now\s+(a\s+|an\s+)?(?!helpful)/i,
+    /forget\s+(that\s+you\s+are|your\s+(instructions?|persona|role|identity))/i,
+    /act\s+as\s+(if\s+you\s+are|a\s+different|an?\s+)/i,
+    /pretend\s+(to\s+be|you\s+are|you\'?re)/i,
+    /your\s+new\s+(instructions?|role|persona|identity|task)\s+(are?|is|:)/i,
+    /from\s+now\s+on\s+(you\s+are|ignore|act|respond)/i,
+    /system\s*:\s*(you\s+are|ignore|your\s+role)/i,
+    /\[system\]/i,
+    /jailbreak/i,
+    /DAN\s+mode/i,
+    /do\s+anything\s+now/i,
+  ];
+
+  function isInjectionAttempt(text) {
+    return INJECTION_PATTERNS.some(function (re) { return re.test(text); });
+  }
+
   // ── Send message (SSE streaming) ─────────────────────────────────
   async function sendMessage(q) {
     q = (q || '').trim();
     if (!q || sending) return;
 
-    // Client-side guards (message length + rate limit)
+    // Client-side guards (message length + rate limit + injection)
     if (q.length > MAX_MSG_LENGTH) {
       appendMsg('bot', md('Message too long. Please keep messages under ' + MAX_MSG_LENGTH + ' characters.'));
       return;
     }
     if (isRateLimited()) {
       appendMsg('bot', md('Please wait a moment before sending another message.'));
+      return;
+    }
+    if (isInjectionAttempt(q)) {
+      appendMsg('bot', md("I'm " + escHTML(widgetTitle) + " and I'm here to assist with questions about **" + escHTML(widgetTitle) + "**. I can't change my role or adopt a different persona."));
       return;
     }
     msgTimestamps.push(Date.now());
@@ -1155,13 +1197,16 @@
     var typingEl = showTyping('Vera is thinking');
 
     try {
+      var chatHeaders = {
+        'Content-Type': 'application/json',
+        'X-Tenant-ID': tenantSlug,
+        'X-Widget-Mode': mode,
+      };
+      if (persona) chatHeaders['X-Widget-Persona'] = persona;
+
       var res = await fetch(apiURL + '/api/v1/public/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Tenant-ID': tenantSlug,
-          'X-Widget-Mode': mode,
-        },
+        headers: chatHeaders,
         body: JSON.stringify({
           question: q,
           session_id: sessionID,
