@@ -567,7 +567,32 @@
   // FAQ chip clicks
   shadow.getElementById('vera-faqs').addEventListener('click', function (e) {
     var btn = e.target.closest('.faq');
-    if (btn) sendMessage(btn.dataset.q);
+    if (!btn) return;
+    var q = btn.dataset.q;
+
+    // Cafe quick actions — navigate directly without an AI round-trip
+    if (businessType === 'cafe') {
+      if (q === 'View our menu') {
+        window.location.href = '/menu';
+        return;
+      }
+      if (q === 'Upcoming events') {
+        window.location.href = '/events';
+        return;
+      }
+      if (q === 'Book a table') {
+        if (typeof window.__openTableBooking === 'function') {
+          window.__openTableBooking();
+          closePanel();
+        } else {
+          window.location.href = '/events?tab=reserve';
+        }
+        return;
+      }
+      // 'Opening hours' falls through to sendMessage
+    }
+
+    sendMessage(q);
   });
 
   var body    = shadow.getElementById('vera-body');
