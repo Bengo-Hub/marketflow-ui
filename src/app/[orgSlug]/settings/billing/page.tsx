@@ -11,7 +11,7 @@ import { CreditCard, Wallet, Zap, TrendingUp, ArrowUpRight, Info, X } from "luci
 
 const TREASURY_UI_URL = process.env.NEXT_PUBLIC_TREASURY_UI_URL || "https://books.codevertexitsolutions.com";
 const TREASURY_URL = process.env.NEXT_PUBLIC_TREASURY_API_URL || "https://booksapi.codevertexitsolutions.com";
-const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://subscriptionsapi.codevertexitsolutions.com";
+const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://pricingapi.codevertexitsolutions.com";
 // Subscriptions UI (pricing portal) — different domain from the API
 const SUBSCRIPTIONS_UI_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_UI_URL || "https://pricing.codevertexitsolutions.com";
 
