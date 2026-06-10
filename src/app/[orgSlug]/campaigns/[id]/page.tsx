@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { ArrowLeft, TrendingUp, MousePointerClick, Target, Coins } from "lucide-react";
+import { SendSMSDialog } from "./send-sms-dialog";
 
 type SeriesRow = {
   date: string;
@@ -94,6 +95,7 @@ export default function CampaignAnalyticsPage({
               <span className="ml-1 text-xs">{campaign?.status}</span>
             </p>
           </div>
+          <SendSMSDialog campaignId={id} campaignName={campaign?.name} />
         </div>
       </div>
 
