@@ -52,7 +52,7 @@ export default function DealsPage() {
   if (statusFilter !== "all") params.status = statusFilter;
   if (pipelineFilter !== "all") params.pipeline_id = pipelineFilter;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["deals", statusFilter, pipelineFilter],
     queryFn: () => dealsApi.list(params).then((r) => r.data),
     staleTime: STALE_TIMES.OPERATIONAL,
@@ -98,6 +98,12 @@ export default function DealsPage() {
         </div>
         <Button onClick={() => setShowCreate(true)}>New Deal</Button>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load deals: {(error as Error).message}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-end gap-3">
         <div>

@@ -102,7 +102,7 @@ export default function SequencesPage() {
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [detailsName, setDetailsName] = useState<string>("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["sequences"],
     queryFn: async () => {
       const r = await apiClient.get<{ data: Sequence[] }>(`/api/v1/sequences?limit=100`);
@@ -174,6 +174,12 @@ export default function SequencesPage() {
         <Button onClick={newSeq}>+ New sequence</Button>
       </div>
 
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load sequences: {(error as Error).message}
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -235,7 +241,7 @@ export default function SequencesPage() {
                       <TableCell>
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            s.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
+                            s.active ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-muted text-muted-foreground"
                           }`}
                         >
                           {s.active ? "active" : "paused"}
@@ -295,7 +301,7 @@ export default function SequencesPage() {
             const a = detailAnalytics ?? (seq ? getInlineAnalytics(seq) : null);
             if (!a) return <Skeleton className="h-20" />;
             return (
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <StatBadge icon={<Users className="h-4 w-4" />} label="Enrolled" value={a.total_enrolled} />
                 <StatBadge icon={<CheckCircle className="h-4 w-4" />} label="Completed" value={a.total_completed} />
                 <StatBadge icon={<Activity className="h-4 w-4" />} label="Active" value={a.active_enrollments} />
@@ -383,7 +389,7 @@ export default function SequencesPage() {
                 });
               }}
             >
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Name">
                   <Input
                     value={editing.name}
@@ -449,7 +455,7 @@ export default function SequencesPage() {
                         Remove
                       </Button>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                       <Field label="Delay hours">
                         <Input
                           type="number"

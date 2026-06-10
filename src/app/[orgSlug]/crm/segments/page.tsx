@@ -28,7 +28,7 @@ export default function SegmentsPage() {
   const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", entity_type: "lead", is_dynamic: false });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["segments"],
     queryFn: () => segmentsApi.list().then((r) => r.data),
     staleTime: STALE_TIMES.OPERATIONAL,
@@ -63,6 +63,12 @@ export default function SegmentsPage() {
         </div>
         <Button onClick={() => setShowCreate(true)}>New Segment</Button>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load segments: {(error as Error).message}
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">
@@ -99,7 +105,7 @@ export default function SegmentsPage() {
                     <TableCell className="capitalize">{segment.entity_type}</TableCell>
                     <TableCell>{segment.member_count ?? "--"}</TableCell>
                     <TableCell>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${segment.is_dynamic ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200" : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${segment.is_dynamic ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200" : "bg-muted text-muted-foreground"}`}>
                         {segment.is_dynamic ? "Dynamic" : "Static"}
                       </span>
                     </TableCell>
