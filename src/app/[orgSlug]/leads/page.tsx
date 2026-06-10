@@ -142,7 +142,7 @@ export default function LeadsPage() {
   const [exporting, setExporting] = useState(false);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["leads", statusFilter, sourceFilter, dateFrom, dateTo, page],
     queryFn: async () => {
       const params = buildParams({ statusFilter, sourceFilter, dateFrom, dateTo, page, limit: 20 });
@@ -197,6 +197,12 @@ export default function LeadsPage() {
           </Button>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load leads: {(error as Error).message}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">

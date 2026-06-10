@@ -55,7 +55,7 @@ export default function CampaignsPage() {
     status: "draft",
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["campaigns"],
     queryFn: async () => {
       const r = await apiClient.get<{ data: Campaign[] }>(`/api/v1/campaigns?limit=100`);
@@ -149,6 +149,12 @@ export default function CampaignsPage() {
         </div>
         <Button onClick={() => { resetForm(); setOpen(true); }}>+ New campaign</Button>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load campaigns: {(error as Error).message}
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">
@@ -252,6 +258,8 @@ export default function CampaignsPage() {
                             size="sm"
                             onClick={() => toggleExpand(c.id)}
                             title="View metrics"
+                            aria-label="View metrics"
+                            aria-expanded={isExpanded}
                           >
                             <BarChart3 className="h-3.5 w-3.5" />
                           </Button>

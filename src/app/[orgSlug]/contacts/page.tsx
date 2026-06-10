@@ -11,7 +11,7 @@ import { STALE_TIMES } from "@/app/providers";
 
 export default function ContactsPage() {
   const [search, setSearch] = useState("");
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["contacts", search],
     queryFn: async () => {
       const params = new URLSearchParams({ limit: "50" });
@@ -24,18 +24,23 @@ export default function ContactsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Contacts</h1>
           <p className="text-muted-foreground">{data?.total ?? 0} total contacts</p>
         </div>
         <Input
-          className="w-64"
+          className="w-full sm:w-64"
           placeholder="Search by name, email, phone…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load contacts: {(error as Error).message}
+        </div>
+      )}
       <Card>
         <CardContent className="p-0">
           <Table>

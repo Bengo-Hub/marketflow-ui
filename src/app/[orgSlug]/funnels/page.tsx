@@ -55,7 +55,7 @@ export default function FunnelsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Funnel> | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["funnels"],
     queryFn: async () => {
       const r = await apiClient.get<{ data: Funnel[] }>(`/api/v1/funnels?limit=100`);
@@ -136,6 +136,12 @@ export default function FunnelsPage() {
         <Button onClick={newFunnel}>+ New funnel</Button>
       </div>
 
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load funnels: {(error as Error).message}
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -189,8 +195,8 @@ export default function FunnelsPage() {
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                           f.status === "published"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-700"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                            : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {f.status}
@@ -252,7 +258,7 @@ export default function FunnelsPage() {
                 });
               }}
             >
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Name">
                   <Input
                     value={editing.name ?? ""}
