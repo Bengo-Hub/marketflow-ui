@@ -56,7 +56,7 @@ export default function LeadDetailPage() {
   const [showLog, setShowLog] = useState(false);
   const [form, setForm] = useState({ type: "note", subject: "", body: "" });
 
-  const { data: leadData, isLoading: leadLoading } = useQuery({
+  const { data: leadData, isLoading: leadLoading, error: leadError } = useQuery({
     queryKey: ["leads", id],
     queryFn: () => apiClient.get(`/api/v1/leads/${id}`).then((r) => r.data),
     staleTime: STALE_TIMES.OPERATIONAL,
@@ -91,7 +91,11 @@ export default function LeadDetailPage() {
         </Button>
       </div>
 
-      {leadLoading ? (
+      {leadError ? (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load lead: {(leadError as Error).message}
+        </div>
+      ) : leadLoading ? (
         <Card>
           <CardContent className="p-6 space-y-3">
             <Skeleton className="h-6 w-48" />

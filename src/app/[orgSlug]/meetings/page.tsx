@@ -54,7 +54,7 @@ export default function MeetingsPage() {
     duration_minutes: 30,
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["meetings", filter],
     queryFn: async () => {
       const p = new URLSearchParams({ limit: "50" });
@@ -107,6 +107,12 @@ export default function MeetingsPage() {
           <Button onClick={() => setOpen(true)}>+ Schedule</Button>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load meetings: {(error as Error).message}
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">

@@ -29,7 +29,7 @@ export default function ShortLinksPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Partial<ShortLink>>({ target_url: "" });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["short-links"],
     queryFn: async () => {
       const r = await apiClient.get<{ data: ShortLink[] }>(`/api/v1/short-links?limit=100`);
@@ -74,6 +74,12 @@ export default function ShortLinksPage() {
         </div>
         <Button onClick={() => setOpen(true)}>+ New short link</Button>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load short links: {(error as Error).message}
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">

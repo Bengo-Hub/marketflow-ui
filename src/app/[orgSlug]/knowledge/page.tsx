@@ -43,7 +43,7 @@ export default function KnowledgePage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<KBEntry | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["kb", category],
     queryFn: async () => {
       const params = new URLSearchParams({ limit: "50" });
@@ -108,6 +108,12 @@ export default function KnowledgePage() {
           <Button onClick={openCreate}>+ New entry</Button>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load knowledge entries: {(error as Error).message}
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">

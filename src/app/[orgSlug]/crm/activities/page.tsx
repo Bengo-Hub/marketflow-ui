@@ -45,7 +45,7 @@ export default function ActivitiesPage() {
   const params: Record<string, string> = {};
   if (entityTypeFilter !== "all") params.entity_type = entityTypeFilter;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["activities", entityTypeFilter],
     queryFn: () => activitiesApi.list(params).then((r) => r.data),
     staleTime: STALE_TIMES.OPERATIONAL,
@@ -91,6 +91,12 @@ export default function ActivitiesPage() {
           </Select>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load activities: {(error as Error).message}
+        </div>
+      )}
 
       <div className="space-y-3">
         {isLoading ? (

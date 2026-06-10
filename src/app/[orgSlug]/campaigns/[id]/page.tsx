@@ -60,7 +60,7 @@ export default function CampaignAnalyticsPage({
     },
   });
 
-  const { data: metrics, isLoading } = useQuery<CampaignMetricsResponse>({
+  const { data: metrics, isLoading, error } = useQuery<CampaignMetricsResponse>({
     queryKey: ["campaign-metrics", id],
     queryFn: async () => {
       const r = await apiClient.get<CampaignMetricsResponse>(
@@ -99,7 +99,13 @@ export default function CampaignAnalyticsPage({
         </div>
       </div>
 
-      {!metrics?.series.length && !isLoading && (
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load campaign metrics: {(error as Error).message}
+        </div>
+      )}
+
+      {!error && !metrics?.series.length && !isLoading && (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
             {campaign?.meta_campaign_id
