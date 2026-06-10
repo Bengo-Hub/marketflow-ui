@@ -29,7 +29,7 @@ export default function ProfileSettingsPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["tenant-profile", orgSlug],
     queryFn: async () => {
       const res = await apiClient.get<TenantProfile>(`/api/v1/tenant/profile`);
@@ -64,6 +64,14 @@ export default function ProfileSettingsPage() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant-profile"] }),
   });
+
+  if (error) {
+    return (
+      <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        Failed to load profile: {(error as Error).message}
+      </div>
+    );
+  }
 
   if (isLoading || !data) {
     return <p className="text-sm text-muted-foreground">Loading profile…</p>;

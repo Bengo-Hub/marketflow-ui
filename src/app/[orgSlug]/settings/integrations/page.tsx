@@ -21,7 +21,7 @@ export default function IntegrationsPage() {
   const qc = useQueryClient();
   const params = useSearchParams();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["integrations"],
     queryFn: async () => {
       const r = await apiClient.get<{ integrations: Integration[] }>(`/api/v1/integrations`);
@@ -71,6 +71,12 @@ export default function IntegrationsPage() {
           OAuth app secrets) are managed by the platform — you&apos;ll never see them here.
         </p>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load integrations: {(error as Error).message}
+        </div>
+      )}
 
       {/* Success banners from OAuth redirects */}
       {params.get("google") === "connected" && (

@@ -128,7 +128,7 @@ function AgentCard({ agent, onEdit, onDelete, orgSlug }: {
               {showRuns ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
               Runs
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => onDelete(agent.id)}>
+            <Button size="sm" variant="ghost" onClick={() => onDelete(agent.id)} aria-label="Delete agent">
               <Trash2 className="h-4 w-4 text-rose-500" />
             </Button>
           </div>
@@ -174,7 +174,7 @@ export default function AgentsPage() {
   const [editing, setEditing] = useState<Agent | null>(null);
   const [form, setForm] = useState<AgentForm>(emptyForm);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["custom-agents", orgSlug],
     queryFn: () => customAgentsApi.list(),
   });
@@ -231,6 +231,12 @@ export default function AgentsPage() {
           <Plus className="h-4 w-4" /> New Agent
         </Button>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load agents: {(error as Error).message}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">Loading…</div>

@@ -30,7 +30,7 @@ export default function AccountsPage() {
   const params: Record<string, string> = {};
   if (search) params.name = search;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["accounts", search],
     queryFn: () => accountsApi.list(params).then((r) => r.data),
     staleTime: STALE_TIMES.OPERATIONAL,
@@ -71,6 +71,12 @@ export default function AccountsPage() {
           </Button>
         )}
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load accounts: {(error as Error).message}
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">

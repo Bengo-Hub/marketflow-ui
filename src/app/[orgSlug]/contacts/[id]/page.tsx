@@ -49,7 +49,7 @@ export default function ContactDetailPage() {
   const [showLog, setShowLog] = useState(false);
   const [form, setForm] = useState({ type: "note", subject: "", body: "" });
 
-  const { data: contactData, isLoading: contactLoading } = useQuery({
+  const { data: contactData, isLoading: contactLoading, error: contactError } = useQuery({
     queryKey: ["contacts", id],
     queryFn: () => apiClient.get(`/api/v1/contacts/${id}`).then((r) => r.data),
     staleTime: STALE_TIMES.OPERATIONAL,
@@ -92,7 +92,11 @@ export default function ContactDetailPage() {
         </Button>
       </div>
 
-      {contactLoading ? (
+      {contactError ? (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load contact: {(contactError as Error).message}
+        </div>
+      ) : contactLoading ? (
         <Card>
           <CardContent className="p-6 space-y-3">
             <Skeleton className="h-6 w-48" />

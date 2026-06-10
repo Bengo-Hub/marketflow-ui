@@ -33,7 +33,7 @@ export default function TestimonialsSettingsPage() {
   const [editing, setEditing] = useState<Testimonial | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const { data, isLoading } = useQuery<{ data: Testimonial[] }>({
+  const { data, isLoading, error } = useQuery<{ data: Testimonial[] }>({
     queryKey: ["testimonials"],
     queryFn: async () => {
       const r = await apiClient.get<{ data: Testimonial[] }>("/api/v1/testimonials");
@@ -72,6 +72,12 @@ export default function TestimonialsSettingsPage() {
           <Plus className="mr-1.5 h-4 w-4" /> Add testimonial
         </Button>
       </div>
+
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load testimonials: {(error as Error).message}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2">

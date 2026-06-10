@@ -58,7 +58,7 @@ export default function CustomFieldsPage() {
   const [editing, setEditing] = useState<FieldDef | null>(null);
   const [form, setForm] = useState<FieldForm>(emptyForm);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["custom-fields", orgSlug, entityFilter],
     queryFn: () => customFieldsApi.listDefs({ entity_type: entityFilter }),
   });
@@ -132,6 +132,12 @@ export default function CustomFieldsPage() {
         </Button>
       </div>
 
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Failed to load custom fields: {(error as Error).message}
+        </div>
+      )}
+
       {/* Entity type filter */}
       <div className="flex gap-2">
         {ENTITY_TYPES.map((t) => (
@@ -174,8 +180,8 @@ export default function CustomFieldsPage() {
                 <TableCell className="text-sm text-muted-foreground">{f.options?.join(", ") || "—"}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(f)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteMut.mutate(f.id)}>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(f)} aria-label="Edit field"><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => deleteMut.mutate(f.id)} aria-label="Delete field">
                       <Trash2 className="h-4 w-4 text-rose-500" />
                     </Button>
                   </div>
