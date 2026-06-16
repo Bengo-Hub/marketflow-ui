@@ -18,7 +18,7 @@ const pwaConfig = withPWA({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  disable: process.env.NODE_ENV === "development",
+  disable: true,
   workboxOptions: {
     skipWaiting: false,
     clientsClaim: true,
