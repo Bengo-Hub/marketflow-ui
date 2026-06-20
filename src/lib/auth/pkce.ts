@@ -72,6 +72,25 @@ export function buildLogoutUrl(postLogoutRedirectUri?: string): string {
   return url.toString();
 }
 
+/**
+ * Revoke the user's backend session via POST /api/v1/auth/logout. Unlike the
+ * GET logout redirect (which only clears the bb_session cookie), this revokes
+ * ALL of the user's sessions, deletes their Redis session_token keys, and
+ * clears the cookie server-side. Best-effort: never throws.
+ */
+export async function revokeServerSession(accessToken?: string | null): Promise<void> {
+  try {
+    await fetch(new URL("/api/v1/auth/logout", SSO_BASE_URL).toString(), {
+      method: "POST",
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      credentials: "include",
+      keepalive: true,
+    });
+  } catch {
+    /* best-effort */
+  }
+}
+
 // ── Token Exchange ────────────────────────────────────────────────────────
 
 export async function exchangeCodeForTokens(opts: {

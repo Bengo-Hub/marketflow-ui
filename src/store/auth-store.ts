@@ -12,6 +12,7 @@ import {
   buildLogoutUrl,
   exchangeCodeForTokens,
   fetchProfile,
+  revokeServerSession,
 } from "@/lib/auth/pkce";
 import { apiClient, aiClient } from "@/lib/api/client";
 
@@ -34,7 +35,7 @@ interface AuthState {
   initialize: () => Promise<void>;
   redirectToSSO: (returnTo?: string, tenant?: string) => Promise<void>;
   handleSSOCallback: (code: string, callbackUrl: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   syncTenantToStorage: (user: UserProfile | null) => void;
 
   hasRole: (role: string) => boolean;
@@ -156,7 +157,12 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => {
+      logout: async () => {
+        // Capture the token BEFORE clearing local state so we can revoke the
+        // backend session (Redis session_token keys + DB sessions).
+        const token = get().session?.accessToken;
+        await revokeServerSession(token);
+
         get().syncTenantToStorage(null);
         set({
           status: "unauthenticated",
@@ -170,8 +176,9 @@ export const useAuthStore = create<AuthState>()(
         delete aiClient.defaults.headers.common.Authorization;
         try { localStorage.removeItem("marketflow-auth"); } catch {}
         try { sessionStorage.clear(); } catch {}
+        const returnTo = encodeURIComponent(window.location.origin);
         window.location.href = buildLogoutUrl(
-          `${window.location.origin}`
+          `https://accounts.codevertexitsolutions.com/login?return_to=${returnTo}`
         );
       },
 
