@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api/client";
 import { useAuthStore } from "@/store/auth-store";
-import { Building2, ChevronsUpDown, Shield, Search, X } from "lucide-react";
+import { ChevronsUpDown, Shield, Search, X } from "lucide-react";
 
 // Shape returned by GET /api/v1/admin/tenants
 type AdminTenant = {
@@ -17,9 +17,14 @@ type AdminTenant = {
 };
 
 /**
- * TenantSwitcher: only rendered for platform owners. Lets them jump into any
- * tenant's dashboard. The picked slug becomes part of the URL so every
- * subsequent API call already sends X-Tenant-Slug via the axios interceptor.
+ * TenantSwitcher: the cross-tenant drill-in selector. Per the "Dedicated Platform
+ * section" model (see plan: platform-owner-self-tenant-separation), the cross-tenant
+ * drill-in is confined to the platform area, so this selector renders for platform
+ * owners ONLY while on `/platform/*` routes. From there they jump into any tenant's
+ * dashboard; the picked slug becomes part of the URL so every subsequent API call
+ * already sends X-Tenant-Slug via the axios interceptor. On the owner's own business
+ * pages (`/{ownSlug}/*`) the selector is hidden — they return to the platform console
+ * via the sidebar's owner-only Platform section.
  *
  * Intentionally does NOT use the base-ui DropdownMenu primitives — that
  * component doesn't play well with arbitrary children (nested inputs,
@@ -91,14 +96,11 @@ export function TenantSwitcher() {
     };
   }, [open]);
 
-  if (!isPO) return null;
+  // Cross-tenant drill-in is confined to the platform area: only render the
+  // selector for platform owners while on /platform routes.
+  if (!isPO || !onPlatformRoute) return null;
 
-  const active = data?.find((t) => t.slug === currentSlug);
-  const buttonLabel = onPlatformRoute
-    ? "Platform console"
-    : active
-    ? active.name
-    : currentSlug ?? "Switch tenant";
+  const buttonLabel = "Platform console";
 
   function pick(slug: string) {
     setOpen(false);
@@ -115,11 +117,7 @@ export function TenantSwitcher() {
         className="inline-flex h-8 min-w-[200px] items-center justify-between gap-2 rounded-md border bg-background px-3 text-sm hover:bg-accent"
       >
         <span className="flex items-center gap-2 truncate">
-          {onPlatformRoute ? (
-            <Shield className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          )}
+          <Shield className="h-4 w-4 text-muted-foreground" />
           <span className="truncate">{buttonLabel}</span>
         </span>
         <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
@@ -130,26 +128,12 @@ export function TenantSwitcher() {
           ref={panelRef}
           className="absolute left-0 top-10 z-50 w-80 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
         >
-          {/* Header: current context + back to platform */}
+          {/* Header: current context */}
           <div className="flex items-center justify-between border-b px-3 py-2">
             <div className="text-xs">
               <div className="text-muted-foreground">Current</div>
-              <div className="font-medium">
-                {onPlatformRoute ? "Platform console" : active?.name || currentSlug || "—"}
-              </div>
+              <div className="font-medium">Platform console</div>
             </div>
-            {!onPlatformRoute && (
-              <button
-                type="button"
-                className="text-xs font-medium text-[var(--brand-primary)] hover:underline"
-                onClick={() => {
-                  setOpen(false);
-                  router.push("/platform");
-                }}
-              >
-                Back to platform
-              </button>
-            )}
           </div>
 
           {/* Search */}

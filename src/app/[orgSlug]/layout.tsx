@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useParams } from "next/navigation";
 import { PWAUpdateBanner } from "@/components/pwa-update-banner";
+import { PlatformScopeGuard } from "@/components/layout/platform-scope-guard";
 import { useAuthStore } from "@/store/auth-store";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
@@ -57,6 +58,7 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <PWAUpdateBanner />
+      <PlatformScopeGuard />
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex flex-1 flex-col">

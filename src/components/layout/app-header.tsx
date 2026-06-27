@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -12,15 +12,17 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, User, Globe, Bell, ExternalLink, Settings } from "lucide-react";
+import { LogOut, User, Globe, Bell, ExternalLink, Settings, Shield } from "lucide-react";
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { OutletFilter } from "@/components/layout/outlet-filter";
 
 export function AppHeader() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const [showNotifications, setShowNotifications] = useState(false);
+  const onPlatformRoute = pathname?.startsWith("/platform") ?? false;
 
   const initials = user?.fullName
     ? user.fullName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -34,7 +36,21 @@ export function AppHeader() {
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-6" />
 
+      {/* Cross-tenant drill-in selector — confined to /platform routes (self-gated). */}
       {user?.isPlatformOwner && <TenantSwitcher />}
+
+      {/* Return-to-platform affordance for platform owners on tenant (business) pages,
+          where the cross-tenant selector is intentionally hidden. */}
+      {user?.isPlatformOwner && !onPlatformRoute && (
+        <button
+          type="button"
+          onClick={() => router.push("/platform")}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-background px-3 text-sm hover:bg-accent"
+        >
+          <Shield className="h-4 w-4 text-muted-foreground" />
+          <span className="hidden sm:inline">Platform console</span>
+        </button>
+      )}
 
       {/* Outlet filter for HQ/admin users (non-platform owners with multi-outlet tenants) */}
       <OutletFilter />
