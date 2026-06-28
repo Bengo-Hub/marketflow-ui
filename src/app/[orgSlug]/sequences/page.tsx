@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FeatureGate } from "@bengo-hub/shared-ui-lib/subscription";
 import {
   Dialog,
   DialogContent,
@@ -171,7 +172,9 @@ export default function SequencesPage() {
             Automated follow-up flows. Active sequences run for every matching lead.
           </p>
         </div>
-        <Button onClick={newSeq}>+ New sequence</Button>
+        <FeatureGate feature="email_sequences">
+          <Button onClick={newSeq}>+ New sequence</Button>
+        </FeatureGate>
       </div>
 
       {error && (

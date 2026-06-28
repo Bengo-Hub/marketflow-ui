@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FeatureGate } from "@bengo-hub/shared-ui-lib/subscription";
 import {
   Dialog,
   DialogContent,
@@ -133,7 +134,9 @@ export default function FunnelsPage() {
             <code className="text-xs">{appUrl}/f/&lt;slug&gt;</code>.
           </p>
         </div>
-        <Button onClick={newFunnel}>+ New funnel</Button>
+        <FeatureGate feature="funnel_builder">
+          <Button onClick={newFunnel}>+ New funnel</Button>
+        </FeatureGate>
       </div>
 
       {error && (

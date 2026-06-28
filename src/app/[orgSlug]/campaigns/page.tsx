@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FeatureGate } from "@bengo-hub/shared-ui-lib/subscription";
 import {
   Dialog,
   DialogContent,
@@ -147,7 +148,9 @@ export default function CampaignsPage() {
             Track your Meta / TikTok / organic campaigns and the leads they generate.
           </p>
         </div>
-        <Button onClick={() => { resetForm(); setOpen(true); }}>+ New campaign</Button>
+        <FeatureGate anyOf={["basic_campaigns", "unlimited_campaigns"]}>
+          <Button onClick={() => { resetForm(); setOpen(true); }}>+ New campaign</Button>
+        </FeatureGate>
       </div>
 
       {error && (

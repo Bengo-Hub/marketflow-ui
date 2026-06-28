@@ -9,6 +9,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { SubscriptionBanner } from "@/components/subscription/subscription-banner";
+import { SubscriptionEntitlementsProvider } from "@/components/subscription/subscription-entitlements-provider";
 
 export default function OrgLayout({ children }: { children: React.ReactNode }) {
   const { status, user, initialize, redirectToSSO } = useAuthStore();
@@ -56,17 +57,19 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SidebarProvider>
-      <PWAUpdateBanner />
-      <PlatformScopeGuard />
-      <div className="flex min-h-screen w-full">
-        <AppSidebar />
-        <div className="flex flex-1 flex-col">
-          <AppHeader />
-          <SubscriptionBanner />
-          <main className="flex-1 p-6">{children}</main>
+    <SubscriptionEntitlementsProvider>
+      <SidebarProvider>
+        <PWAUpdateBanner />
+        <PlatformScopeGuard />
+        <div className="flex min-h-screen w-full">
+          <AppSidebar />
+          <div className="flex flex-1 flex-col">
+            <AppHeader />
+            <SubscriptionBanner />
+            <main className="flex-1 p-6">{children}</main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </SubscriptionEntitlementsProvider>
   );
 }

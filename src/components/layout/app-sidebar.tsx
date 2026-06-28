@@ -16,9 +16,16 @@ import {
   LayoutDashboard, Users, UserCheck, BookOpen, Link2, MessageSquare,
   Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
   Briefcase, Activity, CheckSquare, Users2, ChevronDown, LogOut,
-  Cpu, Layers, UserCog, DatabaseBackup,
+  Cpu, Layers, UserCog, DatabaseBackup, Lock,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useEntitlements } from "@bengo-hub/shared-ui-lib/subscription";
+
+// ── Subscription upgrade URL ─────────────────────────────────────────────────────
+
+const SUBSCRIPTIONS_UI_URL =
+  process.env.NEXT_PUBLIC_SUBSCRIPTIONS_UI_URL || "https://pricing.codevertexitsolutions.com";
+const UPGRADE_URL = `${SUBSCRIPTIONS_UI_URL}/plans?service=marketflow`;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -26,6 +33,8 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   href: string;
+  /** Marketflow subscription feature code required to access this item. */
+  feature?: string;
 }
 
 interface NavGroup {
@@ -41,21 +50,21 @@ const navGroups: NavGroup[] = [
     label: "Marketing",
     items: [
       { label: "Dashboard",    icon: LayoutDashboard, href: "/dashboard" },
-      { label: "Leads",        icon: Users,           href: "/leads" },
-      { label: "Contacts",     icon: UserCheck,       href: "/contacts" },
-      { label: "Knowledge Base", icon: BookOpen,      href: "/knowledge" },
-      { label: "Campaigns",    icon: Megaphone,       href: "/campaigns" },
-      { label: "Funnels",      icon: Globe,           href: "/funnels" },
-      { label: "Short Links",  icon: Link2,           href: "/short-links" },
-      { label: "Chat",         icon: MessageSquare,   href: "/chat" },
-      { label: "Sequences",    icon: Mail,            href: "/sequences" },
+      { label: "Leads",        icon: Users,           href: "/leads",       feature: "lead_management" },
+      { label: "Contacts",     icon: UserCheck,       href: "/contacts",    feature: "contact_management" },
+      { label: "Knowledge Base", icon: BookOpen,      href: "/knowledge",   feature: "knowledge_base" },
+      { label: "Campaigns",    icon: Megaphone,       href: "/campaigns",   feature: "basic_campaigns" },
+      { label: "Funnels",      icon: Globe,           href: "/funnels",     feature: "funnel_builder" },
+      { label: "Short Links",  icon: Link2,           href: "/short-links", feature: "shortlinks" },
+      { label: "Chat",         icon: MessageSquare,   href: "/chat",        feature: "ai_chat_agent" },
+      { label: "Sequences",    icon: Mail,            href: "/sequences",   feature: "email_sequences" },
       { label: "Meetings",     icon: Calendar,        href: "/meetings" },
     ],
   },
   {
     label: "CRM",
     items: [
-      { label: "Deals",        icon: Briefcase,  href: "/crm/deals" },
+      { label: "Deals",        icon: Briefcase,  href: "/crm/deals",      feature: "deal_pipeline" },
       { label: "Accounts",     icon: Building2,  href: "/crm/accounts" },
       { label: "Activities",   icon: Activity,   href: "/crm/activities" },
       { label: "Tasks",        icon: CheckSquare, href: "/crm/tasks" },
@@ -91,10 +100,33 @@ function NavLink({ item, orgSlug, isPlatform }: {
   isPlatform?: boolean;
 }) {
   const pathname = usePathname();
+  const { features, isExempt } = useEntitlements();
   const href = isPlatform ? item.href : `/${orgSlug}${item.href}`;
   const isRoot = item.href === "/dashboard" || item.href === "/platform";
   const active = isRoot ? pathname === href : pathname?.startsWith(href);
   const Icon = item.icon;
+
+  // Locked when the item requires a feature the tenant's plan doesn't include
+  // (exempt tenants — platform owner / demo / service-charge — always pass).
+  const locked = !!item.feature && !isExempt && !features.includes(item.feature);
+
+  if (locked) {
+    return (
+      <a
+        href={UPGRADE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={`Upgrade your plan to unlock ${item.label}`}
+        className="group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium text-sidebar-foreground/35 hover:text-sidebar-foreground/55 hover:bg-sidebar-foreground/5"
+      >
+        <Icon className="h-4 w-4 shrink-0" />
+        <span className="truncate flex-1">{item.label}</span>
+        <span className="flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-500">
+          <Lock className="h-2.5 w-2.5" />
+        </span>
+      </a>
+    );
+  }
 
   return (
     <Link
