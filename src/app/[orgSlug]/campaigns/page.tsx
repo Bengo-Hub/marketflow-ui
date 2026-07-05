@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FeatureGate } from "@bengo-hub/shared-ui-lib/subscription";
+import { FeatureLock, useAnyFeature } from "@bengo-hub/shared-ui-lib/subscription";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +47,9 @@ type Campaign = {
 
 export default function CampaignsPage() {
   const qc = useQueryClient();
+  // Either tier code unlocks campaigns; when neither is present the button stays
+  // visible but locked (FeatureLock opens the UpgradeDialog for the base tier).
+  const hasCampaigns = useAnyFeature("basic_campaigns", "unlimited_campaigns");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -148,9 +151,13 @@ export default function CampaignsPage() {
             Track your Meta / TikTok / organic campaigns and the leads they generate.
           </p>
         </div>
-        <FeatureGate anyOf={["basic_campaigns", "unlimited_campaigns"]}>
+        {hasCampaigns ? (
           <Button onClick={() => { resetForm(); setOpen(true); }}>+ New campaign</Button>
-        </FeatureGate>
+        ) : (
+          <FeatureLock feature="basic_campaigns" mode="block">
+            <Button onClick={() => { resetForm(); setOpen(true); }}>+ New campaign</Button>
+          </FeatureLock>
+        )}
       </div>
 
       {error && (

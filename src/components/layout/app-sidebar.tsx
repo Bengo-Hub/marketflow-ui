@@ -16,16 +16,10 @@ import {
   LayoutDashboard, Users, UserCheck, BookOpen, Link2, MessageSquare,
   Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
   Briefcase, Activity, CheckSquare, Users2, ChevronDown, LogOut,
-  Cpu, Layers, UserCog, DatabaseBackup, Lock,
+  Cpu, Layers, UserCog, DatabaseBackup,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEntitlements } from "@bengo-hub/shared-ui-lib/subscription";
-
-// ── Subscription upgrade URL ─────────────────────────────────────────────────────
-
-const SUBSCRIPTIONS_UI_URL =
-  process.env.NEXT_PUBLIC_SUBSCRIPTIONS_UI_URL || "https://pricing.codevertexitsolutions.com";
-const UPGRADE_URL = `${SUBSCRIPTIONS_UI_URL}/plans?service=marketflow`;
+import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -100,35 +94,14 @@ function NavLink({ item, orgSlug, isPlatform }: {
   isPlatform?: boolean;
 }) {
   const pathname = usePathname();
-  const { features, isExempt } = useEntitlements();
+  // useFeature already treats exempt tenants (platform owner / demo / service-charge) as enabled.
+  const hasFeature = useFeature(item.feature ?? "");
   const href = isPlatform ? item.href : `/${orgSlug}${item.href}`;
   const isRoot = item.href === "/dashboard" || item.href === "/platform";
   const active = isRoot ? pathname === href : pathname?.startsWith(href);
   const Icon = item.icon;
 
-  // Locked when the item requires a feature the tenant's plan doesn't include
-  // (exempt tenants — platform owner / demo / service-charge — always pass).
-  const locked = !!item.feature && !isExempt && !features.includes(item.feature);
-
-  if (locked) {
-    return (
-      <a
-        href={UPGRADE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={`Upgrade your plan to unlock ${item.label}`}
-        className="group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium text-sidebar-foreground/35 hover:text-sidebar-foreground/55 hover:bg-sidebar-foreground/5"
-      >
-        <Icon className="h-4 w-4 shrink-0" />
-        <span className="truncate flex-1">{item.label}</span>
-        <span className="flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-500">
-          <Lock className="h-2.5 w-2.5" />
-        </span>
-      </a>
-    );
-  }
-
-  return (
+  const link = (
     <Link
       href={href}
       className={cn(
@@ -145,6 +118,19 @@ function NavLink({ item, orgSlug, isPlatform }: {
       <span className="truncate">{item.label}</span>
     </Link>
   );
+
+  // Show-but-lock: the item stays visible; clicking a locked item opens the
+  // UpgradeDialog (badge mode intercepts the inner Link on capture) instead of
+  // bouncing to the pricing site.
+  if (item.feature && !hasFeature) {
+    return (
+      <FeatureLock feature={item.feature} mode="badge">
+        {link}
+      </FeatureLock>
+    );
+  }
+
+  return link;
 }
 
 // ── Collapsible group ──────────────────────────────────────────────────────────
