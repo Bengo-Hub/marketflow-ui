@@ -148,6 +148,7 @@ export interface UserProfile {
   fboDistribId?: string;
   isPlatformOwner: boolean;
   isSuperUser: boolean;
+  email_verification?: import('@bengo-hub/shared-ui-lib/auth').EmailVerificationState;
   subscriptionPlan?: string;
   subscriptionStatus?: string;
   subscriptionFeatures?: string[];
@@ -193,6 +194,7 @@ export async function fetchProfile(accessToken: string): Promise<UserProfile> {
     fboDistribId,
     isPlatformOwner,
     isSuperUser: (d.roles ?? []).includes("superuser"),
+    email_verification: d.email_verification,
     subscriptionPlan: d.sub_plan,
     subscriptionStatus: d.sub_status,
     subscriptionFeatures: d.sub_features,

@@ -9,6 +9,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { SubscriptionBanner } from "@/components/subscription/subscription-banner";
+import { VerifyEmailPrompt } from "@/components/auth/VerifyEmailPrompt";
 import { SubscriptionEntitlementsProvider } from "@/components/subscription/subscription-entitlements-provider";
 
 export default function OrgLayout({ children }: { children: React.ReactNode }) {
@@ -66,6 +67,7 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
           <div className="flex flex-1 flex-col">
             <AppHeader />
             <SubscriptionBanner />
+            <VerifyEmailPrompt />
             <main className="flex-1 p-6">{children}</main>
           </div>
         </div>
