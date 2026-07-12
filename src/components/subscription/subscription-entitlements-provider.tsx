@@ -18,6 +18,7 @@ interface CatalogItem {
   serviceTag?: string;
   minPlanCode?: string;
   minTierLabel?: string;
+  minTierOrder?: number;
 }
 
 /**
@@ -57,6 +58,7 @@ export function SubscriptionEntitlementsProvider({
       map[f.featureCode] = {
         minPlanCode: f.minPlanCode,
         minTierLabel: f.minTierLabel,
+        minTierOrder: f.minTierOrder,
         serviceTag: f.serviceTag,
         label: f.label,
       };
@@ -72,6 +74,7 @@ export function SubscriptionEntitlementsProvider({
       status: sub.status,
       isLoading: sub.isLoading,
       planCode: sub.plan,
+      tierOrder: sub.tierOrder,
       catalog,
       upgradeBaseUrl: UPGRADE_BASE,
     }),
@@ -84,6 +87,7 @@ export function SubscriptionEntitlementsProvider({
       sub.status,
       sub.isLoading,
       sub.plan,
+      sub.tierOrder,
       catalog,
     ],
   );

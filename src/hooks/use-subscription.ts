@@ -57,6 +57,7 @@ export function useSubscription() {
         useSubscriptionStore.getState().setFromRaw(
           {
             plan: info.planCode || null,
+            tierOrder: info.tierOrder ?? null,
             status: info.status || null,
             expiresAt: info.currentPeriodEnd ?? info.trialEndsAt ?? null,
             features: info.features,
@@ -84,7 +85,7 @@ export function useSubscription() {
             .then((info) => {
               if (!info) return;
               useSubscriptionStore.getState().setFromRaw(
-                { plan: info.planCode || null, status: info.status || null, expiresAt: info.currentPeriodEnd ?? info.trialEndsAt ?? null, features: info.features, limits: info.limits },
+                { plan: info.planCode || null, tierOrder: info.tierOrder ?? null, status: info.status || null, expiresAt: info.currentPeriodEnd ?? info.trialEndsAt ?? null, features: info.features, limits: info.limits },
                 tenantSlug,
               );
             })
@@ -102,6 +103,7 @@ export function useSubscription() {
     store,
     status: subStatus,
     plan: store.plan,
+    tierOrder: store.tierOrder,
     isActive: subStatus === "active" || subStatus === "trial" || isServiceCharge || isDemo,
     isPastDue: subStatus === "suspended",
     isExpired: store.isExpired,

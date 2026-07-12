@@ -16,6 +16,7 @@ const IDB_VERSION = 1;
 
 export interface SubscriptionState {
   plan: SubscriptionPlan | null;
+  tierOrder: number | null;
   status: SubscriptionStatus | null;
   expiresAt: Date | null;
   gracePeriodEndsAt: Date | null;
@@ -35,6 +36,7 @@ interface SubscriptionStore extends SubscriptionState {
 
 interface RawSubscriptionData {
   plan?: string | null;
+  tierOrder?: number | null;
   status?: string | null;
   expiresAt?: string | null;
   features?: string[];
@@ -126,6 +128,7 @@ async function idbSet(key: string, value: unknown): Promise<void> {
 
 const EMPTY_STATE: SubscriptionState = {
   plan: null,
+  tierOrder: null,
   status: null,
   expiresAt: null,
   gracePeriodEndsAt: null,
@@ -142,6 +145,7 @@ export const useSubscriptionStore = create<SubscriptionStore>((set) => ({
 
   setFromRaw: (raw, tenantSlug) => {
     const plan = (raw.plan ?? null) as SubscriptionPlan | null;
+    const tierOrder = raw.tierOrder ?? null;
     const status = (raw.status ?? null) as SubscriptionStatus | null;
     const expiresAt = raw.expiresAt ? new Date(raw.expiresAt) : null;
     const features = raw.features ?? [];
@@ -150,6 +154,7 @@ export const useSubscriptionStore = create<SubscriptionStore>((set) => ({
 
     const state: SubscriptionState = {
       plan,
+      tierOrder,
       status,
       expiresAt,
       features,
@@ -161,6 +166,7 @@ export const useSubscriptionStore = create<SubscriptionStore>((set) => ({
 
     const serializable = {
       plan,
+      tierOrder,
       status,
       expiresAt: expiresAt?.toISOString() ?? null,
       features,
@@ -177,6 +183,7 @@ export const useSubscriptionStore = create<SubscriptionStore>((set) => ({
     }
     const data = raw as RawSubscriptionData;
     const plan = (data.plan ?? null) as SubscriptionPlan | null;
+    const tierOrder = data.tierOrder ?? null;
     const status = (data.status ?? null) as SubscriptionStatus | null;
     const expiresAt = data.expiresAt ? new Date(data.expiresAt) : null;
     const features = data.features ?? [];
@@ -185,6 +192,7 @@ export const useSubscriptionStore = create<SubscriptionStore>((set) => ({
 
     set({
       plan,
+      tierOrder,
       status,
       expiresAt,
       features,
