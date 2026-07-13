@@ -10,7 +10,7 @@ export default function SettingsPage() {
     { href: `/${orgSlug}/settings/profile`, title: "FBO profile", desc: "Your public /p/{slug} page — branding, bio, WhatsApp, testimonials." },
     { href: `/${orgSlug}/settings/team`, title: "Team", desc: "Invite users and manage tenant-level roles. Platform roles are not set here." },
     { href: `/${orgSlug}/settings/billing`, title: "Billing", desc: "Your current plan, invoices, and payment method." },
-    { href: `/${orgSlug}/settings/integrations`, title: "Integrations", desc: "Your own Meta Page token and Cal.com embed URL. Platform-wide keys live in the platform console." },
+    { href: `/${orgSlug}/settings/integrations`, title: "Integrations", desc: "Your own Meta Page token and Google Calendar connection. Platform-wide keys live in the platform console." },
   ];
   return (
     <div className="space-y-6">

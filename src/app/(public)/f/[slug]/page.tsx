@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FunnelForm } from "./funnel-form";
+import { BookingWidget } from "@/components/booking/booking-widget";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -12,7 +13,7 @@ type FunnelStep = {
   description?: string;
   cta_text?: string;
   cta_url?: string;
-  block_type?: "form" | "whatsapp" | "product" | "recruit" | "calcom" | "content";
+  block_type?: "form" | "whatsapp" | "product" | "recruit" | "google_calendar" | "content";
   fields?: Array<{
     key: string;
     label: string;
@@ -27,8 +28,6 @@ type FunnelStep = {
   product_price?: string;
   product_cc?: string;
   whatsapp_message?: string;
-  calcom_username?: string;
-  calcom_event?: string;
 };
 
 type Funnel = {
@@ -189,6 +188,7 @@ export default async function PublicFunnelPage({
               step={step}
               brandColor={brandColor}
               profile={profile}
+              tenantSlug={f.tenant_slug}
             />
           ))}
 
@@ -212,10 +212,12 @@ function FunnelBlock({
   step,
   brandColor,
   profile,
+  tenantSlug,
 }: {
   step: FunnelStep;
   brandColor: string;
   profile: TenantProfile | null;
+  tenantSlug: string;
 }) {
   const blockType = step.block_type ?? "content";
 
@@ -301,24 +303,18 @@ function FunnelBlock({
     );
   }
 
-  if (blockType === "calcom" && step.calcom_username) {
-    const event = step.calcom_event ?? "15min";
+  if (blockType === "google_calendar") {
     return (
-      <section className="mt-10 overflow-hidden rounded-2xl border bg-white shadow-sm">
+      <section className="mt-10">
         {step.title && (
-          <div className="border-b px-6 py-4">
+          <div className="mb-4">
             <h2 className="text-xl font-semibold">{step.title}</h2>
             {step.description && (
               <p className="mt-1 text-sm text-muted-foreground">{step.description}</p>
             )}
           </div>
         )}
-        <iframe
-          src={`https://calendar.codevertexitsolutions.com/${step.calcom_username}/${event}`}
-          className="h-[620px] w-full"
-          title="Book a meeting"
-          loading="lazy"
-        />
+        <BookingWidget tenantSlug={tenantSlug} brandColor={brandColor} />
       </section>
     );
   }

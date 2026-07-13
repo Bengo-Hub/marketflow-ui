@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { BookingWidget } from "@/components/booking/booking-widget";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexitsolutions.com";
 const AI = process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.codevertexitsolutions.com";
@@ -39,9 +40,6 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const waReal = waD && !/0{5,}/.test(waD) && !/(\d)\1{5,}/.test(waD);
   const wa = waReal ? `https://wa.me/${waD}?text=${encodeURIComponent(`Hi ${name}, I'm interested!`)}` : "";
   const contactEmail = (m.contact_email as string | undefined) || "";
-  const gcal = m.google_calendar_link as string | undefined;
-  const ccUser = m.calcom_username as string | undefined;
-  const booking = gcal || (ccUser ? `https://calendar.codevertexitsolutions.com/${ccUser}/${m.calcom_event || "15min"}` : "");
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -144,7 +142,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 <div className="mt-3 flex flex-wrap gap-2">
                   {wa && <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-[#25D366] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#1DA851] transition">💬 Chat</a>}
                   {!wa && contactEmail && <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(`Hi ${name}, I'd like to know more`)}`} className="rounded-full bg-[#4F46E5] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#4338CA] transition">✉️ Email</a>}
-                  {booking && <a href="#booking" className="rounded-full border px-4 py-1.5 text-xs font-medium hover:bg-gray-50 transition">📅 Book a Call</a>}
+                  <a href="#booking" className="rounded-full border px-4 py-1.5 text-xs font-medium hover:bg-gray-50 transition">📅 Book a Call</a>
                 </div>
               </div>
             </div>
@@ -163,13 +161,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                   Ready to learn more? Book a free, no-obligation one-on-one with me. I&apos;ll walk you through the products, the opportunity, and how to get started.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {booking ? (
-                    <a href="#booking" className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-amber-600 transition">📅 Book a Call</a>
-                  ) : wa ? (
-                    <a href={`https://wa.me/${waD}?text=${encodeURIComponent(`Hi ${name}, I'd like to book a one-on-one meeting with you!`)}`} target="_blank" rel="noreferrer" className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-amber-600 transition">📅 Book a Meeting</a>
-                  ) : contactEmail ? (
-                    <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(`Hi ${name}, I'd like to book a meeting`)}`} className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-amber-600 transition">📅 Book a Meeting</a>
-                  ) : null}
+                  <a href="#booking" className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-amber-600 transition">📅 Book a Call</a>
                   {wa && <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-[#25D366] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#1DA851] transition">💬 WhatsApp</a>}
                   {!wa && contactEmail && <a href={`mailto:${contactEmail}`} className="rounded-full bg-[#25D366] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#1DA851] transition">✉️ Email</a>}
                 </div>
@@ -238,18 +230,14 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
           </section>
         )}
 
-        {/* ═══ BOOKING IFRAME ═══ */}
-        {booking && (
-          <section id="booking" className="py-8 border-t">
-            <div className="overflow-hidden rounded-xl border shadow-sm">
-              <div className="px-4 py-3 border-b" style={{ background: `${brand}10` }}>
-                <h2 className="text-base font-bold">Book a Call with {name}</h2>
-                <p className="text-[10px] text-gray-400">Free 15-min intro — no obligation.</p>
-              </div>
-              <iframe src={booking} className="w-full h-[500px]" title="Book" loading="lazy" />
-            </div>
-          </section>
-        )}
+        {/* ═══ BOOKING ═══ */}
+        <section id="booking" className="py-8 border-t">
+          <div className="mb-3">
+            <h2 className="text-base font-bold">Book a Call with {name}</h2>
+            <p className="text-[10px] text-gray-400">Free 15-min intro — no obligation.</p>
+          </div>
+          <BookingWidget tenantSlug={profile.slug} brandColor={brand} />
+        </section>
 
         {/* ═══ CTA ═══ */}
         <section className="py-8 border-t">

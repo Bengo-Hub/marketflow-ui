@@ -463,23 +463,6 @@ const schedulingProviders: ProviderDef[] = [
       },
     ],
   },
-  {
-    id: "default",
-    type: "calcom",
-    name: "Cal.com",
-    description: "Optional embedded scheduler — hosted at cal.com or self-hosted.",
-    scope: "platform",
-    logoSlug: "caldotcom",
-    logoColor: "111827",
-    brandColor: "#111827",
-    docsUrl: "https://cal.com/docs/api-reference",
-    capabilities: { test: true },
-    fields: [
-      { key: "base_url", label: "Base URL", type: "url", default: "https://api.cal.com/v2" },
-      { key: "api_key", label: "API key", type: "password", secret: true, required: true },
-      { key: "webhook_secret", label: "Webhook secret", type: "password", secret: true },
-    ],
-  },
 ];
 
 // Email / SMS / WhatsApp / Push providers are NOT defined here — notifications-api
@@ -572,7 +555,7 @@ export const providerCatalog: ProviderCategory[] = [
   {
     id: "scheduling",
     label: "Scheduling",
-    description: "Google Calendar + Cal.com integration defaults.",
+    description: "Google Calendar integration defaults.",
     providers: schedulingProviders,
   },
   // Messaging (Email / SMS / WhatsApp / Push) is centrally configured in
