@@ -1,7 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { SSOCallbackError } from "@bengo-hub/shared-ui-lib/auth";
 import { useAuthStore } from "@/store/auth-store";
 import { useOutletFilterStore } from "@/store/outlet-filter";
 
@@ -9,6 +10,12 @@ function CallbackHandler() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const hasStarted = useRef(false);
+  const [exchangeError, setExchangeError] = useState<string | null>(null);
+
+  // SSO error redirects (?error=...) carry no code — surface them instead of
+  // spinning forever on "Signing you in...".
+  const oauthError = searchParams.get("error");
+  const oauthErrorDescription = searchParams.get("error_description");
 
   useEffect(() => {
     const code = searchParams.get("code");
@@ -41,8 +48,36 @@ function CallbackHandler() {
         }
       }
 
-      if (returnTo) {
-        router.replace(returnTo);
+      // The stored return URL was captured BEFORE the SSO hop. If the user
+      // switched organisation mid-login (accounts org picker), its slug is
+      // stale — re-point the first path segment at the signed-in tenant.
+      // Cross-origin values are dropped.
+      const safeReturnTo = (() => {
+        if (!returnTo) return null;
+        try {
+          const url = returnTo.startsWith("http")
+            ? new URL(returnTo)
+            : new URL(returnTo, window.location.origin);
+          if (url.origin !== window.location.origin) return null;
+          const segments = url.pathname.split("/");
+          const slug = user?.preferredSlug || user?.tenantSlug || "";
+          if (
+            slug &&
+            segments[1] &&
+            segments[1] !== slug &&
+            !["platform", "auth"].includes(segments[1]) &&
+            !user?.isPlatformOwner
+          ) {
+            segments[1] = slug;
+          }
+          return segments.join("/") + url.search + url.hash;
+        } catch {
+          return null;
+        }
+      })();
+
+      if (safeReturnTo) {
+        router.replace(safeReturnTo);
         return;
       }
       // Platform owners land on the platform console by default; tenant
@@ -58,8 +93,20 @@ function CallbackHandler() {
       } else {
         router.replace("/");
       }
+    }).catch((err: unknown) => {
+      setExchangeError(err instanceof Error ? err.message : "Token exchange failed");
     });
   }, [searchParams, router]);
+
+  if (oauthError || exchangeError) {
+    return (
+      <SSOCallbackError
+        error={oauthError || "auth_error"}
+        errorDescription={oauthErrorDescription || exchangeError}
+        onRetry={() => useAuthStore.getState().redirectToSSO()}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen items-center justify-center">
