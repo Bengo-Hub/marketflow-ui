@@ -9,11 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreditCard, Wallet, Zap, TrendingUp, ArrowUpRight, Info, X } from "lucide-react";
 
-const TREASURY_UI_URL = process.env.NEXT_PUBLIC_TREASURY_UI_URL || "https://books.codevertexitsolutions.com";
-const TREASURY_URL = process.env.NEXT_PUBLIC_TREASURY_API_URL || "https://booksapi.codevertexitsolutions.com";
-const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://pricingapi.codevertexitsolutions.com";
+const TREASURY_UI_URL = process.env.NEXT_PUBLIC_TREASURY_UI_URL || "https://books.codevertexafrica.com";
+const TREASURY_URL = process.env.NEXT_PUBLIC_TREASURY_API_URL || "https://booksapi.codevertexafrica.com";
+const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://pricingapi.codevertexafrica.com";
 // Subscriptions UI (pricing portal) — different domain from the API
-const SUBSCRIPTIONS_UI_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_UI_URL || "https://pricing.codevertexitsolutions.com";
+const SUBSCRIPTIONS_UI_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_UI_URL || "https://pricing.codevertexafrica.com";
 
 type Subscription = {
   plan_code?: string;

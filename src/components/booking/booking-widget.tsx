@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://marketflowapi.codevertexitsolutions.com";
+  "https://marketflowapi.codevertexafrica.com";
 
 type Slot = { start: string; end: string };
 

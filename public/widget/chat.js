@@ -2,10 +2,10 @@
  * Vera — Codevertex AI embeddable widget v3.1
  *
  * Usage:
- *   <script src="https://marketflow.codevertexitsolutions.com/widget/chat.js"
+ *   <script src="https://marketflow.codevertexafrica.com/widget/chat.js"
  *           data-tenant="my-tenant"
  *           data-mode="platform|tenant"
- *           data-api-url="https://marketflowai.codevertexitsolutions.com"
+ *           data-api-url="https://marketflowai.codevertexafrica.com"
  *           data-whatsapp="254712345678"
  *           data-phone="+254712345678"
  *           data-call-url=""
@@ -26,20 +26,20 @@
   var script = document.currentScript;
 
   // ── Allowed API hosts — data-api-url must match to prevent data exfiltration ──
-  var ALLOWED_API_HOSTS = ['marketflowai.codevertexitsolutions.com'];
+  var ALLOWED_API_HOSTS = ['marketflowai.codevertexafrica.com'];
   function validateApiUrl(url) {
     try {
       var p = new URL(url);
       if (ALLOWED_API_HOSTS.indexOf(p.hostname) === -1) {
         console.warn('[vera] Unauthorized data-api-url — using default');
-        return 'https://marketflowai.codevertexitsolutions.com';
+        return 'https://marketflowai.codevertexafrica.com';
       }
       return url.replace(/\/$/, '');
-    } catch (e) { return 'https://marketflowai.codevertexitsolutions.com'; }
+    } catch (e) { return 'https://marketflowai.codevertexafrica.com'; }
   }
 
   // ── Sanitize / validate all data attributes ──────────────────────────────────
-  var _rawApiUrl   = (script && script.dataset.apiUrl) || 'https://marketflowai.codevertexitsolutions.com';
+  var _rawApiUrl   = (script && script.dataset.apiUrl) || 'https://marketflowai.codevertexafrica.com';
   var apiURL       = validateApiUrl(_rawApiUrl);
 
   // Enum-validate mode — only 'platform' or 'tenant' are valid
@@ -522,7 +522,7 @@
     '    <svg class="send-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>',
     '  </button>',
     '</form>',
-    '<div class="powered">Powered by <a href="https://codevertexitsolutions.com" target="_blank" rel="noreferrer">Codevertex</a></div>',
+    '<div class="powered">Powered by <a href="https://codevertexafrica.com" target="_blank" rel="noreferrer">Codevertex</a></div>',
   ].join('');
   shadow.appendChild(panel);
 
@@ -941,7 +941,7 @@
         }).catch(function () {});
         formSubmitCount++;
         appendMsg('bot', md('Enrollment received! 🎉 Our team will contact **' + data.email + '** within a few hours with payment and cohort details.'));
-        var chips = [{ label: '🎓 View all courses', href: 'https://codevertexitsolutions.com/digitika' }];
+        var chips = [{ label: '🎓 View all courses', href: 'https://codevertexafrica.com/digitika' }];
         if (waHref) chips.push({ label: '💬 WhatsApp us', href: waHref });
         renderActionChips(chips);
       });
@@ -1086,10 +1086,10 @@
       else if (/books\.codevertex|\/pay/.test(u))        chips.push({ label: '💳 Pay now', href: u });
     }
     if (intent === 'course_inquiry') {
-      chips.push({ label: '🎓 Browse courses', href: 'https://codevertexitsolutions.com/digitika' });
+      chips.push({ label: '🎓 Browse courses', href: 'https://codevertexafrica.com/digitika' });
     }
     if (intent === 'service_inquiry') {
-      chips.push({ label: '🚀 Request demo', href: 'https://codevertexitsolutions.com/contact' });
+      chips.push({ label: '🚀 Request demo', href: 'https://codevertexafrica.com/contact' });
     }
     // Tenant-configured shortcuts
     if (waHref && !chips.some(function (c) { return c.href === waHref; })) {
@@ -1118,7 +1118,7 @@
           '<div class="cb"><div class="ct">' + escHTML(c.name || c.title) + '</div>' +
           '<div class="cm">' + escHTML(c.duration || '') + (c.mode ? ' &middot; ' + escHTML(c.mode) : '') + '</div>' +
           (c.price ? '<div class="cm" style="font-weight:700;color:' + primaryColor + '">KSh ' + escHTML(String(c.price)) + '</div>' : '') +
-          '<a class="cc-link" href="' + escAttr(safeUrl(c.enroll_url || 'https://codevertexitsolutions.com/digitika')) + '" target="_blank" rel="noreferrer">View course &rarr;</a>' +
+          '<a class="cc-link" href="' + escAttr(safeUrl(c.enroll_url || 'https://codevertexafrica.com/digitika')) + '" target="_blank" rel="noreferrer">View course &rarr;</a>' +
           '</div>';
         body.appendChild(card);
       });
@@ -1332,7 +1332,7 @@
                 '<div class="cb"><div class="ct">' + escHTML(c.name || c.title) + '</div>' +
                 '<div class="cm">' + escHTML(c.duration || '') + (c.mode ? ' &middot; ' + escHTML(c.mode) : '') + '</div>' +
                 (c.price ? '<div class="cm" style="font-weight:700;color:' + primaryColor + '">KSh ' + escHTML(String(c.price)) + '</div>' : '') +
-                '<a class="cc-link" href="' + escAttr(safeUrl(c.enroll_url || 'https://codevertexitsolutions.com/digitika')) + '" target="_blank" rel="noreferrer">View course &rarr;</a>' +
+                '<a class="cc-link" href="' + escAttr(safeUrl(c.enroll_url || 'https://codevertexafrica.com/digitika')) + '" target="_blank" rel="noreferrer">View course &rarr;</a>' +
                 '</div>';
               body.appendChild(card);
             });

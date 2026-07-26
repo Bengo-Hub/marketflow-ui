@@ -122,7 +122,7 @@ export default function FunnelsPage() {
   }
 
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://marketflow.codevertexitsolutions.com";
+    process.env.NEXT_PUBLIC_APP_URL || "https://marketflow.codevertexafrica.com";
 
   return (
     <div className="space-y-6">

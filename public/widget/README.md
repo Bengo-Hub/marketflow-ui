@@ -6,9 +6,9 @@ Single-file vanilla JS widget that injects a shadow-DOM chat panel into any host
 
 ```html
 <script
-  src="https://marketflow.codevertexitsolutions.com/widget/chat.js"
+  src="https://marketflow.codevertexafrica.com/widget/chat.js"
   data-tenant="YOUR_TENANT_SLUG_OR_UUID"
-  data-api-url="https://marketflowai.codevertexitsolutions.com"
+  data-api-url="https://marketflowai.codevertexafrica.com"
   async></script>
 ```
 

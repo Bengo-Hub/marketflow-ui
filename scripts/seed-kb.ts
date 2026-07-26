@@ -3,7 +3,7 @@
  * seed-kb.ts — Seeds the MarketFlow knowledge base with platform-wide content.
  *
  * Usage:
- *   MARKETFLOW_API_URL=https://marketflowai.codevertexitsolutions.com \
+ *   MARKETFLOW_API_URL=https://marketflowai.codevertexafrica.com \
  *   MARKETFLOW_API_KEY=<INTERNAL_SERVICE_KEY> \
  *   pnpm tsx scripts/seed-kb.ts [--dry-run] [--file ./public/kb/platform-seed.json]
  */

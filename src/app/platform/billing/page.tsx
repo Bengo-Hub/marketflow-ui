@@ -21,8 +21,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DollarSign, Pencil, Settings, Users } from "lucide-react";
 import { toast } from "sonner";
 
-const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://pricingapi.codevertexitsolutions.com";
-const MARKETFLOW_API_URL = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexitsolutions.com";
+const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://pricingapi.codevertexafrica.com";
+const MARKETFLOW_API_URL = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexafrica.com";
 
 type ServiceChargePlan = {
   id: string;

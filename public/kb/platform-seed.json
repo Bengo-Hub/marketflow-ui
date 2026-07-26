@@ -10,7 +10,7 @@
     "scope": "platform",
     "category": "platform_overview",
     "title": "Codevertex Africa Limited — Company Registration & Legal Details",
-    "content": "Codevertex Africa Limited is a Private Limited Company incorporated in Kenya on 21 May 2026 under the Companies Act, 2015. Company Number: PVT-VQ1OEVB3. KRA PIN: P052543168K. Nominal share capital: KES 100,000 (1,000 ordinary shares at KES 100 each). Registered office: Pioneer House, Oginga-Odinga Road, Kisumu CBD, Kisumu East District, Kisumu County. Postal address: P.O. Box 49, 40100 – Kisumu, Kenya. Primary support phone: +254 743 793 901. Alternative: +254 792 548 766 | +254 742 201 368. Email: info@codevertexitsolutions.com.",
+    "content": "Codevertex Africa Limited is a Private Limited Company incorporated in Kenya on 21 May 2026 under the Companies Act, 2015. Company Number: PVT-VQ1OEVB3. KRA PIN: P052543168K. Nominal share capital: KES 100,000 (1,000 ordinary shares at KES 100 each). Registered office: Pioneer House, Oginga-Odinga Road, Kisumu CBD, Kisumu East District, Kisumu County. Postal address: P.O. Box 49, 40100 – Kisumu, Kenya. Primary support phone: +254 743 793 901. Alternative: +254 792 548 766 | +254 742 201 368. Email: info@codevertexafrica.com.",
     "tags": ["company", "registration", "incorporated", "legal", "pvt", "pvt-vq1oevb3", "kra", "pin", "p052543168k"]
   },
   {
@@ -31,7 +31,7 @@
     "scope": "platform",
     "category": "platform_overview",
     "title": "How do I contact Codevertex?",
-    "content": "You can reach Codevertex Africa Limited through: Website: https://codevertexitsolutions.com | Email: info@codevertexitsolutions.com | Primary phone: +254 743 793 901 | Also: +254 792 548 766 | +254 742 201 368 | Physical office: Pioneer House, Oginga-Odinga Road, Kisumu CBD, Kenya. For support tickets, use the support portal or ask Vera to create a ticket for you.",
+    "content": "You can reach Codevertex Africa Limited through: Website: https://codevertexafrica.com | Email: info@codevertexafrica.com | Primary phone: +254 743 793 901 | Also: +254 792 548 766 | +254 742 201 368 | Physical office: Pioneer House, Oginga-Odinga Road, Kisumu CBD, Kenya. For support tickets, use the support portal or ask Vera to create a ticket for you.",
     "tags": ["contact", "support", "email", "phone", "location"]
   },
   {
@@ -59,28 +59,28 @@
     "scope": "platform",
     "category": "marketflow_crm",
     "title": "How do I embed the Vera chat widget on my website?",
-    "content": "Add this script tag to your website's HTML before the closing </body> tag: <script src=\"https://marketflow.codevertexitsolutions.com/widget/chat.js\" data-tenant=\"your-tenant-slug\" data-mode=\"tenant\" data-api-url=\"https://marketflowai.codevertexitsolutions.com\" async></script>. Replace 'your-tenant-slug' with your MarketFlow tenant ID. For platform mode (all Codevertex services), use data-mode=\"platform\".",
+    "content": "Add this script tag to your website's HTML before the closing </body> tag: <script src=\"https://marketflow.codevertexafrica.com/widget/chat.js\" data-tenant=\"your-tenant-slug\" data-mode=\"tenant\" data-api-url=\"https://marketflowai.codevertexafrica.com\" async></script>. Replace 'your-tenant-slug' with your MarketFlow tenant ID. For platform mode (all Codevertex services), use data-mode=\"platform\".",
     "tags": ["widget", "vera", "embed", "chat", "javascript", "installation"]
   },
   {
     "scope": "platform",
     "category": "auth_sso",
     "title": "What is Codevertex SSO?",
-    "content": "Codevertex provides a unified Single Sign-On (SSO) system at sso.codevertexitsolutions.com. It supports OAuth 2.0 / OIDC protocols with Google, Microsoft, and GitHub providers. The SSO system handles authentication for all Codevertex services — users log in once and access all authorized applications. It uses JWT tokens with JWKS-based verification.",
+    "content": "Codevertex provides a unified Single Sign-On (SSO) system at sso.codevertexafrica.com. It supports OAuth 2.0 / OIDC protocols with Google, Microsoft, and GitHub providers. The SSO system handles authentication for all Codevertex services — users log in once and access all authorized applications. It uses JWT tokens with JWKS-based verification.",
     "tags": ["sso", "auth", "login", "oauth", "jwt", "security"]
   },
   {
     "scope": "platform",
     "category": "auth_sso",
     "title": "How does Codevertex handle user authentication?",
-    "content": "Authentication is managed by the auth-api service at sso.codevertexitsolutions.com. It supports: (1) Email/password login; (2) Google OAuth; (3) Microsoft OAuth; (4) GitHub OAuth; (5) Just-in-time (JIT) user provisioning for new SSO users; (6) RBAC (Role-Based Access Control) for authorization; (7) Multi-tenant isolation — users see only their tenant's data.",
+    "content": "Authentication is managed by the auth-api service at sso.codevertexafrica.com. It supports: (1) Email/password login; (2) Google OAuth; (3) Microsoft OAuth; (4) GitHub OAuth; (5) Just-in-time (JIT) user provisioning for new SSO users; (6) RBAC (Role-Based Access Control) for authorization; (7) Multi-tenant isolation — users see only their tenant's data.",
     "tags": ["auth", "security", "oauth", "rbac", "tenants", "sso"]
   },
   {
     "scope": "platform",
     "category": "ordering_pos",
     "title": "What is the Codevertex Ordering Platform?",
-    "content": "The Codevertex Ordering Platform is a full-stack e-commerce and order management system. It supports product catalogs, customer orders, payment processing via Paystack (with treasury integration at books.codevertexitsolutions.com), order tracking, and fulfillment workflows. It integrates with the POS system and inventory management for unified stock control.",
+    "content": "The Codevertex Ordering Platform is a full-stack e-commerce and order management system. It supports product catalogs, customer orders, payment processing via Paystack (with treasury integration at books.codevertexafrica.com), order tracking, and fulfillment workflows. It integrates with the POS system and inventory management for unified stock control.",
     "tags": ["ordering", "ecommerce", "products", "payments", "paystack"]
   },
   {
@@ -94,14 +94,14 @@
     "scope": "platform",
     "category": "ordering_pos",
     "title": "How does payment processing work?",
-    "content": "Codevertex uses Paystack for payment processing. The treasury service (books.codevertexitsolutions.com) handles payment intents — when a customer is ready to pay, they are redirected to the treasury portal with a secure payment link. Supported payment methods include M-Pesa, card payments, and bank transfers. All transactions are logged in the finance service.",
+    "content": "Codevertex uses Paystack for payment processing. The treasury service (books.codevertexafrica.com) handles payment intents — when a customer is ready to pay, they are redirected to the treasury portal with a secure payment link. Supported payment methods include M-Pesa, card payments, and bank transfers. All transactions are logged in the finance service.",
     "tags": ["payments", "paystack", "mpesa", "treasury", "billing"]
   },
   {
     "scope": "platform",
     "category": "finance_treasury",
     "title": "What is the Codevertex Finance Suite?",
-    "content": "The Codevertex Finance Suite manages all financial operations: invoicing, payment tracking, treasury management, transaction ledgers, and financial reporting. The treasury portal at books.codevertexitsolutions.com handles secure payment collection. The finance service integrates with all other Codevertex services for unified financial visibility.",
+    "content": "The Codevertex Finance Suite manages all financial operations: invoicing, payment tracking, treasury management, transaction ledgers, and financial reporting. The treasury portal at books.codevertexafrica.com handles secure payment collection. The finance service integrates with all other Codevertex services for unified financial visibility.",
     "tags": ["finance", "invoicing", "treasury", "payments", "accounting", "reports"]
   },
   {
@@ -136,7 +136,7 @@
     "scope": "platform",
     "category": "subscriptions",
     "title": "What subscription plans does Codevertex offer?",
-    "content": "Codevertex offers tiered subscription plans for its enterprise software. Plans vary by number of users, API call limits, storage, feature access, and support level. Contact the sales team at info@codevertexitsolutions.com or book a demo to get a quote tailored to your business needs. Educational pricing is available for institutions.",
+    "content": "Codevertex offers tiered subscription plans for its enterprise software. Plans vary by number of users, API call limits, storage, feature access, and support level. Contact the sales team at info@codevertexafrica.com or book a demo to get a quote tailored to your business needs. Educational pricing is available for institutions.",
     "tags": ["pricing", "plans", "tiers", "enterprise", "subscription"]
   },
   {
@@ -171,7 +171,7 @@
     "scope": "platform",
     "category": "digitika_courses",
     "title": "What courses does Digitika offer?",
-    "content": "Digitika offers: (1) Code-Starter Bootcamp — 10-week intensive full-stack web development (KSh 30,000); (2) ICDL Certification — international computer driving licence for office software; (3) Data Science & Analytics — Python, data visualization, machine learning; (4) Cybersecurity Fundamentals — network security, ethical hacking basics; (5) Digital Marketing — social media, SEO, paid ads; (6) Project Management — Agile, Scrum, PMP prep. Check https://codevertexitsolutions.com/digitika for current availability.",
+    "content": "Digitika offers: (1) Code-Starter Bootcamp — 10-week intensive full-stack web development (KSh 30,000); (2) ICDL Certification — international computer driving licence for office software; (3) Data Science & Analytics — Python, data visualization, machine learning; (4) Cybersecurity Fundamentals — network security, ethical hacking basics; (5) Digital Marketing — social media, SEO, paid ads; (6) Project Management — Agile, Scrum, PMP prep. Check https://codevertexafrica.com/digitika for current availability.",
     "tags": ["courses", "bootcamp", "icdl", "data science", "cybersecurity", "digital marketing"]
   },
   {
@@ -206,14 +206,14 @@
     "scope": "platform",
     "category": "digitika_bootcamp",
     "title": "How do I enroll in the Code-Starter Bootcamp?",
-    "content": "To enroll in the Code-Starter Bootcamp: (1) Visit https://codevertexitsolutions.com/digitika; (2) Click 'Enroll Now' on the Code-Starter card; (3) Fill in the enrollment form (name, email, phone, experience level); (4) Choose your payment plan; (5) Complete payment via M-Pesa or card; (6) Receive confirmation email with cohort start date and pre-course materials. You can also ask Vera (this AI) to start the enrollment process for you.",
+    "content": "To enroll in the Code-Starter Bootcamp: (1) Visit https://codevertexafrica.com/digitika; (2) Click 'Enroll Now' on the Code-Starter card; (3) Fill in the enrollment form (name, email, phone, experience level); (4) Choose your payment plan; (5) Complete payment via M-Pesa or card; (6) Receive confirmation email with cohort start date and pre-course materials. You can also ask Vera (this AI) to start the enrollment process for you.",
     "tags": ["enrollment", "how to enroll", "register", "sign up", "bootcamp"]
   },
   {
     "scope": "platform",
     "category": "digitika_bootcamp",
     "title": "Where is the Code-Starter Bootcamp held?",
-    "content": "The Code-Starter Bootcamp is held at the Codevertex Hub in Kisumu, Kenya. Classes run Monday to Friday. Some cohorts include a hybrid option (online + in-person) for students outside Kisumu. Online-only cohorts are available for international students. Contact info@codevertexitsolutions.com for the current cohort schedule and mode of delivery.",
+    "content": "The Code-Starter Bootcamp is held at the Codevertex Hub in Kisumu, Kenya. Classes run Monday to Friday. Some cohorts include a hybrid option (online + in-person) for students outside Kisumu. Online-only cohorts are available for international students. Contact info@codevertexafrica.com for the current cohort schedule and mode of delivery.",
     "tags": ["location", "kisumu", "kenya", "in-person", "online", "hybrid", "schedule"]
   },
   {
@@ -234,21 +234,21 @@
     "scope": "platform",
     "category": "pricing_plans",
     "title": "How is Codevertex software priced?",
-    "content": "Codevertex enterprise software is priced on a subscription model based on: number of users, transaction volumes, features enabled, and support level. We offer Starter, Growth, and Enterprise tiers. Educational and NGO discounts are available. For a custom quote, contact sales@codevertexitsolutions.com or book a demo via the website. All plans include access to Vera AI and core features.",
+    "content": "Codevertex enterprise software is priced on a subscription model based on: number of users, transaction volumes, features enabled, and support level. We offer Starter, Growth, and Enterprise tiers. Educational and NGO discounts are available. For a custom quote, contact sales@codevertexafrica.com or book a demo via the website. All plans include access to Vera AI and core features.",
     "tags": ["pricing", "plans", "subscription", "enterprise", "starter", "growth"]
   },
   {
     "scope": "platform",
     "category": "onboarding_howto",
     "title": "How do I get started with Codevertex?",
-    "content": "Getting started with Codevertex: (1) Visit https://codevertexitsolutions.com and click 'Get Started'; (2) Book a free demo with our sales team; (3) We'll assess your needs and recommend the right plan; (4) Your account is provisioned in your own isolated tenant; (5) Our onboarding team helps configure your workspace, import data, and train your team; (6) Go live with ongoing support from our customer success team.",
+    "content": "Getting started with Codevertex: (1) Visit https://codevertexafrica.com and click 'Get Started'; (2) Book a free demo with our sales team; (3) We'll assess your needs and recommend the right plan; (4) Your account is provisioned in your own isolated tenant; (5) Our onboarding team helps configure your workspace, import data, and train your team; (6) Go live with ongoing support from our customer success team.",
     "tags": ["onboarding", "getting started", "demo", "setup", "implementation"]
   },
   {
     "scope": "platform",
     "category": "onboarding_howto",
     "title": "What support does Codevertex provide?",
-    "content": "Codevertex support includes: (1) In-app AI support via Vera (24/7 — this chat); (2) Email support at support@codevertexitsolutions.com; (3) Ticketing system for tracked issue resolution (2–4 hour response SLA for high priority); (4) Dedicated customer success manager for Enterprise plans; (5) Documentation and knowledge base; (6) Training sessions for new team members. For urgent issues, create a ticket with 'urgent' priority.",
+    "content": "Codevertex support includes: (1) In-app AI support via Vera (24/7 — this chat); (2) Email support at support@codevertexafrica.com; (3) Ticketing system for tracked issue resolution (2–4 hour response SLA for high priority); (4) Dedicated customer success manager for Enterprise plans; (5) Documentation and knowledge base; (6) Training sessions for new team members. For urgent issues, create a ticket with 'urgent' priority.",
     "tags": ["support", "help", "email", "tickets", "sla", "training", "customer success"]
   }
 ]

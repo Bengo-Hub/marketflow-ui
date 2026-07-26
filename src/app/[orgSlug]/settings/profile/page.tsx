@@ -84,7 +84,7 @@ export default function ProfileSettingsPage() {
   if (!data.fbo_distrib_id && data.business_type === "flp") missing.push("Distributor ID");
   if (!meta.logo_url) missing.push("Logo");
   const isComplete = missing.length === 0;
-  const profileUrl = `https://marketflow.codevertexitsolutions.com/p/${data.slug}`;
+  const profileUrl = `https://marketflow.codevertexafrica.com/p/${data.slug}`;
 
   return (
     <div className="space-y-6">

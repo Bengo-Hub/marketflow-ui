@@ -1,5 +1,5 @@
-const SSO_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || "https://sso.codevertexitsolutions.com";
-const MF_API_URL = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexitsolutions.com";
+const SSO_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || "https://sso.codevertexafrica.com";
+const MF_API_URL = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexafrica.com";
 const CLIENT_ID = process.env.NEXT_PUBLIC_SSO_CLIENT_ID || "marketflow-ui";
 
 // ── PKCE Helpers ──────────────────────────────────────────────────────────

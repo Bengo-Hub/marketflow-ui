@@ -178,7 +178,7 @@ export const useAuthStore = create<AuthState>()(
         try { sessionStorage.clear(); } catch {}
         const returnTo = encodeURIComponent(window.location.origin);
         window.location.href = buildLogoutUrl(
-          `https://accounts.codevertexitsolutions.com/login?return_to=${returnTo}`
+          `https://accounts.codevertexafrica.com/login?return_to=${returnTo}`
         );
       },
 

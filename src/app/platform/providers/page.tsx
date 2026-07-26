@@ -140,7 +140,7 @@ export default function PlatformProvidersPage() {
             </p>
           </div>
           <Link
-            href="https://notifications.codevertexitsolutions.com/platform/providers"
+            href="https://notifications.codevertexafrica.com/platform/providers"
             target="_blank"
             className="inline-flex items-center gap-2 rounded-xl border bg-card p-5 shadow-sm transition hover:shadow"
           >

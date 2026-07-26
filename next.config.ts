@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "cdn.simpleicons.org" },
-      { protocol: "https", hostname: "marketflowapi.codevertexitsolutions.com", pathname: "/media/**" },
+      { protocol: "https", hostname: "marketflowapi.codevertexafrica.com", pathname: "/media/**" },
     ],
   },
 };

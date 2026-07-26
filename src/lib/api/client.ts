@@ -4,9 +4,9 @@ import axios, { type InternalAxiosRequestConfig } from "axios";
 // DNS so a build that forgets to pass --build-arg still works; local dev
 // overrides via .env.local.
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexitsolutions.com";
+  process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexafrica.com";
 export const AI_API_URL =
-  process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.codevertexitsolutions.com";
+  process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.codevertexafrica.com";
 
 // Main API client (marketflow-api)
 export const apiClient = axios.create({

@@ -47,7 +47,7 @@ export default function LandingPage() {
 
   const handleLogin = () => useAuthStore.getState().redirectToSSO(window.location.href);
   const handleSignup = () => {
-    const authURL = process.env.NEXT_PUBLIC_AUTH_API_URL || "https://sso.codevertexitsolutions.com";
+    const authURL = process.env.NEXT_PUBLIC_AUTH_API_URL || "https://sso.codevertexafrica.com";
     window.location.href = `${authURL.replace("sso.", "accounts.")}/register`;
   };
 

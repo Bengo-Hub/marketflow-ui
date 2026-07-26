@@ -5,7 +5,7 @@ import { BookingWidget } from "@/components/booking/booking-widget";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://marketflowapi.codevertexitsolutions.com";
+  "https://marketflowapi.codevertexafrica.com";
 
 type FunnelStep = {
   id?: string;

@@ -316,7 +316,7 @@ const adProviders: ProviderDef[] = [
         key: "redirect_url",
         label: "OAuth redirect URL",
         type: "url",
-        default: "https://marketflowapi.codevertexitsolutions.com/api/v1/integrations/meta/callback",
+        default: "https://marketflowapi.codevertexafrica.com/api/v1/integrations/meta/callback",
       },
       {
         key: "graph_version",
@@ -344,7 +344,7 @@ const adProviders: ProviderDef[] = [
         key: "redirect_url",
         label: "OAuth redirect URL",
         type: "url",
-        default: "https://marketflowapi.codevertexitsolutions.com/api/v1/integrations/tiktok/callback",
+        default: "https://marketflowapi.codevertexafrica.com/api/v1/integrations/tiktok/callback",
       },
       {
         key: "base_url",
@@ -380,7 +380,7 @@ const adProviders: ProviderDef[] = [
         key: "redirect_url",
         label: "OAuth redirect URL",
         type: "url",
-        default: "https://marketflowapi.codevertexitsolutions.com/api/v1/integrations/google-ads/callback",
+        default: "https://marketflowapi.codevertexafrica.com/api/v1/integrations/google-ads/callback",
       },
       {
         key: "login_customer_id",
@@ -409,7 +409,7 @@ const adProviders: ProviderDef[] = [
         key: "redirect_url",
         label: "OAuth redirect URL",
         type: "url",
-        default: "https://marketflowapi.codevertexitsolutions.com/api/v1/integrations/linkedin/callback",
+        default: "https://marketflowapi.codevertexafrica.com/api/v1/integrations/linkedin/callback",
       },
     ],
   },
@@ -431,7 +431,7 @@ const adProviders: ProviderDef[] = [
         key: "redirect_url",
         label: "OAuth redirect URL",
         type: "url",
-        default: "https://marketflowapi.codevertexitsolutions.com/api/v1/integrations/x/callback",
+        default: "https://marketflowapi.codevertexafrica.com/api/v1/integrations/x/callback",
       },
     ],
   },
@@ -459,7 +459,7 @@ const schedulingProviders: ProviderDef[] = [
         key: "redirect_url",
         label: "OAuth redirect URL",
         type: "url",
-        default: "https://marketflowapi.codevertexitsolutions.com/api/v1/integrations/google/callback",
+        default: "https://marketflowapi.codevertexafrica.com/api/v1/integrations/google/callback",
       },
     ],
   },
@@ -469,7 +469,7 @@ const schedulingProviders: ProviderDef[] = [
 // owns every messaging channel for every SSO-integrated service. MarketFlow
 // dispatches via notifications-api's HTTP + NATS interface (see
 // marketflow-api/internal/notifications/client.go). Configure those vendors
-// from the platform console at notifications.codevertexitsolutions.com/platform
+// from the platform console at notifications.codevertexafrica.com/platform
 // (deep-link exposed at /platform/messaging in this UI).
 
 // ── Per-tenant integrations (shown on /settings/integrations) ─────────────

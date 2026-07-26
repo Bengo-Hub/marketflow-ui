@@ -23,10 +23,10 @@ MarketFlow UI is the React/Next.js frontend for the MarketFlow CRM platform. It 
 **Tenant-configurable attributes:**
 ```html
 <script
-  src="https://marketflow.codevertexitsolutions.com/widget/chat.js"
+  src="https://marketflow.codevertexafrica.com/widget/chat.js"
   data-tenant="my-tenant"
   data-mode="platform"          <!-- platform | tenant -->
-  data-api-url="https://marketflowai.codevertexitsolutions.com"
+  data-api-url="https://marketflowai.codevertexafrica.com"
   data-whatsapp="254712345678"  <!-- wa.me number (no +) -->
   data-phone="+254712345678"    <!-- tel: link -->
   async>
@@ -63,7 +63,7 @@ MarketFlow UI is the React/Next.js frontend for the MarketFlow CRM platform. It 
 **Running the seed:**
 ```bash
 # Set env vars
-export MARKETFLOW_API_URL=https://marketflowapi.codevertexitsolutions.com
+export MARKETFLOW_API_URL=https://marketflowapi.codevertexafrica.com
 export MARKETFLOW_API_KEY=<INTERNAL_SERVICE_KEY>
 
 # Preview (dry run)
@@ -88,10 +88,10 @@ platform_overview, marketflow_crm, auth_sso, ordering_pos, finance_treasury, log
 ```html
 <!-- public/widget-init.js or directly in layout -->
 <script
-  src="https://marketflow.codevertexitsolutions.com/widget/chat.js"
+  src="https://marketflow.codevertexafrica.com/widget/chat.js"
   data-tenant="codevertex"
   data-mode="platform"
-  data-api-url="https://marketflowai.codevertexitsolutions.com"
+  data-api-url="https://marketflowai.codevertexafrica.com"
   data-whatsapp="254743793901"
   data-phone="+254743793901"
   async>
@@ -113,7 +113,7 @@ The codevertex-website (`src/app/api/chat/route.ts`) now:
 
 Required env vars:
 ```env
-MARKETFLOW_AI_URL=https://marketflowai.codevertexitsolutions.com
+MARKETFLOW_AI_URL=https://marketflowai.codevertexafrica.com
 INTERNAL_SERVICE_KEY=<shared-key>
 ANTHROPIC_API_KEY=<replace-me>  # fallback only
 ```

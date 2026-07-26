@@ -29,7 +29,7 @@ export function AppHeader() {
     : user?.email?.slice(0, 2).toUpperCase() || "MF";
 
   const tenantSlug = user?.tenantSlug || orgSlug;
-  const publicUrl = `https://marketflow.codevertexitsolutions.com/p/${tenantSlug}`;
+  const publicUrl = `https://marketflow.codevertexafrica.com/p/${tenantSlug}`;
 
   return (
     <header className="flex h-14 items-center gap-3 border-b bg-background px-4">

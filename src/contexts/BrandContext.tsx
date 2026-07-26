@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-const AUTH_API_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || "https://sso.codevertexitsolutions.com";
+const AUTH_API_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || "https://sso.codevertexafrica.com";
 
 interface BrandData {
   name: string;

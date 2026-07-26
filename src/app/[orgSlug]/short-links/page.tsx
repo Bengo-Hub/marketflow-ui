@@ -52,7 +52,7 @@ export default function ShortLinksPage() {
   });
 
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://marketflow.codevertexitsolutions.com";
+    process.env.NEXT_PUBLIC_APP_URL || "https://marketflow.codevertexafrica.com";
 
   async function copy(code: string) {
     try {

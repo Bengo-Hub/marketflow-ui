@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BookingWidget } from "@/components/booking/booking-widget";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexitsolutions.com";
-const AI = process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.codevertexitsolutions.com";
-const APP = process.env.NEXT_PUBLIC_APP_URL || "https://marketflow.codevertexitsolutions.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexafrica.com";
+const AI = process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.codevertexafrica.com";
+const APP = process.env.NEXT_PUBLIC_APP_URL || "https://marketflow.codevertexafrica.com";
 const FALLBACK_VIDEO = "https://www.youtube.com/embed/YRvN_JkHSzQ";
 
 type P = { id: string; name: string; slug: string; business_type?: string; country?: string; whatsapp_number?: string; fbo_distrib_id?: string; flp_store_code?: string; flp_language?: string; metadata?: Record<string, any> };
