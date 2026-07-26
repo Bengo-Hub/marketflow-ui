@@ -16,15 +16,15 @@ COPY . .
 # Next.js bakes NEXT_PUBLIC_* at BUILD TIME, so these must be passed as
 # Docker build args (not runtime env). Defaults point to production DNS so
 # a build without --build-arg still produces a working image.
-ARG NEXT_PUBLIC_API_URL=https://marketflowapi.codevertexitsolutions.com
-ARG NEXT_PUBLIC_AI_API_URL=https://marketflowai.codevertexitsolutions.com
-ARG NEXT_PUBLIC_AUTH_API_URL=https://sso.codevertexitsolutions.com
-ARG NEXT_PUBLIC_SSO_URL=https://sso.codevertexitsolutions.com
+ARG NEXT_PUBLIC_API_URL=https://marketflowapi.codevertexafrica.com
+ARG NEXT_PUBLIC_AI_API_URL=https://marketflowai.codevertexafrica.com
+ARG NEXT_PUBLIC_AUTH_API_URL=https://sso.codevertexafrica.com
+ARG NEXT_PUBLIC_SSO_URL=https://sso.codevertexafrica.com
 ARG NEXT_PUBLIC_SSO_CLIENT_ID=marketflow-ui
-ARG NEXT_PUBLIC_APP_URL=https://marketflow.codevertexitsolutions.com
-ARG NEXT_PUBLIC_NOTIFICATIONS_URL=https://notificationsapi.codevertexitsolutions.com
-ARG NEXT_PUBLIC_TREASURY_API_URL=https://booksapi.codevertexitsolutions.com
-ARG NEXT_PUBLIC_TREASURY_UI_URL=https://books.codevertexitsolutions.com
+ARG NEXT_PUBLIC_APP_URL=https://marketflow.codevertexafrica.com
+ARG NEXT_PUBLIC_NOTIFICATIONS_URL=https://notificationsapi.codevertexafrica.com
+ARG NEXT_PUBLIC_TREASURY_API_URL=https://booksapi.codevertexafrica.com
+ARG NEXT_PUBLIC_TREASURY_UI_URL=https://books.codevertexafrica.com
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_AI_API_URL=$NEXT_PUBLIC_AI_API_URL
