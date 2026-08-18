@@ -889,6 +889,54 @@
       return;
     }
 
+    // Integration interest — eTIMS, TruLoad weighing, cameras, PLCs, Arduino/IoT.
+    // Unlike the ticket/lead forms above, this does NOT fetch a REST endpoint directly:
+    // it feeds the confirmed details back into the chat as a user message so the agent
+    // loop's own request_integration tool call fires (keeping this on the same,
+    // already-working chat path rather than a separate submit endpoint).
+    if (intent === 'integration_interest' ||
+        t.includes('etims') || t.includes('kra pin') || t.includes('fiscal') ||
+        t.includes('truload') || t.includes('weighbridge') || t.includes('weighing') ||
+        t.includes('plc') || t.includes('arduino') || t.includes('camera integration') ||
+        t.includes('iot integration') || t.includes('iot automation')) {
+      var integrationFields = [
+        { name: 'request_type', type: 'select', label: 'What do you want to integrate?',
+          options: ['eTIMS / KRA tax fiscalization', 'TruLoad weighing hardware/software', 'Camera systems', 'PLC automation', 'Arduino / IoT automation', 'Other'] },
+        { name: 'name',  type: 'text',  label: 'Your name', required: true, defaultValue: authUserName || '' },
+        { name: 'email', type: 'email', label: 'Email', required: true, defaultValue: authUserEmail || '' },
+        { name: 'phone', type: 'text',  label: 'Phone (optional)' },
+        { name: 'company', type: 'text', label: 'Company name (optional)' },
+        { name: 'mode', type: 'select', label: 'Who will do the integration?', options: ['My own developers (no fee)', 'Codevertex’s team (one-time fee applies)'] },
+        { name: 'notes', type: 'textarea', label: 'Anything else we should know?' },
+      ];
+      buildForm({
+        title: '🔌 Request an Integration',
+        submitLabel: 'Submit Request →',
+        fields: integrationFields,
+      }, function (data, wrap) {
+        wrap.remove();
+        formSubmitCount++;
+        var typeMap = {
+          'eTIMS / KRA tax fiscalization': 'etims_integration',
+          'TruLoad weighing hardware/software': 'truload_weighing',
+          'Camera systems': 'camera_systems',
+          'PLC automation': 'plc_automation',
+          'Arduino / IoT automation': 'arduino_iot',
+          'Other': 'other_integration',
+        };
+        var requestType = typeMap[data.request_type] || 'other_integration';
+        var integrationMode = (data.mode || '').indexOf('own developers') >= 0 ? 'self_serve' : 'assisted';
+        var summary = 'Please submit an integration request: type=' + requestType +
+          ', mode=' + integrationMode +
+          ', name=' + data.name + ', email=' + data.email +
+          (data.phone ? ', phone=' + data.phone : '') +
+          (data.company ? ', company=' + data.company : '') +
+          (data.notes ? ', notes=' + data.notes : '');
+        sendMessage(summary);
+      });
+      return;
+    }
+
     // FLP: Join the Business / recruitment
     if (businessType === 'flp' && (intent === 'recruitment' || intent === 'business_opp' ||
         t.includes('join') || t.includes('fbo') || t.includes('sign up') || t.includes('start a business') ||
