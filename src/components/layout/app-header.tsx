@@ -15,6 +15,21 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, User, Globe, Bell, ExternalLink, Settings, Shield } from "lucide-react";
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { OutletFilter } from "@/components/layout/outlet-filter";
+import { useVisibleServices, AppSwitcherGrid, AppSwitcherTrigger, type ServiceKey } from "@bengo-hub/shared-ui-lib/app-switcher";
+
+// marketflow-ui never wired the shared app-switcher before — this is its first adoption.
+// 'marketflow' itself is omitted (never links to itself, mirrors every other *-ui).
+const SERVICE_URLS: Partial<Record<ServiceKey, string>> = {
+  pos: process.env.NEXT_PUBLIC_POS_UI_URL ?? "https://pos.codevertexafrica.com",
+  inventory: process.env.NEXT_PUBLIC_INVENTORY_UI_URL ?? "https://inventory.codevertexafrica.com",
+  treasury: process.env.NEXT_PUBLIC_TREASURY_UI_URL ?? "https://books.codevertexafrica.com",
+  erp: process.env.NEXT_PUBLIC_ERP_UI_URL ?? "https://erp.codevertexafrica.com",
+  ordering: process.env.NEXT_PUBLIC_ORDERING_UI_URL ?? "https://ordering.codevertexafrica.com",
+  subscriptions: process.env.NEXT_PUBLIC_SUBSCRIPTIONS_UI_URL ?? "https://pricing.codevertexafrica.com",
+  auth: process.env.NEXT_PUBLIC_AUTH_UI_URL ?? "https://accounts.codevertexafrica.com",
+  projects: process.env.NEXT_PUBLIC_PROJECTS_UI_URL ?? "https://projects.codevertexafrica.com",
+  afya: process.env.NEXT_PUBLIC_HOSPITAL_UI_URL ?? "https://afya.codevertexafrica.com",
+};
 
 export function AppHeader() {
   const { user, logout } = useAuthStore();
@@ -30,6 +45,10 @@ export function AppHeader() {
 
   const tenantSlug = user?.tenantSlug || orgSlug;
   const publicUrl = `https://marketflow.codevertexafrica.com/p/${tenantSlug}`;
+
+  // The App Store shows every real service to every authenticated user in the tenant — each
+  // destination service already enforces its own RBAC + subscription gating on arrival.
+  const services = useVisibleServices({ orgSlug, urls: SERVICE_URLS, canManageLinks: true });
 
   return (
     <header className="flex h-14 items-center gap-3 border-b bg-background px-4">
@@ -104,6 +123,8 @@ export function AppHeader() {
         </Badge>
       )}
 
+      <AppSwitcherTrigger services={services} />
+
       {/* User menu */}
       <DropdownMenu>
         <DropdownMenuTrigger className="relative h-8 w-8 rounded-full outline-none cursor-pointer">
@@ -113,7 +134,7 @@ export function AppHeader() {
             </AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="w-80 max-h-[70vh] overflow-y-auto">
           <div className="flex items-center gap-2 p-2">
             <div className="flex flex-col space-y-0.5">
               <p className="text-sm font-medium">{user?.fullName || user?.email}</p>
@@ -133,6 +154,10 @@ export function AppHeader() {
             <Globe className="mr-2 h-4 w-4" />
             View public page
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <div className="px-2 py-1.5">
+            <AppSwitcherGrid services={services} />
+          </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="text-destructive">
             <LogOut className="mr-2 h-4 w-4" />
