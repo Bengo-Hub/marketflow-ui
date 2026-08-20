@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import "@bengo-hub/shared-ui-lib/contact/style.css";
 import "./globals.css";
 import { Providers } from "./providers";
 import { InstallPrompt } from "@/components/pwa/install-prompt";

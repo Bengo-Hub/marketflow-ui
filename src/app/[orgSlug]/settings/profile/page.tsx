@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { STALE_TIMES } from "@/app/providers";
 import { AlertCircle, ExternalLink, CheckCircle2 } from "lucide-react";
+import { PhoneInputField, CountrySelect } from "@bengo-hub/shared-ui-lib/contact";
 
 type TenantProfile = {
   id: string;
@@ -179,17 +180,15 @@ export default function ProfileSettingsPage() {
             </Field>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="WhatsApp number">
-                <Input
+                <PhoneInputField
                   value={form.whatsapp_number ?? ""}
-                  onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })}
-                  placeholder="+2547…"
+                  onChange={(v) => setForm({ ...form, whatsapp_number: v })}
                 />
               </Field>
               <Field label="Country">
-                <Input
+                <CountrySelect
                   value={form.country ?? ""}
-                  onChange={(e) => setForm({ ...form, country: e.target.value })}
-                  placeholder="KE"
+                  onChange={(v) => setForm({ ...form, country: v })}
                 />
               </Field>
             </div>
