@@ -65,13 +65,13 @@ export function SendSMSDialog({
       return r.data;
     },
     onSuccess: (res: SendSMSResult) => {
-      toast.success(`Queued ${res.queued} SMS messages`);
+      toast.success(res.status === "pending_approval" ? "Ready for approval in Notifications > Broadcasts" : "SMS send created");
       setOpen(false);
       setMessage("");
       setSegmentId("");
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Failed to queue SMS");
+      toast.error(err instanceof Error ? err.message : "Could not create the SMS send");
     },
   });
 

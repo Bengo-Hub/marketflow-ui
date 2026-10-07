@@ -14,9 +14,11 @@ export type SendSMSPayload = {
   message: string;
 };
 
+/** The send becomes a broadcast in notifications-api that waits for approval in Broadcasts. */
 export type SendSMSResult = {
-  queued: number;
   campaign_id: string;
+  broadcast_id: string;
+  status: string;
 };
 
 export const campaignsApi = {
@@ -30,10 +32,10 @@ export const campaignsApi = {
   delete: (id: string) => apiClient.delete(`/api/v1/campaigns/${id}`),
 
   /**
-   * Queue a bulk SMS blast for a campaign against a segment.
+   * Send a campaign SMS to a segment. The backend hands it to notifications-api's broadcast
+   * engine (consent, opt-outs and the STOP line, paced sends); it goes out once approved in
+   * notifications Broadcasts.
    * Backend: POST /api/v1/{tenantID}/campaigns/{campaignID}/send-sms
-   * (tenantID injected via headers — see note above).
-   * Emits `marketflow.campaign.sms_queued`.
    */
   sendSMS: (campaignId: string, payload: SendSMSPayload) =>
     apiClient.post<SendSMSResult>(
