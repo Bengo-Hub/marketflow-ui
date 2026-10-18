@@ -16,7 +16,7 @@ import {
   LayoutDashboard, Users, UserCheck, BookOpen, Link2, MessageSquare,
   Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
   Briefcase, Activity, CheckSquare, Users2, ChevronDown, LogOut,
-  Cpu, Layers, UserCog, DatabaseBackup,
+  Cpu, Layers, UserCog,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
@@ -72,7 +72,6 @@ const navGroups: NavGroup[] = [
       { label: "General",       icon: Settings,  href: "/settings" },
       { label: "Team Members",  icon: UserCog,   href: "/settings/team" },
       { label: "Custom Fields", icon: Layers,    href: "/settings/custom-fields" },
-      { label: "Backups",       icon: DatabaseBackup, href: "/settings/backups" },
       { label: "Agents",        icon: Cpu,       href: "/settings/agents" },
     ],
   },
