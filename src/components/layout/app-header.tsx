@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, User, Globe, Bell, ExternalLink, Settings, Shield } from "lucide-react";
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { OutletFilter } from "@/components/layout/outlet-filter";
-import { useVisibleServices, AppSwitcherGrid, AppSwitcherTrigger, type ServiceKey } from "@bengo-hub/shared-ui-lib/app-switcher";
+import { useVisibleServices, serviceTagsFromAccessToken, AppSwitcherGrid, AppSwitcherTrigger, type ServiceKey } from "@bengo-hub/shared-ui-lib/app-switcher";
 
 // marketflow-ui never wired the shared app-switcher before — this is its first adoption.
 // 'marketflow' itself is omitted (never links to itself, mirrors every other *-ui).
@@ -32,7 +32,7 @@ const SERVICE_URLS: Partial<Record<ServiceKey, string>> = {
 };
 
 export function AppHeader() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, session } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -48,7 +48,15 @@ export function AppHeader() {
 
   // The App Store shows every real service to every authenticated user in the tenant — each
   // destination service already enforces its own RBAC + subscription gating on arrival.
-  const services = useVisibleServices({ orgSlug, urls: SERVICE_URLS, canManageLinks: true });
+  // A service outside the plan stays visible as "Not in your plan" with a link to the plans page
+  // (shared-ui-lib default), so tenants discover the rest of the suite without hitting a 403.
+  const services = useVisibleServices({
+    orgSlug,
+    urls: SERVICE_URLS,
+    canManageLinks: true,
+    activeServiceTags: serviceTagsFromAccessToken(session?.accessToken),
+    upgradeUrl: SERVICE_URLS.subscriptions ? `${SERVICE_URLS.subscriptions}/${orgSlug}` : null,
+  });
 
   return (
     <header className="flex h-14 items-center gap-3 border-b bg-background px-4">
