@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BookingWidget } from "@/components/booking/booking-widget";
+import { MediaImage } from '@/components/media-image';
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexafrica.com";
 const AI = process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.codevertexafrica.com";
@@ -58,7 +59,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
           )}
           {m.logo_url ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={m.logo_url} alt={name} className="mx-auto h-20 w-20 rounded-full border-[3px] border-white/70 object-cover shadow-lg" />
+            <MediaImage src={m.logo_url} displayWidth={80} fit="cover" aspect={1} loading="eager" alt={name} className="mx-auto h-20 w-20 rounded-full border-[3px] border-white/70 object-cover shadow-lg" />
           ) : (
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-[3px] border-white/70 text-2xl font-bold shadow-lg" style={{ background: brand }}>{name.charAt(0)}</div>
           )}
