@@ -151,5 +151,20 @@ ANTHROPIC_API_KEY=<replace-me>  # fallback only
 
 | Task | Priority | Sprint |
 |------|----------|--------|
-| CRM AI dashboard widgets (pipeline health card, lead score card) | LOW | 14 |
+| CRM AI dashboard widgets (pipeline health card, lead score card) | LOW | Backlog (sprint 14 is now Ads Autopilot foundations) |
 | KB seeding to production | HIGH | Now |
+
+## Ads Autopilot (planned 2026-10-22)
+
+Design: `.claude/plans/marketflow-ads-autopilot-2026-10-22.md`. Sprint files: `docs/sprint-plans/sprint-14` to `sprint-20` in the marketflow docs folder.
+
+| Phase | marketflow-ui scope |
+|---|---|
+| 0 Foundations (Sprint 14) | Integrations page: fix the `google_ads` slug mapping (`settings/integrations/page.tsx` L47); OAuth callbacks land on the tenant slug route; connected accounts list from ConnectedAccount with reconnect prompts |
+| 1 Creative studio (Sprint 15) | `[orgSlug]/studio`: brief wizard with offering picker, script editor with hooks and diff, storyboard grid, render progress, review player through `/r/{token}`, version history; quote dialogs (credits, KES, shortfall, cheapest bundle); brand kit and private-previews settings; platform model registry, cost and margin, eval pages |
+| 2 Organic publishing (Sprint 16) | Publish dialog per platform, content calendar, job status with retry and cancel |
+| 4 Meta paid ads (Sprint 18) | Boost wizard: ad account health, guided KES account creation, budget and period, quote, Add funds with M-Pesa step with live balance, launch; campaign page with review status, spend, leads, CPL, pause and resume; leads list with ad source |
+| 5 TikTok and Google (Sprint 19) | TikTok and Google options in the boost wizard with per-platform funding steps |
+| 6 Autopilot (Sprint 20) | Agent store with Hire and setup wizard; agent builder (definition, triggers, approval mode, envelope, dry run, forecast, versions); agent dashboard with pending approvals and veto countdown |
+
+UI rules: shared-ui-lib components, no AI-look icons or gradients, plain specific icons, humanised copy. Media helpers need a client boundary in server components. Preview videos never go through image transformations.
