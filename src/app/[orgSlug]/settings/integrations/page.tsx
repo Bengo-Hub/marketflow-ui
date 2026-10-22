@@ -43,11 +43,11 @@ export default function IntegrationsPage() {
 
   const connect = useMutation({
     mutationFn: async (providerType: string) => {
-      // Strip trailing "_ads" / "_calendar" — backend only knows google/meta/tiktok/etc.
-      const slug = providerType.replace(/_ads$|_calendar$/, "").replace("google_", "google-");
-      const r = await apiClient.get<{ url: string }>(
-        `/api/v1/integrations/${slug}/authorize`,
-      );
+      // Each provider's own authorize route from the catalog. Deriving it from the type sent
+      // google_ads to the Google Calendar flow.
+      const entry = tenantIntegrations.find((i) => i.id === providerType);
+      if (!entry) throw new Error(`No connect flow for ${providerType}`);
+      const r = await apiClient.get<{ url: string }>(entry.authorizePath);
       window.location.href = r.data.url;
     },
   });
