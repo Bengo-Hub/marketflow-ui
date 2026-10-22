@@ -168,3 +168,15 @@ Design: `.claude/plans/marketflow-ads-autopilot-2026-10-22.md`. Sprint files: `d
 | 6 Autopilot (Sprint 20) | Agent store with Hire and setup wizard; agent builder (definition, triggers, approval mode, envelope, dry run, forecast, versions); agent dashboard with pending approvals and veto countdown |
 
 UI rules: shared-ui-lib components, no AI-look icons or gradients, plain specific icons, humanised copy. Media helpers need a client boundary in server components. Preview videos never go through image transformations.
+
+## Marketing OS (Sprint 21, 2026-10-22)
+
+Design: `.claude/plans/marketflow-marketing-os-2026-10-22.md`. Checklist: `marketflow/docs/sprint-plans/sprint-21-marketing-os-brain.md`.
+
+| Scope | marketflow-ui work |
+|---|---|
+| Sprint 21 | `[orgSlug]/team`: roster cards, the "Ask your Marketing Manager" console with the "We understood this as..." preview, the clarifying question, step progress, proposals with Approve and Discard, and a quick-start template gallery; `settings/marketing-context` (guided interview and editor); fix `settings/agents` (send `system_prompt`, add `allowed_tools`, `trigger_config`, `max_iterations`); daily brief toggle; sidebar entry "Marketing team"; platform providers catalog entries `ai_routing/policy`, `decide/typesafe`, `decide/openrouter`, `adintel/serpapi` |
+| Sprint 15 additions | Creative Plan quote screen before generation (two cheaper options, no-render option); copy shortlist picker; poster tier in the studio |
+| Sprint 22 | Inbox page for comments and DMs by intent; auto-reply settings |
+| Sprint 23 | Lead timeline with the automated WhatsApp conversation, booking and hand-off; hand-off threshold and quiet hours |
+| Sprint 24 | Research page: competitor list, long-running winners with tags, quota left this month |
