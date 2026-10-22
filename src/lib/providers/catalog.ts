@@ -319,6 +319,19 @@ const adProviders: ProviderDef[] = [
         default: "https://marketflowapi.codevertexafrica.com/api/v1/integrations/meta/callback",
       },
       {
+        key: "login_config_id",
+        label: "Login for Business configuration ID",
+        type: "text",
+        help: "Optional. When set, tenants connect through this Facebook Login for Business configuration and its permissions replace the list below.",
+      },
+      {
+        key: "scopes",
+        label: "Permissions requested at connect",
+        type: "text",
+        default: "pages_show_list,pages_read_engagement,leads_retrieval,pages_manage_metadata",
+        help: "Comma-separated. Add a permission only after Meta App Review approves it: Meta rejects the connect dialog for every tenant when it asks for an unapproved permission.",
+      },
+      {
         key: "graph_version",
         label: "Graph API version",
         type: "text",
