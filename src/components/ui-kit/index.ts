@@ -4,3 +4,4 @@ export { StatusBadge, ToneBadge, statusTone, humanize, type Tone } from "./statu
 export { AppCanvas } from "./app-canvas";
 export { Field } from "./field";
 export { Pager } from "./pager";
+export { ConfirmDialog } from "./confirm-dialog";

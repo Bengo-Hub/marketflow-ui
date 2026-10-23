@@ -15,8 +15,10 @@ export function useSubscription() {
   const tenantId = user?.tenantId ?? null;
   const tenantSlug = user?.tenantSlug ?? null;
   const isPlatformOwner = user?.isPlatformOwner ?? false;
-  const isServiceCharge = (user as any)?.billing_mode === "service_charge";
-  const isDemo = !!(user as any)?.is_demo || tenantSlug === "codevertex-demo";
+  // SSO sends these on some tokens; they are not part of UserProfile's declared fields.
+  const extra = (user ?? {}) as { billing_mode?: string; is_demo?: boolean };
+  const isServiceCharge = extra.billing_mode === "service_charge";
+  const isDemo = !!extra.is_demo || tenantSlug === "codevertex-demo";
 
   // Hydrate store from IDB on auth
   useEffect(() => {

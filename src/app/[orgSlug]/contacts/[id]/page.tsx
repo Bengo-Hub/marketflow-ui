@@ -1,372 +1,189 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
-import { activitiesApi } from "@/lib/api/activities";
-import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Mail, Pencil, Phone, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { STALE_TIMES } from "@/app/providers";
-import { ArrowLeft, Mail, Phone, FileText, Calendar, Plus } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { WhatsAppIcon } from "@/components/public-profile/whatsapp-icon";
+import { ActivityTimeline } from "@/components/crm/activity-timeline";
+import { CustomFieldsPanel } from "@/components/crm/custom-fields-panel";
+import { CapsuleTabs, ConfirmDialog, ErrorState, Field, GlassPanel, StatCard, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
+import { useContact360, useDeleteContact, useUpdateContact } from "@/hooks/use-contacts";
+import { CONTACT_TYPES, contactName, type Contact, type ContactUpdate } from "@/lib/api/contacts";
 
-const lifecycleColors: Record<string, string> = {
-  subscriber: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  lead: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  qualified: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  customer: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  evangelist: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-};
+const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
+const money = (v?: number, c = "KES") => (v == null ? "" : `${c} ${new Intl.NumberFormat("en-KE").format(v)}`);
 
-const activityIcons: Record<string, React.ReactNode> = {
-  email: <Mail className="h-4 w-4" />,
-  call: <Phone className="h-4 w-4" />,
-  note: <FileText className="h-4 w-4" />,
-  meeting: <Calendar className="h-4 w-4" />,
-};
+/** Summaries from POS, Books and loyalty are free-form; show their scalar values as label and value. */
+function SummaryList({ data }: { data?: Record<string, unknown> }) {
+  const entries = Object.entries(data ?? {}).filter(([, v]) => ["string", "number", "boolean"].includes(typeof v));
+  if (entries.length === 0) return <p className="text-sm text-muted-foreground">Nothing recorded yet.</p>;
+  return (
+    <dl className="divide-y divide-border text-sm">
+      {entries.map(([k, v]) => (
+        <div key={k} className="flex justify-between gap-4 py-2">
+          <dt className="text-muted-foreground">{humanize(k)}</dt>
+          <dd className="font-medium tabular">{typeof v === "number" ? v.toLocaleString() : String(v)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
-type TimelineItem = {
-  id: string;
-  type: string;
-  subject?: string;
-  body?: string;
-  direction?: string;
-  created_at: string;
-};
-
-type Tab = "overview" | "timeline" | "360";
+function EditContact({ c, open, onOpenChange }: { c: Contact; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const update = useUpdateContact(c.id);
+  const [f, setF] = useState<ContactUpdate>({
+    first_name: c.first_name ?? "",
+    last_name: c.last_name ?? "",
+    email: c.email ?? "",
+    phone: c.phone ?? "",
+    contact_type: c.contact_type,
+    subscribed_email: c.subscribed_email ?? false,
+    subscribed_sms: c.subscribed_sms ?? false,
+  });
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Edit contact</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="First name" htmlFor="ce-fn"><Input id="ce-fn" value={f.first_name} onChange={(e) => setF({ ...f, first_name: e.target.value })} /></Field>
+          <Field label="Last name" htmlFor="ce-ln"><Input id="ce-ln" value={f.last_name} onChange={(e) => setF({ ...f, last_name: e.target.value })} /></Field>
+          <Field label="Email" htmlFor="ce-em"><Input id="ce-em" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></Field>
+          <Field label="Phone" htmlFor="ce-ph"><Input id="ce-ph" type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></Field>
+          <div className="sm:col-span-2">
+            <p className="mb-1.5 text-sm font-medium">Type</p>
+            <CapsuleTabs label="Contact type" value={f.contact_type ?? "customer"} onChange={(v) => setF({ ...f, contact_type: v })} options={CONTACT_TYPES.map((t) => ({ value: t, label: humanize(t) }))} />
+          </div>
+          <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 text-sm">
+            Marketing emails
+            <Switch checked={!!f.subscribed_email} onCheckedChange={(v) => setF({ ...f, subscribed_email: v })} />
+          </label>
+          <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 text-sm">
+            Marketing SMS
+            <Switch checked={!!f.subscribed_sms} onCheckedChange={(v) => setF({ ...f, subscribed_sms: v })} />
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button disabled={update.isPending} onClick={() => update.mutate(f, { onSuccess: () => onOpenChange(false) })}>
+            {update.isPending ? "Saving..." : "Save contact"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function ContactDetailPage() {
-  const params = useParams();
-  const orgSlug = params?.orgSlug as string;
-  const id = params?.id as string;
-  const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
-  const [showLog, setShowLog] = useState(false);
-  const [form, setForm] = useState({ type: "note", subject: "", body: "" });
-
-  const { data: contactData, isLoading: contactLoading, error: contactError } = useQuery({
-    queryKey: ["contacts", id],
-    queryFn: () => apiClient.get(`/api/v1/contacts/${id}`).then((r) => r.data),
-    staleTime: STALE_TIMES.OPERATIONAL,
-    enabled: !!id,
-  });
-
-  const { data: timelineData, isLoading: timelineLoading } = useQuery({
-    queryKey: ["contacts", id, "timeline"],
-    queryFn: () => activitiesApi.contactTimeline(id).then((r) => r.data),
-    staleTime: STALE_TIMES.OPERATIONAL,
-    enabled: !!id && activeTab === "timeline",
-  });
-
-  const { data: view360Data, isLoading: view360Loading } = useQuery({
-    queryKey: ["contacts", id, "360"],
-    queryFn: () => apiClient.get(`/api/v1/contacts/${id}/360`).then((r) => r.data),
-    staleTime: STALE_TIMES.OPERATIONAL,
-    enabled: !!id && activeTab === "360",
-  });
-
-  const logMutation = useMutation({
-    mutationFn: (d: Record<string, unknown>) => activitiesApi.log(d),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contacts", id, "timeline"] });
-      setShowLog(false);
-      setForm({ type: "note", subject: "", body: "" });
-    },
-  });
-
-  const contact = contactData?.data ?? contactData;
-  const timeline: TimelineItem[] = timelineData?.data ?? timelineData ?? [];
-  const view360 = view360Data?.data ?? view360Data;
+  const { orgSlug, id } = useParams<{ orgSlug: string; id: string }>();
+  const router = useRouter();
+  const v = useContact360(id);
+  const del = useDeleteContact();
+  const [editing, setEditing] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const d = v.data;
+  const c = d?.contact;
+  const wa = c?.phone ? `https://wa.me/${c.phone.replace(/\D/g, "")}` : null;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => window.location.href = `/${orgSlug}/contacts`}>
-          <ArrowLeft className="mr-1 h-4 w-4" />
-          Back to Contacts
-        </Button>
-      </div>
+      <Link href={`/${orgSlug}/contacts`} className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" />
+        All contacts
+      </Link>
 
-      {contactError ? (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Failed to load contact: {(contactError as Error).message}
-        </div>
-      ) : contactLoading ? (
-        <Card>
-          <CardContent className="p-6 space-y-3">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </CardContent>
-        </Card>
-      ) : contact ? (
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-xl font-bold">
-                  {contact.first_name || contact.last_name
-                    ? `${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim()
-                    : "Unnamed Contact"}
-                </h1>
-                <p className="text-muted-foreground text-sm mt-0.5">{contact.email ?? "--"}</p>
+      {v.isError && <ErrorState message="Could not load this contact." onRetry={() => void v.refetch()} />}
+      {v.isLoading && <div className="glass h-40 animate-pulse rounded-[1.25rem]" />}
+
+      {d && c && (
+        <>
+          <div className="glass flex flex-col gap-4 rounded-[1.25rem] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <UserRound className="h-6 w-6" />
               </div>
-              {contact.lifecycle_stage && (
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${lifecycleColors[contact.lifecycle_stage] ?? "bg-gray-100 text-gray-700"}`}>
-                  {contact.lifecycle_stage}
-                </span>
+              <div>
+                <h1 className="font-display text-2xl font-semibold tracking-tight">{contactName(c)}</h1>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <ToneBadge>{humanize(c.contact_type)}</ToneBadge>
+                  {c.lifecycle_stage && <ToneBadge tone="info">{humanize(c.lifecycle_stage)}</ToneBadge>}
+                  {[c.email, c.phone].filter(Boolean).join("  ")}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {wa && (
+                <a href={wa} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+                  <WhatsAppIcon className="h-4 w-4" /> WhatsApp
+                </a>
               )}
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Phone</span>
-                <p className="font-medium mt-0.5">{contact.phone ?? "--"}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Account</span>
-                <p className="font-medium mt-0.5">{contact.account_name ?? "--"}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {/* Tabs */}
-      <div className="flex border-b gap-1">
-        {(["overview", "timeline", "360"] as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab === "360" ? "360° View" : tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Overview Tab */}
-      {activeTab === "overview" && (
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-sm font-semibold mb-3">Contact Details</h3>
-            {contactLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-4 w-full" />)}
-              </div>
-            ) : contact ? (
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Email</span>
-                  <span>{contact.email ?? "--"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Phone</span>
-                  <span>{contact.phone ?? "--"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Account</span>
-                  <span>{contact.account_name ?? "--"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Lifecycle Stage</span>
-                  <span>{contact.lifecycle_stage ?? "--"}</span>
-                </div>
-                {contact.created_at && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Created</span>
-                    <span>{new Date(contact.created_at).toLocaleDateString()}</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm">No data available.</p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Timeline Tab */}
-      {activeTab === "timeline" && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setShowLog(true)}>
-              <Plus className="mr-1 h-4 w-4" />
-              Log Activity
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {timelineLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="p-4">
-                    <Skeleton className="h-4 w-48 mb-2" />
-                    <Skeleton className="h-3 w-full" />
-                  </CardContent>
-                </Card>
-              ))
-            ) : timeline.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  No activities logged yet.
-                </CardContent>
-              </Card>
-            ) : (
-              timeline.map((item: TimelineItem) => (
-                <Card key={item.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 rounded-full bg-muted p-2 text-muted-foreground">
-                        {activityIcons[item.type] ?? <FileText className="h-4 w-4" />}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{item.subject ?? item.type}</span>
-                          {item.direction && (
-                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">{item.direction}</span>
-                          )}
-                        </div>
-                        {item.body && (
-                          <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
-                        )}
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {new Date(item.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 360 View Tab */}
-      {activeTab === "360" && (
-        <div className="space-y-4">
-          {view360Loading ? (
-            <Card>
-              <CardContent className="p-6 space-y-2">
-                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-4 w-full" />)}
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-sm font-semibold mb-3">Orders</h3>
-                  {view360?.orders?.length ? (
-                    <div className="space-y-2">
-                      {view360.orders.map((order: any) => (
-                        <div key={order.id} className="flex justify-between text-sm">
-                          <span>{order.id}</span>
-                          <span className="text-muted-foreground">{order.status}</span>
-                          <span>{order.total != null ? `$${order.total}` : "--"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No orders available.</p>
-                  )}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-sm font-semibold mb-3">Payments</h3>
-                  {view360?.payments?.length ? (
-                    <div className="space-y-2">
-                      {view360.payments.map((payment: any) => (
-                        <div key={payment.id} className="flex justify-between text-sm">
-                          <span>{payment.id}</span>
-                          <span className="text-muted-foreground">{payment.status}</span>
-                          <span>{payment.amount != null ? `$${payment.amount}` : "--"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No payments available.</p>
-                  )}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-sm font-semibold mb-3">Loyalty</h3>
-                  {view360?.loyalty ? (
-                    <div className="space-y-2 text-sm">
-                      {Object.entries(view360.loyalty).map(([key, val]) => (
-                        <div key={key} className="flex justify-between">
-                          <span className="text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
-                          <span>{String(val)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No loyalty data available.</p>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </div>
-      )}
-
-      <Dialog open={showLog} onOpenChange={setShowLog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Log Activity</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Type</label>
-              <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v ?? "note" }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="note">Note</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="call">Call</SelectItem>
-                  <SelectItem value="meeting">Meeting</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Subject</label>
-              <Input
-                value={form.subject}
-                onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
-                placeholder="Activity subject"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Notes</label>
-              <textarea
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none min-h-[80px] focus:outline-none focus:ring-2 focus:ring-ring"
-                value={form.body}
-                onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-                placeholder="Notes..."
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowLog(false)}>Cancel</Button>
-              <Button
-                onClick={() => logMutation.mutate({ type: form.type, entity_type: "contact", entity_id: id, subject: form.subject, body: form.body })}
-                disabled={logMutation.isPending}
-              >
-                Log
-              </Button>
+              {c.phone && <a href={`tel:${c.phone}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background/70 px-4 text-sm font-medium hover:bg-muted"><Phone className="h-4 w-4" /> Call</a>}
+              {c.email && <a href={`mailto:${c.email}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background/70 px-4 text-sm font-medium hover:bg-muted"><Mail className="h-4 w-4" /> Email</a>}
+              <Button variant="outline" onClick={() => setEditing(true)}><Pencil /> Edit</Button>
+              <Button variant="ghost" size="icon" aria-label="Delete contact" onClick={() => setConfirm(true)}><Trash2 className="text-destructive" /></Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Orders" value={(c.total_orders ?? 0).toLocaleString()} hint={c.last_order_at ? `Last ${when.format(new Date(c.last_order_at))}` : undefined} />
+            <StatCard label="Open deals" value={d.open_deals.length} hint={money(d.open_deals.reduce((s, x) => s + (x.value ?? 0), 0))} />
+            <StatCard label="Won deals" value={d.won_deals.length} hint={money(d.won_deals.reduce((s, x) => s + (x.value ?? 0), 0))} />
+            <StatCard label="In follow-up sequences" value={d.nurture_active.length} />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+            <div className="space-y-6">
+              <GlassPanel title="Purchases" description="From POS and online orders">
+                <SummaryList data={d.order_summary} />
+              </GlassPanel>
+              <GlassPanel title="Payments and balance" description="From Books">
+                <SummaryList data={d.payment_summary} />
+              </GlassPanel>
+              {d.loyalty_summary && Object.keys(d.loyalty_summary).length > 0 && (
+                <GlassPanel title="Loyalty"><SummaryList data={d.loyalty_summary} /></GlassPanel>
+              )}
+              {(d.open_tasks.length > 0 || d.meetings.length > 0) && (
+                <GlassPanel title="Coming up">
+                  <ul className="space-y-2 text-sm">
+                    {d.meetings.map((m) => (
+                      <li key={m.id} className="flex items-center justify-between gap-3">
+                        <span>{humanize(m.meeting_type)}</span>
+                        <span className="flex items-center gap-2 text-muted-foreground tabular">{when.format(new Date(m.scheduled_at))} <StatusBadge status={m.status} /></span>
+                      </li>
+                    ))}
+                    {d.open_tasks.map((t) => (
+                      <li key={t.id} className="flex items-center justify-between gap-3">
+                        <Link href={`/${orgSlug}/crm/tasks`} className="hover:text-primary">{t.title}</Link>
+                        <span className="text-muted-foreground tabular">{t.due_at ? when.format(new Date(t.due_at)) : "No due date"}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </GlassPanel>
+              )}
+              <CustomFieldsPanel entity="contact" id={id} />
+            </div>
+            <ActivityTimeline entity="contact" id={id} />
+          </div>
+
+          <EditContact key={c.updated_at ?? c.id} c={c} open={editing} onOpenChange={setEditing} />
+        </>
+      )}
+
+      <ConfirmDialog
+        open={confirm}
+        onOpenChange={setConfirm}
+        title="Delete this contact?"
+        description="The contact is removed for good. Sales and invoices in POS and Books that point to it lose the link. If this is a duplicate, merge it from the contacts list instead."
+        confirmLabel="Delete contact"
+        pending={del.isPending}
+        onConfirm={() => del.mutate(id, { onSuccess: () => router.push(`/${orgSlug}/contacts`) })}
+      />
     </div>
   );
 }

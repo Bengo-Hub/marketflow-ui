@@ -1,221 +1,80 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { STALE_TIMES } from "@/app/providers";
-import { activitiesApi } from "@/lib/api/activities";
-import { Mail, Phone, FileText, Calendar, Plus } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Activity as ActivityIcon } from "lucide-react";
+import { CapsuleTabs, EmptyState, ErrorState, Pager, PageHeader, ToneBadge, humanize } from "@/components/ui-kit";
+import { useActivities } from "@/hooks/use-activities";
 
-const activityIcons: Record<string, React.ReactNode> = {
-  email: <Mail className="h-4 w-4" />,
-  call: <Phone className="h-4 w-4" />,
-  note: <FileText className="h-4 w-4" />,
-  meeting: <Calendar className="h-4 w-4" />,
-};
+const TYPES = ["all", "note", "call", "email", "meeting", "whatsapp", "sms", "order", "payment", "pos_sale"] as const;
+const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
 
-const directionColors: Record<string, string> = {
-  inbound: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  outbound: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-};
-
-type Activity = {
-  id: string;
-  type: string;
-  entity_type: string;
-  entity_id: string;
-  subject?: string;
-  body?: string;
-  direction?: string;
-  created_at: string;
-};
-
+/** Everything that happened with leads, contacts and deals, newest first (GET /activities, tenant-wide). */
 export default function ActivitiesPage() {
-  const queryClient = useQueryClient();
-  const [entityTypeFilter, setEntityTypeFilter] = useState("all");
-  const [showLog, setShowLog] = useState(false);
-  const [form, setForm] = useState({ type: "note", entity_type: "lead", entity_id: "", subject: "", body: "" });
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const [type, setType] = useState<string>("all");
+  const [entity, setEntity] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const params: Record<string, string | number> = { page, limit: 30 };
+  if (type !== "all") params.activity_type = type;
+  if (entity !== "all") params.entity_type = entity;
+  const q = useActivities(params);
+  const rows = q.data?.data ?? [];
 
-  const params: Record<string, string> = {};
-  if (entityTypeFilter !== "all") params.entity_type = entityTypeFilter;
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["activities", entityTypeFilter],
-    queryFn: () => activitiesApi.list(params).then((r) => r.data),
-    staleTime: STALE_TIMES.OPERATIONAL,
-  });
-
-  const logMutation = useMutation({
-    mutationFn: (d: Record<string, unknown>) => activitiesApi.log(d),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
-      setShowLog(false);
-      setForm({ type: "note", entity_type: "lead", entity_id: "", subject: "", body: "" });
-    },
-  });
-
-  const activities: Activity[] = data?.data ?? data ?? [];
+  const href = (t: string, id: string) =>
+    t === "lead" ? `/${orgSlug}/leads/${id}` : t === "contact" ? `/${orgSlug}/contacts/${id}` : `/${orgSlug}/crm/deals?deal=${id}`;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Activities</h1>
-          <p className="text-muted-foreground">Activity feed across all entities</p>
-        </div>
-        <Button onClick={() => setShowLog(true)}>
-          <Plus className="mr-1 h-4 w-4" />
-          Log Activity
-        </Button>
+      <PageHeader icon={<ActivityIcon />} title="Activities" description="Calls, messages, notes, orders and payments across your leads, contacts and deals." />
+      <div className="flex flex-col gap-3">
+        <CapsuleTabs
+          label="Filter by record"
+          value={entity}
+          onChange={(v) => { setEntity(v); setPage(1); }}
+          options={[{ value: "all", label: "Everything" }, { value: "lead", label: "Leads" }, { value: "contact", label: "Contacts" }, { value: "deal", label: "Deals" }]}
+        />
+        <CapsuleTabs
+          label="Filter by activity type"
+          value={type}
+          onChange={(v) => { setType(v); setPage(1); }}
+          options={TYPES.map((t) => ({ value: t, label: t === "all" ? "All types" : t === "sms" ? "SMS" : t === "pos_sale" ? "POS sale" : humanize(t) }))}
+        />
       </div>
 
-      <div className="flex items-end gap-3">
-        <div>
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Entity Type</span>
-          <Select value={entityTypeFilter} onValueChange={(v) => setEntityTypeFilter(v ?? "all")}>
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="All types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="lead">Lead</SelectItem>
-              <SelectItem value="contact">Contact</SelectItem>
-              <SelectItem value="deal">Deal</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Failed to load activities: {(error as Error).message}
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {isLoading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <Skeleton className="h-4 w-48 mb-2" />
-                <Skeleton className="h-3 w-full" />
-              </CardContent>
-            </Card>
-          ))
-        ) : activities.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              No activities yet. Log your first activity to get started.
-            </CardContent>
-          </Card>
-        ) : (
-          activities.map((activity: Activity) => (
-            <Card key={activity.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 rounded-full bg-muted p-2 text-muted-foreground">
-                    {activityIcons[activity.type] ?? <FileText className="h-4 w-4" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">{activity.subject ?? activity.type}</span>
-                      <span className="text-xs text-muted-foreground capitalize">{activity.entity_type}</span>
-                      {activity.direction && (
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${directionColors[activity.direction] ?? ""}`}>
-                          {activity.direction}
-                        </span>
-                      )}
-                    </div>
-                    {activity.body && (
-                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{activity.body}</p>
-                    )}
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {new Date(activity.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-
-      <Dialog open={showLog} onOpenChange={setShowLog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Log Activity</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Type</label>
-              <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v ?? "note" }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="note">Note</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="call">Call</SelectItem>
-                  <SelectItem value="meeting">Meeting</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Entity Type</label>
-              <Select value={form.entity_type} onValueChange={(v) => setForm((f) => ({ ...f, entity_type: v ?? "lead" }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lead">Lead</SelectItem>
-                  <SelectItem value="contact">Contact</SelectItem>
-                  <SelectItem value="deal">Deal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Entity ID</label>
-              <Input
-                value={form.entity_id}
-                onChange={(e) => setForm((f) => ({ ...f, entity_id: e.target.value }))}
-                placeholder="ID of the lead/contact/deal"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Subject</label>
-              <Input
-                value={form.subject}
-                onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
-                placeholder="Activity subject"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Notes</label>
-              <textarea
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none min-h-[80px] focus:outline-none focus:ring-2 focus:ring-ring"
-                value={form.body}
-                onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-                placeholder="Activity notes..."
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowLog(false)}>Cancel</Button>
-              <Button
-                onClick={() => logMutation.mutate({ type: form.type, entity_type: form.entity_type, entity_id: form.entity_id, subject: form.subject, body: form.body })}
-                disabled={!form.entity_id || logMutation.isPending}
-              >
-                Log
-              </Button>
-            </div>
+      <div className="glass rounded-[1.25rem] p-2 sm:p-4">
+        {q.isError && <ErrorState onRetry={() => void q.refetch()} />}
+        {q.isLoading && (
+          <div className="space-y-2 p-2" aria-busy>
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />)}
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+        {!q.isLoading && !q.isError && rows.length === 0 && (
+          <EmptyState icon={<ActivityIcon />} title="No activity yet" description="Log a call or note from a lead, contact or deal, or wait for orders and messages to come in." />
+        )}
+        {rows.length > 0 && (
+          <ul className="divide-y divide-border">
+            {rows.map((a) => (
+              <li key={a.id} className="flex flex-col gap-1 p-3 sm:flex-row sm:items-start sm:gap-4">
+                <span className="w-40 shrink-0 text-xs text-muted-foreground tabular">{when.format(new Date(a.performed_at || a.created_at))}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ToneBadge tone="primary">{humanize(a.activity_type)}</ToneBadge>
+                    <Link href={href(a.entity_type, a.entity_id)} className="text-sm font-semibold hover:text-primary">
+                      {a.subject || `${humanize(a.entity_type)} activity`}
+                    </Link>
+                    {a.direction && <ToneBadge>{humanize(a.direction)}</ToneBadge>}
+                  </div>
+                  {a.body && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{a.body}</p>}
+                </div>
+                <span className="text-xs text-muted-foreground">{humanize(a.entity_type)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {q.data && <div className="px-2"><Pager page={page} limit={q.data.limit || 30} total={q.data.total} onPage={setPage} /></div>}
+      </div>
     </div>
   );
 }
