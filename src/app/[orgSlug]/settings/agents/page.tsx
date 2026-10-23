@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -76,6 +77,18 @@ interface AgentRun {
   error_message?: string;
 }
 
+type TriggerKind = "manual" | "event" | "schedule";
+
+// Events marketflow-api emits today (custom_agents.Events).
+const EVENTS: { value: string; label: string }[] = [
+  { value: "lead.created", label: "A new lead arrives" },
+  { value: "crm.lead.qualified", label: "A lead becomes qualified" },
+];
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// Server limits for automatic runs (custom_agents.AutoDailyCap, marketflow-ai agentRunCredits).
+const AUTO_DAILY_CAP = 50;
+
 interface AgentForm {
   name: string;
   description: string;
@@ -83,6 +96,11 @@ interface AgentForm {
   allowed_tools: string[];
   max_iterations: number;
   is_active: boolean;
+  trigger: TriggerKind;
+  event: string;
+  frequency: "daily" | "weekly";
+  time: string;
+  weekday: number;
 }
 
 const emptyForm: AgentForm = {
@@ -92,7 +110,35 @@ const emptyForm: AgentForm = {
   allowed_tools: [],
   max_iterations: 5,
   is_active: true,
+  trigger: "manual",
+  event: "lead.created",
+  frequency: "daily",
+  time: "08:00",
+  weekday: 1,
 };
+
+/** Plain description of when an agent runs; older trigger values count as manual. */
+function whenItRuns(a: Pick<Agent, "trigger_type" | "trigger_config">): string {
+  const cfg = a.trigger_config ?? {};
+  if (a.trigger_type === "event") {
+    const ev = EVENTS.find((e) => e.value === cfg.event);
+    return ev ? `Runs when ${ev.label.toLowerCase()}.` : "Runs on an event.";
+  }
+  if (a.trigger_type === "schedule") {
+    const at = typeof cfg.time === "string" ? cfg.time : "";
+    return cfg.frequency === "weekly"
+      ? `Runs every ${WEEKDAYS[Number(cfg.weekday)] ?? "week"} at ${at}.`
+      : `Runs every day at ${at}.`;
+  }
+  return "Runs when you press Run now.";
+}
+
+function startedBy(triggeredBy?: string): string {
+  if (!triggeredBy || triggeredBy === "manual") return "Run now";
+  if (triggeredBy === "schedule") return "Schedule";
+  const ev = EVENTS.find((e) => `event:${e.value}` === triggeredBy);
+  return ev ? ev.label : "Event";
+}
 
 function AgentCard({ agent, onEdit, onDelete, orgSlug }: {
   agent: Agent;
@@ -146,6 +192,7 @@ function AgentCard({ agent, onEdit, onDelete, orgSlug }: {
           <p className="text-sm bg-muted rounded-lg p-3 whitespace-pre-wrap line-clamp-3">{agent.system_prompt}</p>
         )}
         <p className="text-xs text-muted-foreground">
+          {whenItRuns(agent)}{" "}
           {tools.length === 0
             ? "Uses the knowledge base only."
             : `Can: ${tools.map((t) => TOOL_LABEL.get(t) ?? t).join(", ")}.`}
@@ -203,7 +250,7 @@ function AgentCard({ agent, onEdit, onDelete, orgSlug }: {
                     {run.status}
                   </Badge>
                   <span className="text-[11px] text-muted-foreground">
-                    {formatDistanceToNow(new Date(run.started_at), { addSuffix: true })}
+                    {startedBy(run.triggered_by)}, {formatDistanceToNow(new Date(run.started_at), { addSuffix: true })}
                   </span>
                 </div>
                 {run.trace?.answer && (
@@ -274,16 +321,34 @@ export default function AgentsPage() {
   }
 
   function openEdit(a: Agent) {
+    const cfg = a.trigger_config ?? {};
     setEditing(a);
     setForm({
+      ...emptyForm,
       name: a.name,
       description: a.description ?? "",
       system_prompt: a.system_prompt ?? "",
       allowed_tools: a.allowed_tools ?? [],
       max_iterations: a.max_iterations || 5,
       is_active: a.is_active,
+      // Older trigger values ("on_lead_created", "scheduled") never ran; show them as manual.
+      trigger: a.trigger_type === "event" || a.trigger_type === "schedule" ? a.trigger_type : "manual",
+      event: typeof cfg.event === "string" ? cfg.event : emptyForm.event,
+      frequency: cfg.frequency === "weekly" ? "weekly" : "daily",
+      time: typeof cfg.time === "string" ? cfg.time : emptyForm.time,
+      weekday: typeof cfg.weekday === "number" ? cfg.weekday : emptyForm.weekday,
     });
     setOpen(true);
+  }
+
+  function triggerFields(): Record<string, unknown> {
+    if (form.trigger === "event") return { trigger_type: "event", trigger_config: { event: form.event } };
+    if (form.trigger === "schedule") {
+      const cfg: Record<string, unknown> = { frequency: form.frequency, time: form.time };
+      if (form.frequency === "weekly") cfg.weekday = form.weekday;
+      return { trigger_type: "schedule", trigger_config: cfg };
+    }
+    return { trigger_type: "manual", trigger_config: {} };
   }
 
   function toggleTool(key: string, on: boolean) {
@@ -300,7 +365,7 @@ export default function AgentsPage() {
       system_prompt: form.system_prompt.trim(),
       allowed_tools: form.allowed_tools,
       max_iterations: Math.min(20, Math.max(1, form.max_iterations)),
-      trigger_type: "manual",
+      ...triggerFields(),
     };
     if (editing) {
       updateMut.mutate({ id: editing.id, payload: { ...payload, is_active: form.is_active } });
@@ -315,7 +380,8 @@ export default function AgentsPage() {
         <div>
           <h1 className="text-2xl font-bold">Custom agents</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Small helpers you run on demand, for example a weekly lead review. For campaigns, ads and content, ask your{" "}
+            Small helpers that run on demand, when a lead arrives or on a schedule, for example a weekly lead review.
+            For campaigns, ads and content, ask your{" "}
             <Link href={`/${orgSlug}/team`} className="underline underline-offset-2">marketing team</Link>.
           </p>
         </div>
@@ -423,9 +489,63 @@ export default function AgentsPage() {
                 On
               </label>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Agents run when you press Run now. Running on new leads or on a schedule is coming.
-            </p>
+            <fieldset className="space-y-2">
+              <legend className="text-xs font-medium">When it runs</legend>
+              <Select value={form.trigger} onValueChange={(v) => setForm({ ...form, trigger: (v ?? "manual") as TriggerKind })}>
+                <SelectTrigger aria-label="When it runs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">Only when I press Run now</SelectItem>
+                  <SelectItem value="event">When something happens</SelectItem>
+                  <SelectItem value="schedule">On a schedule</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {form.trigger === "event" && (
+                <Select value={form.event} onValueChange={(v) => setForm({ ...form, event: v ?? EVENTS[0].value })}>
+                  <SelectTrigger aria-label="Event"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EVENTS.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {form.trigger === "schedule" && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    value={form.frequency}
+                    onValueChange={(v) => setForm({ ...form, frequency: v === "weekly" ? "weekly" : "daily" })}
+                  >
+                    <SelectTrigger className="w-32" aria-label="How often"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Every day</SelectItem>
+                      <SelectItem value="weekly">Every week</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {form.frequency === "weekly" && (
+                    <Select value={String(form.weekday)} onValueChange={(v) => setForm({ ...form, weekday: Number(v) })}>
+                      <SelectTrigger className="w-36" aria-label="Day"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {WEEKDAYS.map((d, i) => <SelectItem key={d} value={String(i)}>{d}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <span className="text-sm text-muted-foreground">at</span>
+                  <Input
+                    type="time"
+                    className="w-28"
+                    aria-label="Time"
+                    value={form.time}
+                    onChange={(e) => setForm({ ...form, time: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                {form.trigger === "manual"
+                  ? "Run now is free."
+                  : `Each automatic run uses 1 AI credit, at most ${AUTO_DAILY_CAP} a day per agent. It only runs while the agent is on. Times are in your business's time zone.`}
+              </p>
+            </fieldset>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
