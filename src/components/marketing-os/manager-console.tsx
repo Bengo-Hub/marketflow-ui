@@ -500,10 +500,17 @@ export function ManagerConsole({
           </div>
         )}
 
-        {res && res.credits_charged > 0 && (
-          <p className="text-xs text-muted-foreground">
-            {res.credits_charged} {res.credits_charged === 1 ? "credit" : "credits"} used.
-          </p>
+        {res && (
+          <div className="flex items-center justify-between gap-3 border-t pt-3">
+            <p className="text-xs text-muted-foreground">
+              {res.credits_charged > 0
+                ? `${res.credits_charged} ${res.credits_charged === 1 ? "credit" : "credits"} used.`
+                : "No credits used."}
+            </p>
+            <Button size="sm" variant="ghost" onClick={reset} disabled={busy}>
+              Discard
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>

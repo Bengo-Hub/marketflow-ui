@@ -83,6 +83,8 @@ type TriggerKind = "manual" | "event" | "schedule";
 const EVENTS: { value: string; label: string }[] = [
   { value: "lead.created", label: "A new lead arrives" },
   { value: "crm.lead.qualified", label: "A lead becomes qualified" },
+  { value: "crm.contact.created", label: "A new contact is added" },
+  { value: "crm.deal.stage_changed", label: "A deal moves to another stage" },
 ];
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
