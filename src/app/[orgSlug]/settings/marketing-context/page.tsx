@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BrandInterview } from "@/components/marketing-os/brand-interview";
 
 // Server limits (marketflow-api marketingos.BrandContext.Validate).
 const MAX_TEXT = 1200;
@@ -97,8 +98,8 @@ export default function MarketingContextPage() {
     learnings: "",
   });
 
-  useEffect(() => {
-    const bc = { ...empty, ...(ctxQ.data ?? {}) };
+  const fill = (src?: Partial<BrandContext>) => {
+    const bc = { ...empty, ...(src ?? {}) };
     setText({ positioning: bc.positioning ?? "", voice: bc.voice ?? "" });
     setLists({
       audience: toLines(bc.audience),
@@ -108,7 +109,8 @@ export default function MarketingContextPage() {
       banned_claims: toLines(bc.banned_claims),
       learnings: toLines(bc.learnings),
     });
-  }, [ctxQ.data]);
+  };
+  useEffect(() => fill(ctxQ.data), [ctxQ.data]);
 
   const save = useMutation({
     mutationFn: () => {
@@ -165,6 +167,14 @@ export default function MarketingContextPage() {
           {apiError(ctxQ.error, "Could not load the brand context")}
         </div>
       )}
+
+      <BrandInterview
+        onDraft={(bc) => {
+          // Keep what the team has learned so far; the interview does not know it.
+          const learned = fromLines(lists.learnings);
+          fill({ ...bc, learnings: learned.length ? learned : bc.learnings });
+        }}
+      />
 
       <Card>
         <CardHeader>

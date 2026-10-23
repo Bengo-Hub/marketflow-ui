@@ -167,7 +167,7 @@ export const marketingOsApi = {
   team: () =>
     aiClient.get<{ members: TeamMember[]; playbooks: Playbook[] }>("/api/v1/os/team").then((r) => r.data),
   optimize: (text: string) => aiClient.post<TaskSpec>("/api/v1/os/optimize", { text }).then((r) => r.data),
-  ask: (body: { text: string; approve_plan?: boolean; tier?: string; platforms?: string[] }) =>
+  ask: (body: { text: string; approve_plan?: boolean; tier?: string; platforms?: string[]; playbook?: string }) =>
     aiClient.post<AskResponse>("/api/v1/os/ask", body).then((r) => r.data),
   templates: (q = "", category = "") =>
     aiClient
