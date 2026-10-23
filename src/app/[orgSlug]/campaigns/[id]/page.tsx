@@ -1,231 +1,129 @@
 "use client";
 
-import { use } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, TrendingUp, MousePointerClick, Target, Coins } from "lucide-react";
+import { useParams } from "next/navigation";
+import { ArrowLeft, Coins, Eye, MousePointerClick, Pause, Play, Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { LeadTrendChart } from "@/components/dashboard/charts";
+import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, StatCard, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
+import { useCampaign, useCampaignAction, useCampaignMetrics } from "@/hooks/use-campaigns";
+import { formatMoney } from "@/lib/api/campaigns";
 import { SendSMSDialog } from "./send-sms-dialog";
 
-type SeriesRow = {
-  date: string;
-  impressions: number;
-  clicks: number;
-  leads: number;
-  spend: number;
-  ctr: number;
-  cpl: number;
-  currency: string;
-};
+const nf = new Intl.NumberFormat("en-KE");
+const dayFmt = new Intl.DateTimeFormat("en-KE", { day: "numeric", month: "short" });
 
-type CampaignMetricsResponse = {
-  campaign_id: string;
-  days: number;
-  series: SeriesRow[];
-  totals: {
-    impressions: number;
-    clicks: number;
-    leads: number;
-    spend: number;
-    avg_ctr: number;
-    avg_cpl: number;
-    data_points: number;
-  };
-};
-
-type Campaign = {
-  id: string;
-  name: string;
-  platform: string;
-  status: string;
-  budget_daily?: number;
-  currency?: string;
-  meta_campaign_id?: string;
-};
-
-export default function CampaignAnalyticsPage({
-  params,
-}: {
-  params: Promise<{ orgSlug: string; id: string }>;
-}) {
-  const { orgSlug, id } = use(params);
-
-  const { data: campaign } = useQuery<Campaign>({
-    queryKey: ["campaign", id],
-    queryFn: async () => {
-      const r = await apiClient.get<{ data: Campaign }>(`/api/v1/campaigns/${id}`);
-      return r.data.data;
-    },
-  });
-
-  const { data: metrics, isLoading, error } = useQuery<CampaignMetricsResponse>({
-    queryKey: ["campaign-metrics", id],
-    queryFn: async () => {
-      const r = await apiClient.get<CampaignMetricsResponse>(
-        `/api/v1/analytics/campaigns/${id}?days=30`,
-      );
-      return r.data;
-    },
-    refetchInterval: 60_000,
-  });
-
-  const totals = metrics?.totals;
+export default function CampaignDetailPage() {
+  const { orgSlug, id } = useParams<{ orgSlug: string; id: string }>();
+  const [days, setDays] = useState("30");
+  const campaign = useCampaign(id);
+  const metrics = useCampaignMetrics(id, Number(days));
+  const action = useCampaignAction();
+  const c = campaign.data;
+  const t = metrics.data?.totals;
+  const currency = metrics.data?.series[0]?.currency || c?.currency || "KES";
+  const series = metrics.data?.series ?? [];
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href={`/${orgSlug}/campaigns`}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Campaigns
-        </Link>
-        <div className="mt-2 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {campaign?.name ?? "Campaign"}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Last 30 days ·{" "}
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">
-                {campaign?.platform ?? "—"}
-              </span>{" "}
-              <span className="ml-1 text-xs">{campaign?.status}</span>
-            </p>
-          </div>
-          <SendSMSDialog campaignId={id} campaignName={campaign?.name} />
-        </div>
-      </div>
+      <Link href={`/${orgSlug}/campaigns`} className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" />
+        All campaigns
+      </Link>
 
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Failed to load campaign metrics: {(error as Error).message}
-        </div>
-      )}
+      {campaign.isError && <ErrorState message="Could not load this campaign." onRetry={() => void campaign.refetch()} />}
 
-      {!error && !metrics?.series.length && !isLoading && (
-        <Card>
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            {campaign?.meta_campaign_id
-              ? "No metrics yet — Meta takes up to 15 minutes to return new campaign data."
-              : "Connect this campaign to Meta to start seeing impressions, clicks and spend here."}
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="Impressions"
-          value={totals?.impressions ?? 0}
-          icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          label="Clicks"
-          value={totals?.clicks ?? 0}
-          sub={totals ? `${totals.avg_ctr.toFixed(2)}% CTR` : undefined}
-          icon={<MousePointerClick className="h-4 w-4 text-muted-foreground" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          label="Leads"
-          value={totals?.leads ?? 0}
-          sub={totals && totals.leads > 0 ? `${formatCurrency(totals.avg_cpl)} CPL` : undefined}
-          icon={<Target className="h-4 w-4 text-muted-foreground" />}
-          loading={isLoading}
-        />
-        <KpiCard
-          label="Spend"
-          value={formatCurrency(totals?.spend ?? 0)}
-          icon={<Coins className="h-4 w-4 text-muted-foreground" />}
-          loading={isLoading}
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Daily breakdown</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          {isLoading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : metrics?.series.length ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="py-2">Date</th>
-                  <th className="py-2">Impr.</th>
-                  <th className="py-2">Clicks</th>
-                  <th className="py-2">CTR</th>
-                  <th className="py-2">Leads</th>
-                  <th className="py-2">CPL</th>
-                  <th className="py-2 text-right">Spend</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metrics.series.map((row) => (
-                  <tr key={row.date} className="border-b last:border-b-0">
-                    <td className="py-2 font-medium">{row.date}</td>
-                    <td className="py-2">{row.impressions.toLocaleString()}</td>
-                    <td className="py-2">{row.clicks.toLocaleString()}</td>
-                    <td className="py-2">{row.ctr.toFixed(2)}%</td>
-                    <td className="py-2">{row.leads.toLocaleString()}</td>
-                    <td className="py-2">{row.leads > 0 ? formatCurrency(row.cpl) : "—"}</td>
-                    <td className="py-2 text-right">{formatCurrency(row.spend)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="py-6 text-center text-sm text-muted-foreground">No data.</p>
+      <div className="glass flex flex-col gap-4 rounded-[1.25rem] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">{c?.name ?? "Campaign"}</h1>
+          {c && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <StatusBadge status={c.status} />
+              <ToneBadge>{humanize(c.platform)}</ToneBadge>
+              {c.channel && <ToneBadge tone="info">{c.channel === "sms" ? "SMS" : humanize(c.channel)}</ToneBadge>}
+              {c.budget_daily ? <span className="text-sm text-muted-foreground">{formatMoney(c.budget_daily, c.currency)} a day</span> : null}
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {c?.status === "active" && (
+            <Button variant="outline" disabled={action.isPending} onClick={() => action.mutate({ id, action: "pause" })}>
+              <Pause /> Pause
+            </Button>
+          )}
+          {(c?.status === "paused" || c?.status === "draft") && (
+            <Button disabled={action.isPending} onClick={() => action.mutate({ id, action: "resume" })}>
+              <Play /> {c.status === "draft" ? "Start" : "Resume"}
+            </Button>
+          )}
+          <SendSMSDialog campaignId={id} campaignName={c?.name} />
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <CapsuleTabs label="Period" value={days} onChange={setDays} options={[{ value: "7", label: "7 days" }, { value: "30", label: "30 days" }, { value: "90", label: "90 days" }]} />
+      </div>
+
+      {metrics.isError && <ErrorState message="Could not load the campaign numbers." onRetry={() => void metrics.refetch()} />}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Impressions" icon={<Eye />} loading={metrics.isLoading} value={nf.format(t?.impressions ?? 0)} />
+        <StatCard label="Clicks" icon={<MousePointerClick />} loading={metrics.isLoading} value={nf.format(t?.clicks ?? 0)} hint={t ? `${t.avg_ctr.toFixed(2)}% of impressions` : undefined} />
+        <StatCard label="Leads" icon={<Target />} loading={metrics.isLoading} value={nf.format(t?.leads ?? 0)} hint={t && t.leads > 0 ? `${formatMoney(t.avg_cpl, currency)} per lead` : undefined} />
+        <StatCard label="Spend" icon={<Coins />} loading={metrics.isLoading} value={formatMoney(t?.spend ?? 0, currency)} />
+      </div>
+
+      {!metrics.isLoading && series.length === 0 ? (
+        <GlassPanel title="Daily results">
+          <EmptyState
+            icon={<Target />}
+            title="No ad results yet"
+            description={
+              c?.meta_campaign_id
+                ? "Meta can take up to 15 minutes to report a new campaign."
+                : "Results appear here once this campaign is linked to a Meta ad campaign."
+            }
+            action={<Link href={`/${orgSlug}/settings/integrations`} className="text-sm font-semibold text-primary hover:underline">Connected accounts</Link>}
+          />
+        </GlassPanel>
+      ) : (
+        <>
+          <GlassPanel title="Leads per day">
+            {metrics.isLoading ? <div className="h-64 animate-pulse rounded-xl bg-muted" /> : <LeadTrendChart data={series.map((s) => ({ day: s.date, count: s.leads }))} />}
+          </GlassPanel>
+          <GlassPanel title="Daily results" bodyClassName="p-0 sm:p-5">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs font-semibold text-muted-foreground">
+                    <th className="px-4 py-2">Day</th>
+                    <th className="px-4 py-2 text-right">Impressions</th>
+                    <th className="px-4 py-2 text-right">Clicks</th>
+                    <th className="px-4 py-2 text-right">Click rate</th>
+                    <th className="px-4 py-2 text-right">Leads</th>
+                    <th className="px-4 py-2 text-right">Per lead</th>
+                    <th className="px-4 py-2 text-right">Spend</th>
+                  </tr>
+                </thead>
+                <tbody className="tabular">
+                  {series.map((r) => (
+                    <tr key={r.date} className="border-b border-border/60 last:border-0">
+                      <td className="px-4 py-2 font-medium">{dayFmt.format(new Date(`${r.date}T00:00:00`))}</td>
+                      <td className="px-4 py-2 text-right">{nf.format(r.impressions)}</td>
+                      <td className="px-4 py-2 text-right">{nf.format(r.clicks)}</td>
+                      <td className="px-4 py-2 text-right">{r.ctr.toFixed(2)}%</td>
+                      <td className="px-4 py-2 text-right">{nf.format(r.leads)}</td>
+                      <td className="px-4 py-2 text-right">{r.leads > 0 ? formatMoney(r.cpl, r.currency) : ""}</td>
+                      <td className="px-4 py-2 text-right">{formatMoney(r.spend, r.currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </GlassPanel>
+        </>
+      )}
     </div>
   );
-}
-
-function KpiCard({
-  label,
-  value,
-  sub,
-  icon,
-  loading,
-}: {
-  label: string;
-  value: number | string;
-  sub?: string;
-  icon?: React.ReactNode;
-  loading?: boolean;
-}) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-xs font-medium uppercase text-muted-foreground">
-          {label}
-        </CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-8 w-20" />
-        ) : (
-          <div className="text-2xl font-semibold tracking-tight">
-            {typeof value === "number" ? value.toLocaleString() : value}
-          </div>
-        )}
-        {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
-      </CardContent>
-    </Card>
-  );
-}
-
-function formatCurrency(n: number): string {
-  return new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(n || 0);
 }

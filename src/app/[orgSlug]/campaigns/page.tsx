@@ -1,372 +1,214 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Megaphone, MoreHorizontal, Pause, Pencil, Play, Plus, Square } from "lucide-react";
 import { FeatureLock, useAnyFeature } from "@bengo-hub/shared-ui-lib/subscription";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart3, Eye, MousePointerClick, DollarSign, Target, UserPlus } from "lucide-react";
-import { toast } from "sonner";
+import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, Pager, PageHeader, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
+import { useCampaignAction, useCampaigns, useSaveCampaign } from "@/hooks/use-campaigns";
+import {
+  CAMPAIGN_CHANNELS, CAMPAIGN_PLATFORMS, CAMPAIGN_STATUSES, CAMPAIGN_TYPES, formatMoney, type Campaign, type CampaignInput,
+} from "@/lib/api/campaigns";
 
-type CampaignMetrics = {
-  impressions: number;
-  clicks: number;
-  spend: number;
-  ctr: number;
-  cpc: number;
-  leads: number;
-  cost_per_lead: number;
-};
+const empty: CampaignInput = { name: "", campaign_type: "lead_gen", platform: "meta", channel: "whatsapp", currency: "KES" };
+const label = (v: string) => (v === "sms" ? "SMS" : v === "lead_gen" ? "Lead generation" : v === "re_engagement" ? "Re-engagement" : humanize(v));
 
-type Campaign = {
-  id: string;
-  name: string;
-  platform: string;
-  status: string;
-  budget_daily?: number | null;
-  budget_total?: number | null;
-  total_leads: number;
-  total_conversions: number;
-  total_spend?: number | null;
-  metrics?: CampaignMetrics | null;
-  created_at: string;
-};
-
-export default function CampaignsPage() {
-  const qc = useQueryClient();
-  // Either tier code unlocks campaigns; when neither is present the button stays
-  // visible but locked (FeatureLock opens the UpgradeDialog for the base tier).
-  const hasCampaigns = useAnyFeature("basic_campaigns", "unlimited_campaigns");
-  const [open, setOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [form, setForm] = useState<Partial<Campaign>>({
-    name: "",
-    platform: "meta",
-    status: "draft",
-  });
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["campaigns"],
-    queryFn: async () => {
-      const r = await apiClient.get<{ data: Campaign[] }>(`/api/v1/campaigns?limit=100`);
-      return r.data;
-    },
-  });
-
-  // Fetch individual campaign with metrics when expanded
-  const { data: expandedCampaign, isLoading: expandedLoading } = useQuery({
-    queryKey: ["campaign-detail", expandedId],
-    queryFn: async () => {
-      if (!expandedId) return null;
-      const r = await apiClient.get<{ data: Campaign }>(`/api/v1/campaigns/${expandedId}`);
-      return r.data.data ?? r.data;
-    },
-    enabled: !!expandedId,
-  });
-
-  function resetForm() {
-    setForm({ name: "", platform: "meta", status: "draft" });
-    setEditingId(null);
-  }
-
-  const save = useMutation({
-    mutationFn: async (c: Partial<Campaign>) => {
-      if (editingId) return apiClient.put(`/api/v1/campaigns/${editingId}`, c);
-      return apiClient.post(`/api/v1/campaigns`, c);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["campaigns"] });
-      setOpen(false);
-      resetForm();
-      toast.success(editingId ? "Campaign updated" : "Campaign created");
-    },
-    onError: (err: unknown) => {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to save campaign"
-      );
-    },
-  });
-
-  const del = useMutation({
-    mutationFn: async (id: string) => apiClient.delete(`/api/v1/campaigns/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["campaigns"] });
-      toast.success("Campaign deleted");
-    },
-    onError: (err: unknown) => {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete campaign"
-      );
-    },
-  });
-
-  function openEdit(c: Campaign) {
-    setForm({
-      name: c.name,
-      platform: c.platform,
-      status: c.status,
-      budget_daily: c.budget_daily ?? undefined,
-    });
-    setEditingId(c.id);
-    setOpen(true);
-  }
-
-  function toggleExpand(id: string) {
-    setExpandedId((prev) => (prev === id ? null : id));
-  }
-
-  /** Resolve metrics: from the expanded detail fetch, from the list item, or null */
-  function getMetrics(campaign: Campaign): CampaignMetrics | null {
-    if (expandedId === campaign.id && expandedCampaign) {
-      const ec = expandedCampaign as Campaign;
-      return ec.metrics ?? null;
-    }
-    return campaign.metrics ?? null;
-  }
-
-  function hasAnyMetricValue(m: CampaignMetrics): boolean {
-    return m.impressions > 0 || m.clicks > 0 || m.spend > 0 || m.leads > 0;
-  }
-
+function CampaignForm({ initial, id, onDone }: { initial: CampaignInput; id?: string; onDone: () => void }) {
+  const save = useSaveCampaign();
+  const [f, setF] = useState<CampaignInput>(initial);
+  const num = (v: string) => (v === "" ? undefined : Math.max(0, Number(v)));
+  const datesBad = !!(f.start_date && f.end_date && f.end_date < f.start_date);
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <>
+      <div className="space-y-4">
+        <Field label="Name" required htmlFor="cf-name">
+          <Input id="cf-name" value={f.name} maxLength={120} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        </Field>
         <div>
-          <h1 className="text-2xl font-bold">Campaigns</h1>
-          <p className="text-sm text-muted-foreground">
-            Track your Meta / TikTok / organic campaigns and the leads they generate.
-          </p>
+          <p className="mb-1.5 text-sm font-medium">Goal</p>
+          <CapsuleTabs label="Campaign goal" value={f.campaign_type ?? "lead_gen"} onChange={(v) => setF({ ...f, campaign_type: v })} options={CAMPAIGN_TYPES.map((t) => ({ value: t, label: label(t) }))} />
         </div>
-        {hasCampaigns ? (
-          <Button onClick={() => { resetForm(); setOpen(true); }}>+ New campaign</Button>
-        ) : (
-          <FeatureLock feature="basic_campaigns" mode="block">
-            <Button onClick={() => { resetForm(); setOpen(true); }}>+ New campaign</Button>
-          </FeatureLock>
-        )}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="mb-1.5 text-sm font-medium">Ads run on</p>
+            <CapsuleTabs label="Platform" value={f.platform ?? "meta"} onChange={(v) => setF({ ...f, platform: v })} options={CAMPAIGN_PLATFORMS.map((p) => ({ value: p, label: p === "manual" ? "No ads" : humanize(p) }))} />
+          </div>
+          <div>
+            <p className="mb-1.5 text-sm font-medium">Follow up by</p>
+            <CapsuleTabs label="Channel" value={f.channel ?? "whatsapp"} onChange={(v) => setF({ ...f, channel: v })} options={CAMPAIGN_CHANNELS.map((c) => ({ value: c, label: label(c) }))} />
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Daily budget" htmlFor="cf-bd">
+            <Input id="cf-bd" type="number" inputMode="decimal" min={0} value={f.budget_daily ?? ""} onChange={(e) => setF({ ...f, budget_daily: num(e.target.value) })} />
+          </Field>
+          <Field label="Total budget" htmlFor="cf-bt">
+            <Input id="cf-bt" type="number" inputMode="decimal" min={0} value={f.budget_total ?? ""} onChange={(e) => setF({ ...f, budget_total: num(e.target.value) })} />
+          </Field>
+          <Field label="Currency" htmlFor="cf-cur">
+            <Input id="cf-cur" maxLength={3} value={f.currency ?? ""} onChange={(e) => setF({ ...f, currency: e.target.value.toUpperCase() })} />
+          </Field>
+          <Field label="Starts" htmlFor="cf-sd">
+            <Input id="cf-sd" type="date" value={f.start_date?.slice(0, 10) ?? ""} onChange={(e) => setF({ ...f, start_date: e.target.value || undefined })} />
+          </Field>
+          <Field label="Ends" htmlFor="cf-ed" error={datesBad ? "Ends before it starts" : null}>
+            <Input id="cf-ed" type="date" value={f.end_date?.slice(0, 10) ?? ""} onChange={(e) => setF({ ...f, end_date: e.target.value || undefined })} />
+          </Field>
+        </div>
       </div>
-
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Failed to load campaigns: {(error as Error).message}
-        </div>
-      )}
-
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Platform</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Leads</TableHead>
-                <TableHead>Conversions</TableHead>
-                <TableHead>Spend</TableHead>
-                <TableHead className="w-40"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
-                      <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : data?.data?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                    No campaigns yet. Add one to start tracking lead attribution.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.data.map((c) => {
-                  const isExpanded = expandedId === c.id;
-                  const metrics = getMetrics(c);
-                  return (
-                    <TableRow key={c.id} className="group">
-                      <TableCell>
-                        <div>
-                          <span className="font-medium">{c.name}</span>
-                          {/* Inline metrics row when expanded */}
-                          {isExpanded && (
-                            <div className="mt-3">
-                              {expandedLoading ? (
-                                <Skeleton className="h-16 w-full" />
-                              ) : metrics && hasAnyMetricValue(metrics) ? (
-                                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                                  <MetricCell
-                                    icon={<Eye className="h-3.5 w-3.5" />}
-                                    label="Impressions"
-                                    value={metrics.impressions.toLocaleString()}
-                                  />
-                                  <MetricCell
-                                    icon={<MousePointerClick className="h-3.5 w-3.5" />}
-                                    label="Clicks"
-                                    value={metrics.clicks.toLocaleString()}
-                                  />
-                                  <MetricCell
-                                    icon={<DollarSign className="h-3.5 w-3.5" />}
-                                    label="Spend"
-                                    value={`$${metrics.spend.toFixed(2)}`}
-                                  />
-                                  <MetricCell
-                                    icon={<Target className="h-3.5 w-3.5" />}
-                                    label="CTR"
-                                    value={`${metrics.ctr.toFixed(2)}%`}
-                                  />
-                                  <MetricCell
-                                    icon={<MousePointerClick className="h-3.5 w-3.5" />}
-                                    label="CPC"
-                                    value={`$${metrics.cpc.toFixed(2)}`}
-                                  />
-                                  <MetricCell
-                                    icon={<UserPlus className="h-3.5 w-3.5" />}
-                                    label="Leads"
-                                    value={metrics.leads.toLocaleString()}
-                                  />
-                                  <MetricCell
-                                    icon={<DollarSign className="h-3.5 w-3.5" />}
-                                    label="CPL"
-                                    value={metrics.cost_per_lead > 0 ? `$${metrics.cost_per_lead.toFixed(2)}` : "--"}
-                                  />
-                                </div>
-                              ) : (
-                                <p className="text-xs text-muted-foreground italic py-2">
-                                  Metrics will appear once the campaign is active
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell><Badge variant="outline">{c.platform}</Badge></TableCell>
-                      <TableCell>{c.status}</TableCell>
-                      <TableCell>{c.total_leads}</TableCell>
-                      <TableCell>{c.total_conversions}</TableCell>
-                      <TableCell>{c.total_spend ? `$${c.total_spend.toFixed(2)}` : "--"}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleExpand(c.id)}
-                            title="View metrics"
-                            aria-label="View metrics"
-                            aria-expanded={isExpanded}
-                          >
-                            <BarChart3 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => openEdit(c)}>
-                            Edit
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              if (confirm(`Delete campaign "${c.name}"?`)) del.mutate(c.id);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit campaign" : "New campaign"}</DialogTitle>
-          </DialogHeader>
-          <form
-            className="space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              save.mutate(form);
-            }}
-          >
-            <label className="block text-xs">
-              <span className="mb-1 block font-medium text-muted-foreground">Name</span>
-              <Input
-                value={form.name ?? ""}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-              />
-            </label>
-            <label className="block text-xs">
-              <span className="mb-1 block font-medium text-muted-foreground">Platform</span>
-              <Select
-                value={form.platform}
-                onValueChange={(v) => setForm({ ...form, platform: v ?? "meta" })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="meta">Meta (Facebook/Instagram)</SelectItem>
-                  <SelectItem value="tiktok">TikTok</SelectItem>
-                  <SelectItem value="google">Google Ads</SelectItem>
-                  <SelectItem value="organic">Organic / Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="block text-xs">
-              <span className="mb-1 block font-medium text-muted-foreground">Daily budget (USD)</span>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.budget_daily ?? ""}
-                onChange={(e) =>
-                  setForm({ ...form, budget_daily: Number(e.target.value) || undefined })
-                }
-              />
-            </label>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={save.isPending}>
-                {save.isPending ? (editingId ? "Saving..." : "Creating...") : editingId ? "Save changes" : "Create"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onDone}>Cancel</Button>
+        <Button
+          disabled={!f.name.trim() || datesBad || save.isPending}
+          onClick={() =>
+            save.mutate(
+              {
+                id,
+                data: {
+                  ...f,
+                  name: f.name.trim(),
+                  // The API takes RFC 3339 times.
+                  start_date: f.start_date ? new Date(`${f.start_date.slice(0, 10)}T00:00:00`).toISOString() : undefined,
+                  end_date: f.end_date ? new Date(`${f.end_date.slice(0, 10)}T23:59:59`).toISOString() : undefined,
+                },
+              },
+              { onSuccess: onDone },
+            )
+          }
+        >
+          {save.isPending ? "Saving..." : id ? "Save campaign" : "Create campaign"}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 
-function MetricCell({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+export default function CampaignsPage() {
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const canCreate = useAnyFeature("basic_campaigns", "unlimited_campaigns");
+  const [status, setStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState<{ id?: string; data: CampaignInput } | null>(null);
+  const [ending, setEnding] = useState<Campaign | null>(null);
+  const list = useCampaigns(status, page);
+  const action = useCampaignAction();
+  const rows = list.data?.data ?? [];
+  const counts = list.data?.lead_counts ?? {};
+
+  const newButton = (
+    <Button onClick={() => setEditing({ data: empty })}>
+      <Plus />
+      New campaign
+    </Button>
+  );
+  const menu = (c: Campaign) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger aria-label={`Actions for ${c.name}`} className="inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-accent">
+        <MoreHorizontal className="h-4 w-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onClick={() =>
+            setEditing({
+              id: c.id,
+              data: {
+                name: c.name, campaign_type: c.campaign_type, platform: c.platform, channel: c.channel,
+                budget_daily: c.budget_daily ?? undefined, budget_total: c.budget_total ?? undefined, currency: c.currency ?? "KES",
+                start_date: c.start_date ?? undefined, end_date: c.end_date ?? undefined,
+              },
+            })
+          }
+        >
+          <Pencil className="mr-2 h-4 w-4" /> Edit
+        </DropdownMenuItem>
+        {c.status === "active" && (
+          <DropdownMenuItem onClick={() => action.mutate({ id: c.id, action: "pause" })}>
+            <Pause className="mr-2 h-4 w-4" /> Pause
+          </DropdownMenuItem>
+        )}
+        {(c.status === "paused" || c.status === "draft") && (
+          <DropdownMenuItem onClick={() => action.mutate({ id: c.id, action: "resume" })}>
+            <Play className="mr-2 h-4 w-4" /> {c.status === "draft" ? "Start" : "Resume"}
+          </DropdownMenuItem>
+        )}
+        {c.status !== "completed" && (
+          <DropdownMenuItem className="text-destructive" onClick={() => setEnding(c)}>
+            <Square className="mr-2 h-4 w-4" /> End campaign
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
-    <div className="rounded border bg-muted/30 px-2 py-1.5 text-center">
-      <div className="flex items-center justify-center gap-1 text-muted-foreground">
-        {icon}
-        <span className="text-[10px] uppercase tracking-wide">{label}</span>
+    <div className="space-y-6">
+      <PageHeader
+        icon={<Megaphone />}
+        title="Campaigns"
+        description="Ad campaigns and the leads they bring in."
+        actions={canCreate ? newButton : <FeatureLock feature="basic_campaigns" mode="block">{newButton}</FeatureLock>}
+      />
+      <CapsuleTabs
+        label="Filter by status"
+        value={status}
+        onChange={(v) => { setStatus(v); setPage(1); }}
+        options={[{ value: "all", label: "All" }, ...CAMPAIGN_STATUSES.map((s) => ({ value: s, label: humanize(s) }))]}
+      />
+
+      <div className="glass overflow-hidden rounded-[1.25rem]">
+        {list.isError && <ErrorState message="Could not load campaigns." onRetry={() => void list.refetch()} />}
+        {list.isLoading && <div className="space-y-2 p-4" aria-busy>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />)}</div>}
+        {!list.isLoading && !list.isError && rows.length === 0 && (
+          <EmptyState icon={<Megaphone />} title={status === "all" ? "No campaigns yet" : `No ${humanize(status).toLowerCase()} campaigns`} description="Create a campaign to track the leads and spend of your ads." />
+        )}
+        {rows.length > 0 && (
+          <ul className="divide-y divide-border">
+            {rows.map((c) => (
+              <li key={c.id} className="flex items-center gap-3 p-4 hover:bg-accent/30">
+                <Link href={`/${orgSlug}/campaigns/${c.id}`} className="min-w-0 flex-1">
+                  <p className="truncate font-medium hover:text-primary">{c.name}</p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <StatusBadge status={c.status} />
+                    <ToneBadge>{c.platform === "manual" ? "No ads" : humanize(c.platform)}</ToneBadge>
+                    {c.channel && <ToneBadge tone="info">{label(c.channel)}</ToneBadge>}
+                    {c.budget_daily ? <span className="text-xs text-muted-foreground">{formatMoney(c.budget_daily, c.currency)} a day</span> : null}
+                  </div>
+                </Link>
+                <div className="text-right">
+                  <p className="font-display text-lg font-semibold tabular">{(counts[c.id] ?? 0).toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">leads</p>
+                </div>
+                {menu(c)}
+              </li>
+            ))}
+          </ul>
+        )}
+        {list.data && <div className="px-4 pb-4"><Pager page={page} limit={list.data.limit || 20} total={list.data.total} onPage={setPage} /></div>}
       </div>
-      <div className="text-sm font-semibold mt-0.5">{value}</div>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editing?.id ? "Edit campaign" : "New campaign"}</DialogTitle>
+          </DialogHeader>
+          {editing && <CampaignForm key={editing.id ?? "new"} initial={editing.data} id={editing.id} onDone={() => setEditing(null)} />}
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={!!ending}
+        onOpenChange={(o) => !o && setEnding(null)}
+        title={`End "${ending?.name}"?`}
+        description="The campaign is marked completed and stops counting as active. Its leads and results stay."
+        confirmLabel="End campaign"
+        pending={action.isPending}
+        onConfirm={() => ending && action.mutate({ id: ending.id, action: "end" }, { onSuccess: () => setEnding(null) })}
+      />
     </div>
   );
 }

@@ -4,178 +4,105 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Send } from "lucide-react";
-
-import { campaignsApi, type SendSMSResult } from "@/lib/api/campaigns";
-import { segmentsApi } from "@/lib/api/segments";
-import { STALE_TIMES } from "@/app/providers";
+import { SearchableCombobox } from "@bengo-hub/shared-ui-lib/combobox";
+import { useTenantBranding } from "@bengo-hub/shared-ui-lib/tenant";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Field } from "@/components/ui-kit";
+import { campaignsApi } from "@/lib/api/campaigns";
+import { apiErrorMessage } from "@/lib/api/errors";
+import { segmentsApi } from "@/lib/api/segments";
+import { rows } from "@/lib/api/types";
 
-// Mirrors the Segment shape used on the CRM segments page.
-type Segment = {
-  id: string;
-  name: string;
-  member_count?: number;
-};
+type Segment = { id: string; name: string; member_count?: number; entity_type?: string };
 
-// 1 SMS "segment" (part) is ~160 GSM-7 chars. Purely informational counter.
+// One SMS part is about 160 GSM-7 characters (informational).
 const SMS_PART_SIZE = 160;
 
-export function SendSMSDialog({
-  campaignId,
-  campaignName,
-}: {
-  campaignId: string;
-  campaignName?: string;
-}) {
+/** Sends a campaign SMS to a segment. It becomes a broadcast that waits for approval in Notifications. */
+export function SendSMSDialog({ campaignId, campaignName }: { campaignId: string; campaignName?: string }) {
+  const { tenant } = useTenantBranding();
   const [open, setOpen] = useState(false);
-  const [segmentId, setSegmentId] = useState<string>("");
+  const [segmentId, setSegmentId] = useState("");
   const [message, setMessage] = useState("");
 
-  // Reuse the existing segments list hook/api-client — no re-implementation.
-  const { data: segmentsData, isLoading: segmentsLoading } = useQuery({
-    queryKey: ["segments"],
-    queryFn: () => segmentsApi.list().then((r) => r.data),
-    staleTime: STALE_TIMES.OPERATIONAL,
+  const segments = useQuery({
+    queryKey: ["segments", "picker"],
+    queryFn: () => segmentsApi.list().then((r) => rows<Segment>(r.data)),
     enabled: open,
+    staleTime: 60_000,
   });
 
-  const segments: Segment[] = segmentsData?.data ?? segmentsData ?? [];
-
-  const sendSMS = useMutation({
-    mutationFn: async () => {
-      const r = await campaignsApi.sendSMS(campaignId, {
-        segment_id: segmentId,
-        message: message.trim(),
-      });
-      return r.data;
+  const send = useMutation({
+    mutationFn: () => {
+      if (!tenant?.id) throw new Error("Your workspace is still loading. Try again in a moment.");
+      return campaignsApi.sendSMS(tenant.id, campaignId, { segment_id: segmentId, message: message.trim() });
     },
-    onSuccess: (res: SendSMSResult) => {
-      toast.success(res.status === "pending_approval" ? "Ready for approval in Notifications > Broadcasts" : "SMS send created");
+    onSuccess: (res) => {
+      toast.success(res.status === "pending_approval" ? "Send created. Approve it in Notifications, Broadcasts." : "SMS send created");
       setOpen(false);
       setMessage("");
       setSegmentId("");
     },
-    onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Could not create the SMS send");
-    },
+    onError: (e) => toast.error(apiErrorMessage(e, (e as Error)?.message || "Could not create the SMS send")),
   });
 
-  const charCount = message.length;
-  const parts = charCount === 0 ? 0 : Math.ceil(charCount / SMS_PART_SIZE);
-  const selectedSegment = segments.find((s) => s.id === segmentId);
-  const canSend = !!segmentId && message.trim().length > 0 && !sendSMS.isPending;
+  const parts = message.length === 0 ? 0 : Math.ceil(message.length / SMS_PART_SIZE);
+  const selected = (segments.data ?? []).find((s) => s.id === segmentId);
+  const canSend = !!segmentId && message.trim().length > 0 && !send.isPending;
 
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)}>
-        <Send className="mr-2 h-4 w-4" /> Send SMS
+        <Send />
+        Send SMS
       </Button>
-
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              Send SMS{campaignName ? ` — ${campaignName}` : ""}
-            </DialogTitle>
+            <DialogTitle>Send an SMS{campaignName ? `: ${campaignName}` : ""}</DialogTitle>
+            <DialogDescription>Opt-outs and quiet hours are respected. The send waits for approval in Notifications, Broadcasts.</DialogDescription>
           </DialogHeader>
-
           <form
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              if (canSend) sendSMS.mutate();
+              if (canSend) send.mutate();
             }}
           >
-            <div>
-              <label className="mb-1 block text-sm font-medium">Segment</label>
-              <Select
+            <Field label="Send to" required>
+              <SearchableCombobox
+                options={(segments.data ?? []).map((s) => ({
+                  value: s.id,
+                  label: typeof s.member_count === "number" ? `${s.name} (${s.member_count.toLocaleString()})` : s.name,
+                }))}
                 value={segmentId}
-                onValueChange={(v) => setSegmentId(v ?? "")}
-                disabled={segmentsLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      segmentsLoading ? "Loading segments…" : "Choose a segment"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {segments.length === 0 && !segmentsLoading ? (
-                    <SelectItem value="__none" disabled>
-                      No segments available
-                    </SelectItem>
-                  ) : (
-                    segments.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                        {typeof s.member_count === "number"
-                          ? ` (${s.member_count})`
-                          : ""}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium">Message</label>
-              <Textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Type your SMS message…"
-                rows={4}
-                required
+                onChange={(v: string) => setSegmentId(v)}
+                placeholder={segments.isLoading ? "Loading segments..." : "Choose a segment"}
+                emptyText="No segments yet. Create one under CRM, Segments."
               />
-              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                <span>
-                  {charCount} char{charCount === 1 ? "" : "s"}
-                </span>
-                <span>
-                  {parts} SMS part{parts === 1 ? "" : "s"} · ~{SMS_PART_SIZE}/part
-                </span>
-              </div>
-            </div>
-
-            {canSend && selectedSegment && (
-              <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
-                Sending to{" "}
-                <span className="font-medium text-foreground">
-                  {selectedSegment.name}
-                </span>
-                {typeof selectedSegment.member_count === "number"
-                  ? ` (${selectedSegment.member_count} recipients)`
-                  : ""}
-                .
-              </div>
+            </Field>
+            <Field
+              label="Message"
+              required
+              htmlFor="sms-msg"
+              hint={`${message.length} characters, ${parts} SMS part${parts === 1 ? "" : "s"} (about ${SMS_PART_SIZE} each)`}
+            >
+              <Textarea id="sms-msg" rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
+            </Field>
+            {selected && typeof selected.member_count === "number" && (
+              <p className="rounded-xl bg-muted/60 p-3 text-sm">
+                Goes to <strong>{selected.member_count.toLocaleString()}</strong> people in <strong>{selected.name}</strong>
+                {parts > 0 ? `, about ${(selected.member_count * parts).toLocaleString()} SMS parts in total` : ""}.
+              </p>
             )}
-
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={!canSend}>
-                {sendSMS.isPending ? "Sending…" : "Send"}
+                {send.isPending ? "Creating..." : "Create send"}
               </Button>
             </DialogFooter>
           </form>
