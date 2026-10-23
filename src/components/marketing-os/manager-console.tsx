@@ -15,6 +15,7 @@ import {
   type PlanOption,
   type TaskSpec,
   type TeamMember,
+  type TeamProgress,
   type TeamStep,
 } from "@/lib/api/marketing-os";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -325,9 +326,15 @@ export function ManagerConsole({
     onError: (e) => toast.error(apiError(e, "Could not read the request")),
   });
 
+  const [stages, setStages] = useState<TeamProgress[]>([]);
   const ask = useMutation({
-    mutationFn: (opts: { approve?: boolean; tier?: string }) =>
-      marketingOsApi.ask({ text: draft.trim(), approve_plan: opts.approve, tier: opts.tier || undefined }),
+    mutationFn: (opts: { approve?: boolean; tier?: string }) => {
+      setStages([]);
+      return marketingOsApi.askStream(
+        { text: draft.trim(), approve_plan: opts.approve, tier: opts.tier || undefined },
+        (p) => setStages((s) => [...s, p]),
+      );
+    },
     onSuccess: (r) => {
       setRes(r);
       if (r.result.spec) setSpec(r.result.spec);
@@ -400,10 +407,19 @@ export function ManagerConsole({
         </div>
 
         {ask.isPending && (
-          <p role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {workingText(elapsed, !!ask.variables?.approve)}
-          </p>
+          <div role="status" aria-live="polite" className="space-y-1.5 text-sm">
+            {stages.slice(0, -1).map((s, i) => (
+              <p key={i} className="flex items-center gap-2 text-muted-foreground">
+                <Check className="h-4 w-4 text-primary" /> {s.label}
+              </p>
+            ))}
+            <p className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {stages.length > 0
+                ? `${stages[stages.length - 1].label}${elapsed >= 25 ? ` (${elapsed}s)` : ""}`
+                : workingText(elapsed, !!ask.variables?.approve)}
+            </p>
+          </div>
         )}
 
         {spec && <SpecPreview spec={spec} team={team} />}

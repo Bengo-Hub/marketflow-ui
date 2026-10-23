@@ -29,15 +29,20 @@ export const aiClient = axios.create({
 //      "acting as" a tenant. Lets the backend resolve tenant via DB lookup.
 //   2. Platform pages (/platform/...) — no tenant header needed; backend
 //      reads platform scope from JWT claims.
-const attachTenantHeaders = (config: InternalAxiosRequestConfig) => {
-  if (typeof window === "undefined") return config;
+/**
+ * The tenant headers for the current page, shared by the axios interceptor and
+ * fetch-based calls (streams), so both always name the same tenant.
+ */
+export function tenantHeaders(): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (typeof window === "undefined") return out;
 
   const path = window.location.pathname;
   const onPlatformPage = path.startsWith("/platform");
   const isPlatformOwner = localStorage.getItem("mf_is_platform_owner") === "true";
 
   // Skip tenant headers when the user is on /platform/* pages.
-  if (onPlatformPage) return config;
+  if (onPlatformPage) return out;
 
   // Resolve tenant slug from URL first (platform owners on tenant pages),
   // then from localStorage (regular tenant users). tenantId from storage
@@ -48,18 +53,22 @@ const attachTenantHeaders = (config: InternalAxiosRequestConfig) => {
   const tenantId = localStorage.getItem("mf_tenant_id");
   const slug = urlSlug && urlSlug !== "auth" && urlSlug !== "403" ? urlSlug : storedSlug || "";
 
-  if (slug) config.headers["X-Tenant-Slug"] = slug;
+  if (slug) out["X-Tenant-Slug"] = slug;
   if (tenantId && !isPlatformOwner && (!urlSlug || urlSlug === storedSlug)) {
     // Regular tenant user: include UUID too (matches storage).
-    config.headers["X-Tenant-ID"] = tenantId;
+    out["X-Tenant-ID"] = tenantId;
   }
 
   // Attach outlet ID if set (for outlet-scoped requests)
   const outletId = outletIdGetter() || localStorage.getItem("marketflow-selected-outlet-id");
   if (outletId) {
-    config.headers["X-Outlet-ID"] = outletId;
+    out["X-Outlet-ID"] = outletId;
   }
+  return out;
+}
 
+const attachTenantHeaders = (config: InternalAxiosRequestConfig) => {
+  for (const [k, v] of Object.entries(tenantHeaders())) config.headers[k] = v;
   return config;
 };
 
