@@ -16,7 +16,7 @@ import {
   LayoutDashboard, Users, UserCheck, BookOpen, Link2, MessageSquare,
   Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
   Briefcase, Activity, CheckSquare, Users2, ChevronDown, LogOut,
-  Cpu, Layers, UserCog,
+  Cpu, Layers, UserCog, Sparkles, Palette,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
@@ -44,7 +44,8 @@ const navGroups: NavGroup[] = [
     label: "Marketing",
     items: [
       { label: "Dashboard",    icon: LayoutDashboard, href: "/dashboard" },
-      { label: "Leads",        icon: Users,           href: "/leads",       feature: "lead_management" },
+      { label: "Marketing team", icon: Sparkles,      href: "/team" },
+      { label: "Leads",       icon: Users,           href: "/leads",       feature: "lead_management" },
       { label: "Contacts",     icon: UserCheck,       href: "/contacts",    feature: "contact_management" },
       { label: "Knowledge Base", icon: BookOpen,      href: "/knowledge",   feature: "knowledge_base" },
       { label: "Campaigns",    icon: Megaphone,       href: "/campaigns",   feature: "basic_campaigns" },
@@ -71,6 +72,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "General",       icon: Settings,  href: "/settings" },
       { label: "Team Members",  icon: UserCog,   href: "/settings/team" },
+      { label: "Brand context", icon: Palette,   href: "/settings/marketing-context" },
       { label: "Custom Fields", icon: Layers,    href: "/settings/custom-fields" },
       { label: "Agents",        icon: Cpu,       href: "/settings/agents" },
     ],

@@ -175,8 +175,16 @@ Design: `.claude/plans/marketflow-marketing-os-2026-10-22.md`. Checklist: `marke
 
 | Scope | marketflow-ui work |
 |---|---|
-| Sprint 21 | `[orgSlug]/team`: roster cards, the "Ask your Marketing Manager" console with the "We understood this as..." preview, the clarifying question, step progress, proposals with Approve and Discard, and a quick-start template gallery; `settings/marketing-context` (guided interview and editor); fix `settings/agents` (send `system_prompt`, add `allowed_tools`, `trigger_config`, `max_iterations`); daily brief toggle; sidebar entry "Marketing team"; platform providers catalog entries `ai_routing/policy`, `decide/typesafe`, `decide/openrouter`, `adintel/serpapi` |
+| Sprint 21 | `[orgSlug]/team`: roster cards, the "Ask your Marketing Manager" console with the "We understood this as..." preview, the clarifying question, step progress, proposals with Approve and Discard, and a quick-start template gallery; `settings/marketing-context` (guided interview and editor); fix `settings/agents` (send `system_prompt`, add `allowed_tools`, `trigger_config`, `max_iterations`); daily brief toggle; sidebar entry "Marketing team"; platform providers catalog entries `ai_routing/policy`, `decide/typesafe`, `ai_registry/outputs`, `adintel/serpapi` |
 | Sprint 15 additions | Creative Plan quote screen before generation (two cheaper options, no-render option); copy shortlist picker; poster tier in the studio |
 | Sprint 22 | Inbox page for comments and DMs by intent; auto-reply settings |
 | Sprint 23 | Lead timeline with the automated WhatsApp conversation, booking and hand-off; hand-off threshold and quiet hours |
 | Sprint 24 | Research page: competitor list, long-running winners with tags, quota left this month |
+
+Status 2026-10-23, Sprint 21 UI shipped:
+
+- `[orgSlug]/team` has three tabs. Ask: the console with "Check first (free)" for the TaskSpec preview, "Send to the team (1 credit)", the clarifying question (refunded server side), the Creative Plan quote with Approve and "Quote this instead" for other media tiers, drafts with the reviewer's shortlist and findings, and next actions (unavailable ones are disabled). Team: roster with on/off, rename, writing level and extra instructions. Templates: playbook starters and curated prompts. Components live in `src/components/marketing-os/`, the API in `src/lib/api/marketing-os.ts`.
+- `settings/marketing-context`: brand context editor (one item per line, server limits enforced) and the morning brief switch (`/tenant/os-settings`).
+- `settings/agents` now matches the API: list and runs read `{data: [...]}`, it sends `system_prompt`, `allowed_tools` (curated read and CRM tools, no spending tools) and `max_iterations` (1 to 20), and it shows run answers from `trace.answer`. Only manual runs are offered, because event and cron dispatch is not built yet (Sprint 21 open item).
+- Providers catalog: `decide/typesafe`, `ai_routing/policy` and `ai_registry/outputs` (JSON textareas), and the Anthropic default is `claude-haiku-5-5`. `adintel/serpapi` waits for Sprint 24 code.
+- Not yet: step progress streaming (the console waits for the whole answer), the Discard action on proposals, and the guided brand interview (the console's brand-context playbook covers it for now, with "Save as my brand profile").

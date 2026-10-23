@@ -269,8 +269,8 @@ const aiProviders: ProviderDef[] = [
   {
     id: "anthropic",
     type: "ai_llm",
-    name: "Anthropic Claude (optional fallback)",
-    description: "Claude Haiku / Sonnet as premium fallback for long-form tasks.",
+    name: "Anthropic Claude",
+    description: "Premium writing for the Marketing OS: Haiku for copy and briefs, Sonnet for campaign strategy.",
     scope: "platform",
     logoSlug: "anthropic",
     logoColor: "191919",
@@ -281,7 +281,58 @@ const aiProviders: ProviderDef[] = [
     fields: [
       { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "sk-ant-…" },
       { key: "base_url", label: "Base URL", type: "url", default: "https://api.anthropic.com/v1" },
-      { key: "main_model", label: "Model", type: "text", default: "claude-haiku-4-5" },
+      { key: "main_model", label: "Model", type: "text", default: "claude-haiku-5-5" },
+    ],
+  },
+  {
+    id: "typesafe",
+    type: "decide",
+    name: "TypeSafe Jev (decisions)",
+    description:
+      "Cheap typed decisions (choice, score, yes or no) that route requests, shortlist ads and review copy before any premium model runs.",
+    scope: "platform",
+    brandColor: "#334155",
+    docsUrl: "https://typesafe.ai",
+    fields: [
+      { key: "api_key", label: "API key", type: "password", secret: true, required: true },
+      { key: "base_url", label: "Base URL", type: "url", default: "https://api.typesafe.ai/v1" },
+      { key: "model", label: "Model", type: "text", default: "jev-latest" },
+    ],
+  },
+  {
+    id: "policy",
+    type: "ai_routing",
+    name: "Model routing policy",
+    description:
+      "Which model serves each class (nano, standard, premium, premium_plus), decide thresholds and the monthly decide spend ceiling. Empty uses the built-in defaults.",
+    scope: "platform",
+    brandColor: "#0f766e",
+    fields: [
+      {
+        key: "policy",
+        label: "Policy (JSON)",
+        type: "textarea",
+        placeholder: '{"classes":{"premium":[{"provider":"anthropic","model":"claude-haiku-5-5"}]}}',
+        help: "Merged over the defaults; only the classes you list change.",
+      },
+    ],
+  },
+  {
+    id: "outputs",
+    type: "ai_registry",
+    name: "Output price registry",
+    description:
+      "Credit prices for every output (copy batch, poster, video tiers) and the cost-engine settings used by Creative Plan quotes. Empty uses the built-in registry.",
+    scope: "platform",
+    brandColor: "#7c3aed",
+    fields: [
+      {
+        key: "registry",
+        label: "Registry overrides (JSON)",
+        type: "textarea",
+        placeholder: '{"settings":{"fx_rate":129}}',
+        help: "Merged over the built-in registry. Quotes recompute within five minutes.",
+      },
     ],
   },
 ];

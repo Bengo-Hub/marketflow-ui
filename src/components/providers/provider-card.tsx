@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProviderLogo } from "./provider-logo";
@@ -315,6 +316,23 @@ function FieldInput({
             ))}
           </SelectContent>
         </Select>
+        {field.help && <p className="mt-1 text-[11px] text-muted-foreground">{field.help}</p>}
+      </label>
+    );
+  }
+
+  if (field.type === "textarea") {
+    return (
+      <label className="block">
+        {label}
+        <Textarea
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          rows={8}
+          spellCheck={false}
+          className="font-mono text-xs"
+        />
         {field.help && <p className="mt-1 text-[11px] text-muted-foreground">{field.help}</p>}
       </label>
     );
