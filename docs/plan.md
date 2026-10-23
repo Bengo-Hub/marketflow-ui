@@ -189,3 +189,68 @@ Status 2026-10-23, Sprint 21 UI shipped:
 - Providers catalog: `decide/typesafe`, `ai_routing/policy` and `ai_registry/outputs` (JSON textareas), and the Anthropic default is `claude-haiku-5-5`. `adintel/serpapi` waits for Sprint 24 code.
 - Since added: a live status line with elapsed time (`fe0bde0`), Discard on the console (`839d7f5`), agent triggers on new contacts and deal stage moves (`839d7f5`), and the guided brand interview on the brand context page (`5b677eb`: five questions, a strategist draft for 1 credit, reviewed in the editor before saving).
 - Step-by-step progress: the console streams `/os/ask` (`stream: true`, marketflow-ai `8f27679`) and lists each stage as it happens (reading the request, who is taking it, planning, each specialist, the review). If the stream cannot start it falls back to the plain request, so progress never blocks an answer. `tenantHeaders()` in `src/lib/api/client.ts` gives fetch calls the same tenant headers as axios.
+
+## UI revamp: glass theme, platform brand, full wiring (2026-10-23)
+
+Plan: `.claude/plans/marketflow-ui-glass-revamp-2026-10-23.md`. Design rules: `docs/ux-ui.md`.
+
+### Done
+
+| Area | What changed | Commits |
+|---|---|---|
+| Theme | Codevertex purple HSL tokens with a dark set, soft glass utilities, a Card override, Outfit and DM Sans, the shared-ui-lib `@source` scan | `b7f7f84` |
+| Branding | `TenantBrandingProvider` replaces the local BrandContext; `BrandTheme` writes light and dark tenant colours | `b7f7f84` |
+| Shell | Floating glass sidebar with every settings page, glass header, `MobileBottomNav` below lg, shell-owned padding and width | `b7f7f84` |
+| Header bell | Was a stub; now shows overdue tasks, meetings in the next 24 hours, and agent suggestions (with dismiss) | `b7f7f84` |
+| PWA | Icon set added (it was never committed); tenant manifest defaults fixed | `b7f7f84` |
+| Landing | Rebuilt as a server component. Pricing is read live from the subscriptions API, because MarketFlow comes with PowerSuite and ERP plans | `bc19f85` |
+| `/p/{slug}` | Generic and data-driven; Forever sections only for `flp`. Products come from `metadata.offerings`. Compliant opportunity copy, escaped JSON-LD, click tracker | `bc19f85` |
+| `/f/{slug}` | New public funnel contract, step blocks, step-view tracking | `bc19f85`, api `4429cfa` |
+| Settings > Profile | Offerings editor, cover, socials, booking switch, validation | `bc19f85`, `c6d9f4a` |
+| Settings > Activity log | New page (`/analytics/audit` had no UI) | `c6d9f4a`, api `1bd1f92` |
+| Platform > Service config | New page (`/admin/service-config` had no UI) | `c6d9f4a` |
+
+### Backend changes made for the revamp (marketflow-api)
+
+- **`7d9f0fc`:**
+  - Public profile metadata allow-list. Private keys such as the Marketing OS brand context are no longer public.
+  - Reserved keys are skipped on profile PATCH. `offerings` and `business_type` are validated.
+  - Funnel HTML is sanitised. The funnel brand colour must be a hex colour.
+  - Syncer business type fix, metadata merge on slug rename, and FLP default products.
+  - Dashboard: one-scan lead figures, a daily series, leads by source, a 60s cache, and errors returned as errors.
+- **`9f391b5`:** `contact_email` added to the public allow-list.
+- **`4429cfa`:** the `PublicFunnel` contract, and the `create_funnel` legacy fields folded into steps and metadata.
+- **`1bd1f92`:** an index on `audit_logs (tenant_id, occurred_at)`.
+
+**Production repairs (2026-10-23, user approved).** Each ran as one SQL transaction with a dry run, backups and asserted counts.
+
+| Change | Rows | Backup table |
+|---|---|---|
+| Tenants set from `flp` to `generic` | 15 | `tenants_bk_business_type_20261023` |
+| Distributors seeded with 7 products each | 5 | `tenants_bk_flp_offerings_20261023` |
+| Forever copy removed from the `codevertex` tenant | 1 | same backup table as the first row |
+
+### Open (Phase 5: every tenant page restyled and wired)
+
+| Page | Still to do |
+|---|---|
+| dashboard | Trend chart and leads-by-source chart from the new `/analytics/dashboard` fields |
+| leads | CSV export (`/leads/export`), source filter, StatusBadge |
+| contacts | Bulk import (`/contacts/bulk-import`), merge (`/contacts/merge`) |
+| campaigns | Pause and resume (`/campaigns/{id}/pause`, `/resume`) |
+| funnels | Publish (`/funnels/{id}/publish`), step builder, analytics drawer (`/funnels/{id}/analytics`) |
+| sequences | Analytics panel; move inline calls to `lib/api/sequences.ts` |
+| crm/deals | Deal drawer with timeline (`dealTimeline`) |
+| crm/tasks | Contract fix: the page sends `due_date` and `priority: medium` and filters `completed`, but the API uses `due_at`, `normal` and `done` |
+| settings/integrations | Google business hours editor (`PUT /integrations/google/business-hours`) |
+| settings/billing | A separate client for subscriptions and treasury, so MarketFlow tenant headers stop going to other services |
+| chat | Move SSE fetch to `lib/api/chat.ts`; drop the AI-look icons |
+| platform/billing | Plans query filters `service=marketflow`, which matches no plan; per-tenant plan lookup; errors are swallowed |
+| all others | Restyle on the ui-kit, move inline `apiClient` calls into modules and hooks |
+
+### Flagged, not yet fixed
+
+- **Tenant audit events.** Only `chat.completed` is written at tenant scope. Profile, team, integration, agent and funnel-publish changes should be audited too.
+- **Suggestion producer.** No producer writes `suggestion` activities, so the bell's suggestions list stays empty until an agent writes them.
+- **Funnel status.** Funnels created by marketflow-ai's `create_funnel` start as drafts and need the publish button above.
+- **Image upload.** There is no image upload endpoint; logo, cover and product images are links.
