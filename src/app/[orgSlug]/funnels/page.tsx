@@ -1,338 +1,243 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { BarChart3, Copy, ExternalLink, Globe, MoreHorizontal, Pencil, Plus, Rocket, Undo2, Archive } from "lucide-react";
+import { toast } from "sonner";
+import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { FeatureLock } from "@bengo-hub/shared-ui-lib/subscription";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { DEFAULT_FORM, StepBuilder } from "@/components/funnels/step-builder";
+import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, Pager, PageHeader, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
+import { useFunnelAction, useFunnelAnalytics, useFunnels, useSaveFunnel } from "@/hooks/use-funnels";
+import { useTenantProfile } from "@/hooks/use-tenant-profile";
+import { FUNNEL_STATUSES, FUNNEL_TYPES, slugify, type Funnel, type FunnelInput } from "@/lib/api/funnels";
+import { funnelUrl } from "@/lib/urls";
 
-type Funnel = {
-  id: string;
-  name: string;
-  slug: string;
-  funnel_type: string;
-  status: string;
-  landing_page_html?: string;
-  total_views: number;
-  total_submissions: number;
-  conversion_rate: number;
-  published_at?: string | null;
-  created_at: string;
-  updated_at: string;
-};
+type Tab = "page" | "blocks" | "html";
+const empty: FunnelInput = { name: "", slug: "", funnel_type: "generic", steps: [DEFAULT_FORM], metadata: {} };
 
-const TYPES = [
-  { value: "lead_magnet", label: "Lead magnet" },
-  { value: "product_inquiry", label: "Product inquiry" },
-  { value: "business_opportunity", label: "Business opportunity" },
-  { value: "c9_challenge", label: "C9 challenge" },
-  { value: "custom", label: "Custom" },
-];
-
-export default function FunnelsPage() {
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Partial<Funnel> | null>(null);
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["funnels"],
-    queryFn: async () => {
-      const r = await apiClient.get<{ data: Funnel[] }>(`/api/v1/funnels?limit=100`);
-      return r.data;
-    },
-  });
-
-  const save = useMutation({
-    mutationFn: async (f: Partial<Funnel>) => {
-      if (editing?.id) {
-        return apiClient.put(`/api/v1/funnels/${editing.id}`, f);
-      }
-      return apiClient.post(`/api/v1/funnels`, f);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["funnels"] });
-      toast.success(editing?.id ? "Funnel updated" : "Funnel created");
-      setOpen(false);
-      setEditing(null);
-    },
-    onError: (err: unknown) => {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to save funnel"
-      );
-    },
-  });
-
-  const publish = useMutation({
-    mutationFn: async (f: Funnel) =>
-      apiClient.put(`/api/v1/funnels/${f.id}`, {
-        status: f.status === "published" ? "draft" : "published",
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["funnels"] }),
-    onError: (err: unknown) => {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update funnel status"
-      );
-    },
-  });
-
-  const del = useMutation({
-    mutationFn: async (id: string) => apiClient.delete(`/api/v1/funnels/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["funnels"] });
-      toast.success("Funnel deleted");
-    },
-    onError: (err: unknown) => {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete funnel"
-      );
-    },
-  });
-
-  function newFunnel() {
-    setEditing({
-      name: "",
-      slug: "",
-      funnel_type: "lead_magnet",
-      status: "draft",
-      landing_page_html: "",
-    });
-    setOpen(true);
-  }
-
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://marketflow.codevertexafrica.com";
+function FunnelEditor({ initial, id, isFLP, onDone }: { initial: FunnelInput; id?: string; isFLP: boolean; onDone: () => void }) {
+  const save = useSaveFunnel();
+  const [f, setF] = useState<FunnelInput>(initial);
+  const [tab, setTab] = useState<Tab>("page");
+  const [slugEdited, setSlugEdited] = useState(!!id);
+  const meta = f.metadata ?? {};
+  const setMeta = (patch: Record<string, string | undefined>) => setF({ ...f, metadata: { ...meta, ...patch } });
+  const slugOk = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(f.slug) && f.slug.length <= 60;
+  const formOk = (f.steps ?? []).every((s) => s.block_type !== "form" || (s.fields ?? []).some((x) => x.key === "phone" || x.key === "email"));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Funnels</h1>
-          <p className="text-sm text-muted-foreground">
-            Hosted lead-capture pages. Published funnels are available at{" "}
-            <code className="text-xs">{appUrl}/f/&lt;slug&gt;</code>.
-          </p>
-        </div>
-        <FeatureLock feature="funnel_builder" mode="block">
-          <Button onClick={newFunnel}>+ New funnel</Button>
-        </FeatureLock>
+    <>
+      <CapsuleTabs<Tab>
+        label="Editor section"
+        value={tab}
+        onChange={setTab}
+        options={[{ value: "page", label: "Page" }, { value: "blocks", label: `Blocks (${f.steps?.length ?? 0})` }, { value: "html", label: "Custom HTML" }]}
+      />
+      <div className="max-h-[60vh] overflow-y-auto pr-1">
+        {tab === "page" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Name" required htmlFor="fn-name" hint="Only you see this.">
+              <Input
+                id="fn-name"
+                value={f.name}
+                onChange={(e) => setF({ ...f, name: e.target.value, ...(slugEdited ? {} : { slug: slugify(e.target.value) }) })}
+              />
+            </Field>
+            <Field label="Link" required htmlFor="fn-slug" error={f.slug && !slugOk ? "Lowercase letters, numbers and dashes only" : null} hint={f.slug ? funnelUrl(f.slug) : undefined}>
+              <Input id="fn-slug" value={f.slug} onChange={(e) => { setSlugEdited(true); setF({ ...f, slug: e.target.value.toLowerCase() }); }} />
+            </Field>
+            <div className="sm:col-span-2">
+              <p className="mb-1.5 text-sm font-medium">Type</p>
+              <CapsuleTabs label="Funnel type" value={f.funnel_type ?? "generic"} onChange={(v) => setF({ ...f, funnel_type: v })} options={FUNNEL_TYPES.filter((t) => isFLP || t === "generic" || t === "product_inquiry").map((t) => ({ value: t, label: t === "c9_challenge" ? "C9 challenge" : humanize(t) }))} />
+            </div>
+            <Field label="Headline" className="sm:col-span-2" htmlFor="fn-h">
+              <Input id="fn-h" value={(meta.headline as string) ?? ""} onChange={(e) => setMeta({ headline: e.target.value || undefined })} />
+            </Field>
+            <Field label="Subheadline" className="sm:col-span-2" htmlFor="fn-sh">
+              <Textarea id="fn-sh" rows={2} value={(meta.subheadline as string) ?? ""} onChange={(e) => setMeta({ subheadline: e.target.value || undefined })} />
+            </Field>
+            <Field label="Top image link" htmlFor="fn-hero" hint="A wide photo, https only.">
+              <Input id="fn-hero" inputMode="url" value={(meta.hero_image_url as string) ?? ""} onChange={(e) => setMeta({ hero_image_url: e.target.value || undefined })} />
+            </Field>
+            <Field label="Page colour" htmlFor="fn-color" hint="Leave as is to use your account colour.">
+              <input
+                id="fn-color"
+                type="color"
+                value={/^#[0-9a-f]{6}$/i.test((meta.brand_color as string) ?? "") ? (meta.brand_color as string) : "#9100b0"}
+                onChange={(e) => setMeta({ brand_color: e.target.value })}
+                className="h-10 w-14 cursor-pointer rounded-xl border border-input bg-background p-1"
+              />
+            </Field>
+          </div>
+        )}
+        {tab === "blocks" && <StepBuilder steps={f.steps ?? []} onChange={(steps) => setF({ ...f, steps })} isFLP={isFLP} />}
+        {tab === "html" && (
+          <Field label="Custom HTML" hint="Replaces the blocks with your own layout. Scripts, forms and frames are removed when saved; the lead form and chat are added for you." htmlFor="fn-html">
+            <Textarea id="fn-html" rows={14} className="font-mono text-xs" value={f.landing_page_html ?? ""} onChange={(e) => setF({ ...f, landing_page_html: e.target.value })} />
+          </Field>
+        )}
       </div>
+      <DialogFooter>
+        {!formOk && <p className="mr-auto text-sm text-destructive">Each lead form needs a phone or email question.</p>}
+        <Button variant="outline" onClick={onDone}>Cancel</Button>
+        <Button
+          disabled={!f.name.trim() || !slugOk || !formOk || save.isPending}
+          onClick={() => save.mutate({ id, data: { ...f, name: f.name.trim() } }, { onSuccess: onDone })}
+        >
+          {save.isPending ? "Saving..." : id ? "Save funnel" : "Create funnel"}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
 
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Failed to load funnels: {(error as Error).message}
-        </div>
-      )}
-
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>URL</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Views</TableHead>
-                <TableHead>Leads</TableHead>
-                <TableHead>Conv.</TableHead>
-                <TableHead className="w-48"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 8 }).map((_, j) => (
-                      <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : data?.data?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                    No funnels yet. Create one to capture leads from ads or direct traffic.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.data.map((f) => (
-                  <TableRow key={f.id}>
-                    <TableCell className="font-medium">{f.name}</TableCell>
-                    <TableCell><Badge variant="outline">{f.funnel_type}</Badge></TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {f.status === "published" ? (
-                        <a
-                          className="text-primary underline"
-                          target="_blank"
-                          rel="noreferrer"
-                          href={`${appUrl}/f/${f.slug}`}
-                        >
-                          /f/{f.slug}
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">/f/{f.slug}</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          f.status === "published"
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {f.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>{f.total_views}</TableCell>
-                    <TableCell>{f.total_submissions}</TableCell>
-                    <TableCell>{(f.conversion_rate * 100).toFixed(1)}%</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setEditing(f);
-                            setOpen(true);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => publish.mutate(f)}>
-                          {f.status === "published" ? "Unpublish" : "Publish"}
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            if (confirm(`Delete funnel "${f.name}"?`)) del.mutate(f.id);
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{editing?.id ? "Edit funnel" : "New funnel"}</DialogTitle>
-          </DialogHeader>
-          {editing && (
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                save.mutate({
-                  name: editing.name,
-                  slug: editing.slug,
-                  funnel_type: editing.funnel_type,
-                  status: editing.status,
-                  landing_page_html: editing.landing_page_html,
-                });
-              }}
-            >
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label="Name">
-                  <Input
-                    value={editing.name ?? ""}
-                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                    required
-                  />
-                </Field>
-                <Field label="Slug (used in /f/<slug>)">
-                  <Input
-                    value={editing.slug ?? ""}
-                    onChange={(e) =>
-                      setEditing({
-                        ...editing,
-                        slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
-                      })
-                    }
-                    required
-                  />
-                </Field>
-              </div>
-              <Field label="Type">
-                <Select
-                  value={editing.funnel_type}
-                  onValueChange={(v) =>
-                    setEditing({ ...editing, funnel_type: v ?? "lead_magnet" })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TYPES.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Custom landing-page HTML (optional)">
-                <Textarea
-                  rows={10}
-                  value={editing.landing_page_html ?? ""}
-                  onChange={(e) =>
-                    setEditing({ ...editing, landing_page_html: e.target.value })
-                  }
-                  className="font-mono text-xs"
-                  placeholder="Leave empty to use the default MarketFlow template (recommended)."
-                />
-              </Field>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? "Saving…" : editing.id ? "Update" : "Create"}
-                </Button>
-              </DialogFooter>
-            </form>
+function AnalyticsView({ funnel }: { funnel: Funnel }) {
+  const q = useFunnelAnalytics(funnel.id);
+  const steps = q.data?.steps ?? [];
+  const first = steps[0]?.views ?? 0;
+  return (
+    <div className="space-y-4">
+      {q.isError && <ErrorState onRetry={() => void q.refetch()} />}
+      {q.isLoading && <div className="h-40 animate-pulse rounded-xl bg-muted" />}
+      {q.data && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-border p-4"><p className="text-xs text-muted-foreground">People who saw it</p><p className="font-display text-2xl font-semibold tabular">{first.toLocaleString()}</p></div>
+            <div className="rounded-2xl border border-border p-4"><p className="text-xs text-muted-foreground">Leads from it</p><p className="font-display text-2xl font-semibold tabular">{q.data.lead_submissions.toLocaleString()}</p></div>
+          </div>
+          {steps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No views recorded yet. Views count once the page is published and opened.</p>
+          ) : (
+            <ol className="space-y-2">
+              {steps.map((s) => {
+                const pct = first > 0 ? Math.round((s.views / first) * 100) : 0;
+                const block = funnel.steps?.[s.step_index];
+                return (
+                  <li key={s.step_index}>
+                    <div className="mb-1 flex justify-between gap-3 text-sm">
+                      <span className="truncate">{s.step_index + 1}. {block?.title || humanize(block?.block_type ?? "block")}</span>
+                      <span className="shrink-0 tabular text-muted-foreground">{s.views.toLocaleString()} ({pct}%)</span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+                      <div className="h-full rounded-full bg-[hsl(var(--chart-1))]" style={{ width: `${pct}%` }} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           )}
-        </DialogContent>
-      </Dialog>
+        </>
+      )}
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export default function FunnelsPage() {
+  const hasFunnels = useFeature("funnel_builder");
+  const profile = useTenantProfile();
+  const isFLP = profile.data?.business_type === "flp";
+  const [status, setStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState<{ id?: string; data: FunnelInput } | null>(null);
+  const [stats, setStats] = useState<Funnel | null>(null);
+  const [archiving, setArchiving] = useState<Funnel | null>(null);
+  const list = useFunnels(status, page);
+  const action = useFunnelAction();
+  const rows = list.data?.data ?? [];
+
+  const copy = async (slug: string) => {
+    try {
+      await navigator.clipboard.writeText(funnelUrl(slug));
+      toast.success("Link copied");
+    } catch {
+      toast.error("Could not copy the link");
+    }
+  };
+  const newBtn = <Button onClick={() => setEditing({ data: empty })}><Plus /> New funnel</Button>;
+
   return (
-    <label className="block text-xs">
-      <span className="mb-1 block font-medium text-muted-foreground">{label}</span>
-      {children}
-    </label>
+    <div className="space-y-6">
+      <PageHeader icon={<Globe />} title="Funnels" description="Landing pages that turn ad clicks and shared links into leads." actions={hasFunnels ? newBtn : <FeatureLock feature="funnel_builder" mode="block">{newBtn}</FeatureLock>} />
+      <CapsuleTabs label="Filter by status" value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={[{ value: "all", label: "All" }, ...FUNNEL_STATUSES.map((s) => ({ value: s, label: humanize(s) }))]} />
+
+      <div className="glass overflow-hidden rounded-[1.25rem]">
+        {list.isError && <ErrorState message="Could not load funnels." onRetry={() => void list.refetch()} />}
+        {list.isLoading && <div className="space-y-2 p-4" aria-busy>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />)}</div>}
+        {!list.isLoading && !list.isError && rows.length === 0 && (
+          <EmptyState icon={<Globe />} title="No funnels yet" description="Create a page with a lead form, a WhatsApp button or a booking calendar, then share its link." action={hasFunnels ? newBtn : undefined} />
+        )}
+        {rows.length > 0 && (
+          <ul className="divide-y divide-border">
+            {rows.map((fn) => (
+              <li key={fn.id} className="flex items-center gap-3 p-4">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{fn.name}</p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <StatusBadge status={fn.status} />
+                    <ToneBadge>{humanize(fn.funnel_type)}</ToneBadge>
+                    {fn.landing_page_html ? <ToneBadge tone="info">Custom HTML</ToneBadge> : <span className="text-xs text-muted-foreground">{fn.steps?.length ?? 0} blocks</span>}
+                    <span className="truncate text-xs text-muted-foreground">/f/{fn.slug}</span>
+                  </div>
+                </div>
+                {fn.status === "draft" && (
+                  <Button size="sm" className="hidden sm:inline-flex" disabled={action.isPending} onClick={() => action.mutate({ id: fn.id, action: "publish" })}>
+                    <Rocket /> Publish
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger aria-label={`Actions for ${fn.name}`} className="inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-accent">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditing({ id: fn.id, data: { name: fn.name, slug: fn.slug, funnel_type: fn.funnel_type, steps: fn.steps ?? [], landing_page_html: fn.landing_page_html ?? "", metadata: fn.metadata ?? {} } })}>
+                      <Pencil className="mr-2 h-4 w-4" /> Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setStats(fn)}><BarChart3 className="mr-2 h-4 w-4" /> Results</DropdownMenuItem>
+                    {fn.status === "draft" && <DropdownMenuItem onClick={() => action.mutate({ id: fn.id, action: "publish" })}><Rocket className="mr-2 h-4 w-4" /> Publish</DropdownMenuItem>}
+                    {fn.status === "published" && (
+                      <>
+                        <DropdownMenuItem onClick={() => window.open(funnelUrl(fn.slug), "_blank")}><ExternalLink className="mr-2 h-4 w-4" /> Open page</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => void copy(fn.slug)}><Copy className="mr-2 h-4 w-4" /> Copy link</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => action.mutate({ id: fn.id, action: "unpublish" })}><Undo2 className="mr-2 h-4 w-4" /> Take offline</DropdownMenuItem>
+                      </>
+                    )}
+                    {fn.status !== "archived" && <DropdownMenuItem className="text-destructive" onClick={() => setArchiving(fn)}><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </li>
+            ))}
+          </ul>
+        )}
+        {list.data && <div className="px-4 pb-4"><Pager page={page} limit={list.data.limit || 20} total={list.data.total} onPage={setPage} /></div>}
+      </div>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>{editing?.id ? "Edit funnel" : "New funnel"}</DialogTitle></DialogHeader>
+          {editing && <FunnelEditor key={editing.id ?? "new"} initial={editing.data} id={editing.id} isFLP={isFLP} onDone={() => setEditing(null)} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!stats} onOpenChange={(o) => !o && setStats(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Results: {stats?.name}</DialogTitle></DialogHeader>
+          {stats && <AnalyticsView funnel={stats} />}
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={!!archiving}
+        onOpenChange={(o) => !o && setArchiving(null)}
+        title={`Archive "${archiving?.name}"?`}
+        description="The page goes offline and the funnel moves to Archived. Its leads stay."
+        confirmLabel="Archive funnel"
+        pending={action.isPending}
+        onConfirm={() => archiving && action.mutate({ id: archiving.id, action: "archive" }, { onSuccess: () => setArchiving(null) })}
+      />
+    </div>
   );
 }
