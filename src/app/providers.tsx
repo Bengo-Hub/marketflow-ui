@@ -6,7 +6,7 @@ import { OfflineBar } from "@bengo-hub/shared-ui-lib/offline";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { ReactNode, useEffect, useState } from "react";
-import { BrandProvider } from "@/contexts/BrandContext";
+import { BrandTheme } from "@/components/brand/brand-theme";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { attachOutletIdGetter } from "@/lib/api/client";
 import { useOutletFilterStore } from "@/store/outlet-filter";
@@ -60,15 +60,15 @@ export function Providers({ children }: { children: ReactNode }) {
         enableSystem={false}
         disableTransitionOnChange
       >
-        <BrandProvider>
+        <BrandTheme>
           <TooltipProvider>
             <OutletInit />
             <OfflineBar availableOffline={["View cached data"]} disabledOffline={["Edits", "Campaigns"]} />
             {children}
           </TooltipProvider>
-        </BrandProvider>
+        </BrandTheme>
       </ThemeProvider>
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" richColors closeButton />
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

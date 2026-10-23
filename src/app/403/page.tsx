@@ -6,7 +6,7 @@ export default function ForbiddenPage() {
         Your account does not have platform-owner privileges. If you believe this is a mistake,
         contact your platform administrator.
       </p>
-      <a href="/" className="rounded bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white">
+      <a href="/" className="rounded bg-primary px-4 py-2 text-sm font-medium text-white">
         Back to home
       </a>
     </div>

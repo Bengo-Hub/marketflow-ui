@@ -183,7 +183,7 @@ export default function FunnelsPage() {
                     <TableCell className="font-mono text-xs">
                       {f.status === "published" ? (
                         <a
-                          className="text-[var(--brand-primary)] underline"
+                          className="text-primary underline"
                           target="_blank"
                           rel="noreferrer"
                           href={`${appUrl}/f/${f.slug}`}

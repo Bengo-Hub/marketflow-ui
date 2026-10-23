@@ -8,26 +8,27 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuthStore } from "@/store/auth-store";
-import { useBrand } from "@/contexts/BrandContext";
+import { useTenantBranding } from "@bengo-hub/shared-ui-lib/tenant";
+import { MediaImage } from "@/components/media-image";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Users, UserCheck, BookOpen, Link2, MessageSquare,
   Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
-  Briefcase, Activity, CheckSquare, Users2, ChevronDown, LogOut,
-  Cpu, Layers, UserCog, Sparkles, Palette,
+  Briefcase, Activity, CheckSquare, ChevronDown, LogOut, UsersRound, Filter,
+  SlidersHorizontal, Workflow, Palette, UserCircle, CreditCard, PlugZap, Quote,
+  ScrollText, Gauge, KeyRound, Cog, Receipt,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
-
-// ── Types ──────────────────────────────────────────────────────────────────────
 
 interface NavItem {
   label: string;
   icon: React.ElementType;
   href: string;
-  /** Marketflow subscription feature code required to access this item. */
+  /** Subscription feature code required to open this item. */
   feature?: string;
 }
 
@@ -37,92 +38,99 @@ interface NavGroup {
   items: NavItem[];
 }
 
-// ── Nav groups ─────────────────────────────────────────────────────────────────
-
-const navGroups: NavGroup[] = [
+export const navGroups: NavGroup[] = [
   {
     label: "Marketing",
     items: [
-      { label: "Dashboard",    icon: LayoutDashboard, href: "/dashboard" },
-      { label: "Marketing team", icon: Sparkles,      href: "/team" },
-      { label: "Leads",       icon: Users,           href: "/leads",       feature: "lead_management" },
-      { label: "Contacts",     icon: UserCheck,       href: "/contacts",    feature: "contact_management" },
-      { label: "Knowledge Base", icon: BookOpen,      href: "/knowledge",   feature: "knowledge_base" },
-      { label: "Campaigns",    icon: Megaphone,       href: "/campaigns",   feature: "basic_campaigns" },
-      { label: "Funnels",      icon: Globe,           href: "/funnels",     feature: "funnel_builder" },
-      { label: "Short Links",  icon: Link2,           href: "/short-links", feature: "shortlinks" },
-      { label: "Chat",         icon: MessageSquare,   href: "/chat",        feature: "ai_chat_agent" },
-      { label: "Sequences",    icon: Mail,            href: "/sequences",   feature: "email_sequences" },
-      { label: "Meetings",     icon: Calendar,        href: "/meetings" },
+      { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+      { label: "Marketing team", icon: UsersRound, href: "/team" },
+      { label: "Leads", icon: Users, href: "/leads", feature: "lead_management" },
+      { label: "Contacts", icon: UserCheck, href: "/contacts", feature: "contact_management" },
+      { label: "Campaigns", icon: Megaphone, href: "/campaigns", feature: "basic_campaigns" },
+      { label: "Funnels", icon: Globe, href: "/funnels", feature: "funnel_builder" },
+      { label: "Sequences", icon: Mail, href: "/sequences", feature: "email_sequences" },
+      { label: "Chat", icon: MessageSquare, href: "/chat", feature: "ai_chat_agent" },
+      { label: "Meetings", icon: Calendar, href: "/meetings" },
+      { label: "Short links", icon: Link2, href: "/short-links", feature: "shortlinks" },
+      { label: "Knowledge base", icon: BookOpen, href: "/knowledge", feature: "knowledge_base" },
     ],
   },
   {
     label: "CRM",
     items: [
-      { label: "Deals",        icon: Briefcase,  href: "/crm/deals",      feature: "deal_pipeline" },
-      { label: "Accounts",     icon: Building2,  href: "/crm/accounts" },
-      { label: "Activities",   icon: Activity,   href: "/crm/activities" },
-      { label: "Tasks",        icon: CheckSquare, href: "/crm/tasks" },
-      { label: "Segments",     icon: Users2,     href: "/crm/segments" },
+      { label: "Deals", icon: Briefcase, href: "/crm/deals", feature: "deal_pipeline" },
+      { label: "Accounts", icon: Building2, href: "/crm/accounts" },
+      { label: "Activities", icon: Activity, href: "/crm/activities" },
+      { label: "Tasks", icon: CheckSquare, href: "/crm/tasks" },
+      { label: "Segments", icon: Filter, href: "/crm/segments" },
     ],
   },
   {
     label: "Settings",
     defaultCollapsed: true,
     items: [
-      { label: "General",       icon: Settings,  href: "/settings" },
-      { label: "Team Members",  icon: UserCog,   href: "/settings/team" },
-      { label: "Brand context", icon: Palette,   href: "/settings/marketing-context" },
-      { label: "Custom Fields", icon: Layers,    href: "/settings/custom-fields" },
-      { label: "Agents",        icon: Cpu,       href: "/settings/agents" },
+      { label: "All settings", icon: Settings, href: "/settings" },
+      { label: "Public profile", icon: UserCircle, href: "/settings/profile" },
+      { label: "Testimonials", icon: Quote, href: "/settings/testimonials" },
+      { label: "Brand context", icon: Palette, href: "/settings/marketing-context" },
+      { label: "Team members", icon: UsersRound, href: "/settings/team" },
+      { label: "Integrations", icon: PlugZap, href: "/settings/integrations" },
+      { label: "Custom fields", icon: SlidersHorizontal, href: "/settings/custom-fields" },
+      { label: "Agents", icon: Workflow, href: "/settings/agents" },
+      { label: "Billing", icon: CreditCard, href: "/settings/billing" },
+      { label: "Activity log", icon: ScrollText, href: "/settings/audit" },
     ],
   },
 ];
 
-const platformItems: NavItem[] = [
-  { label: "Platform home", icon: Shield,        href: "/platform" },
-  { label: "Tenants",       icon: Building2,     href: "/platform/tenants" },
-  { label: "Integrations",  icon: Settings,      href: "/platform/providers" },
-  { label: "Usage",         icon: LayoutDashboard, href: "/platform/usage" },
-  { label: "Security",      icon: Shield,        href: "/platform/security" },
+export const platformItems: NavItem[] = [
+  { label: "Platform home", icon: Shield, href: "/platform" },
+  { label: "Tenants", icon: Building2, href: "/platform/tenants" },
+  { label: "Providers", icon: KeyRound, href: "/platform/providers" },
+  { label: "Billing", icon: Receipt, href: "/platform/billing" },
+  { label: "Usage", icon: Gauge, href: "/platform/usage" },
+  { label: "Service config", icon: Cog, href: "/platform/service-config" },
+  { label: "Security", icon: Shield, href: "/platform/security" },
 ];
 
-// ── NavLink ────────────────────────────────────────────────────────────────────
+function isActive(pathname: string | null, href: string, exact: boolean) {
+  if (!pathname) return false;
+  return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+}
 
-function NavLink({ item, orgSlug, isPlatform }: {
-  item: NavItem;
-  orgSlug: string;
-  isPlatform?: boolean;
-}) {
+export function NavLink({ item, href, exact }: { item: NavItem; href: string; exact?: boolean }) {
   const pathname = usePathname();
-  // useFeature already treats exempt tenants (platform owner / demo / service-charge) as enabled.
+  const { isMobile, setOpenMobile } = useSidebar();
+  // useFeature treats exempt tenants (platform owner, demo, service charge) as enabled.
   const hasFeature = useFeature(item.feature ?? "");
-  const href = isPlatform ? item.href : `/${orgSlug}${item.href}`;
-  const isRoot = item.href === "/dashboard" || item.href === "/platform";
-  const active = isRoot ? pathname === href : pathname?.startsWith(href);
+  const active = isActive(pathname, href, !!exact);
   const Icon = item.icon;
 
   const link = (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
+      onClick={() => isMobile && setOpenMobile(false)}
       className={cn(
-        "group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium",
+        "group flex min-h-11 items-center gap-3 rounded-2xl px-2.5 text-sm font-medium transition-colors",
         active
-          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 font-semibold"
-          : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-foreground/8"
+          ? "bg-primary text-primary-foreground shadow-soft"
+          : "text-sidebar-foreground/75 hover:bg-primary/8 hover:text-sidebar-foreground",
       )}
     >
-      <Icon className={cn(
-        "h-4 w-4 shrink-0 transition-transform duration-200",
-        !active && "group-hover:scale-110"
-      )} />
+      <span
+        className={cn(
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
+          active ? "bg-white/15" : "bg-primary/8 text-primary",
+        )}
+      >
+        <Icon className="h-4 w-4" />
+      </span>
       <span className="truncate">{item.label}</span>
     </Link>
   );
 
-  // Show-but-lock: the item stays visible; clicking a locked item opens the
-  // UpgradeDialog (badge mode intercepts the inner Link on capture) instead of
-  // bouncing to the pricing site.
+  // Show but lock: clicking a locked item opens the upgrade dialog instead of navigating.
   if (item.feature && !hasFeature) {
     return (
       <FeatureLock feature={item.feature} mode="badge">
@@ -130,39 +138,33 @@ function NavLink({ item, orgSlug, isPlatform }: {
       </FeatureLock>
     );
   }
-
   return link;
 }
 
-// ── Collapsible group ──────────────────────────────────────────────────────────
-
-function NavGroupSection({ group, orgSlug, initialOpen }: {
-  group: NavGroup;
-  orgSlug: string;
-  initialOpen: boolean;
-}) {
+function NavGroupSection({ group, orgSlug, initialOpen }: { group: NavGroup; orgSlug: string; initialOpen: boolean }) {
   const [open, setOpen] = useState(initialOpen);
-
   return (
     <div>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-3 mb-1 py-0.5 group/header"
+        className="group/header mb-1 flex min-h-8 w-full items-center justify-between px-2.5"
         aria-expanded={open}
       >
-        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-sidebar-foreground/35 group-hover/header:text-sidebar-foreground/55 transition-colors">
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45 transition-colors group-hover/header:text-sidebar-foreground/70">
           {group.label}
         </span>
-        <ChevronDown className={cn(
-          "h-3 w-3 text-sidebar-foreground/30 transition-all duration-200 group-hover/header:text-sidebar-foreground/50",
-          open && "rotate-180"
-        )} />
+        <ChevronDown className={cn("h-3.5 w-3.5 text-sidebar-foreground/40 transition-transform", open && "rotate-180")} />
       </button>
       {open && (
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {group.items.map((item) => (
-            <NavLink key={item.href} item={item} orgSlug={orgSlug} />
+            <NavLink
+              key={item.href}
+              item={item}
+              href={`/${orgSlug}${item.href}`}
+              exact={item.href === "/dashboard" || item.href === "/settings"}
+            />
           ))}
         </div>
       )}
@@ -170,76 +172,63 @@ function NavGroupSection({ group, orgSlug, initialOpen }: {
   );
 }
 
-// ── AppSidebar ─────────────────────────────────────────────────────────────────
+function BrandBlock({ orgSlug }: { orgSlug: string }) {
+  const { tenant } = useTenantBranding();
+  const name = tenant?.orgName || tenant?.name || orgSlug;
+  return (
+    <div className="flex items-center gap-3 px-2 pt-2">
+      {tenant?.logoUrl ? (
+        <MediaImage src={tenant.logoUrl} alt={name} className="h-11 w-11 shrink-0 rounded-2xl bg-white object-contain p-1" />
+      ) : (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary font-display text-sm font-semibold text-primary-foreground">
+          {(name || "MF").slice(0, 2).toUpperCase()}
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="truncate font-display text-sm font-semibold text-sidebar-foreground">{name}</p>
+        <p className="text-xs text-sidebar-foreground/60">MarketFlow</p>
+      </div>
+    </div>
+  );
+}
 
 export function AppSidebar() {
   const params = useParams();
   const pathname = usePathname();
   const orgSlug = params?.orgSlug as string;
-  const brand = useBrand();
   const { user } = useAuthStore();
   const logout = useAuthStore((s) => s.logout);
-  const { theme, setTheme } = useTheme();
-
-  const isPlatformOwner = user?.isPlatformOwner;
+  const { resolvedTheme, setTheme } = useTheme();
+  const dark = resolvedTheme === "dark";
 
   function isGroupInitiallyOpen(group: NavGroup): boolean {
     if (!group.defaultCollapsed) return true;
-    return group.items.some((item) => {
-      const href = `/${orgSlug}${item.href}`;
-      return item.href === "/dashboard" ? pathname === href : pathname?.startsWith(href);
-    });
+    return group.items.some((item) => isActive(pathname, `/${orgSlug}${item.href}`, item.href === "/settings"));
   }
 
   const displayName = user?.fullName || user?.email?.split("@")[0] || orgSlug;
   const displayInitial = displayName?.[0]?.toUpperCase() ?? "M";
 
   return (
-    <Sidebar>
-      {/* Header — tenant branding */}
-      <SidebarHeader className="border-b border-sidebar-border shrink-0 overflow-hidden flex items-center justify-center" style={{ height: "72px" }}>
-        {brand.logoUrl ? (
-          <img
-            src={brand.logoUrl}
-            alt={brand.name}
-            className="max-h-full w-auto object-contain px-4"
-          />
-        ) : (
-          <div className="flex items-center gap-3 h-full px-4 w-full">
-            <div
-              className="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center shadow-lg font-bold text-sm text-white"
-              style={{ backgroundColor: "var(--brand-primary, hsl(var(--primary)))" }}
-            >
-              {(brand.name || "MF").slice(0, 2).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-sidebar-foreground truncate">{brand.name || "MarketFlow"}</p>
-              <p className="text-[10px] text-sidebar-foreground/50">{orgSlug}</p>
-            </div>
-          </div>
-        )}
+    <Sidebar variant="floating">
+      <SidebarHeader className="p-3">
+        <BrandBlock orgSlug={orgSlug} />
       </SidebarHeader>
 
-      {/* Nav groups */}
       <SidebarContent>
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 scrollbar-hide">
+        <nav aria-label="Main" className="flex-1 space-y-5 overflow-y-auto px-3 py-3 scrollbar-hide">
           {navGroups.map((group) => (
-            <NavGroupSection
-              key={group.label}
-              group={group}
-              orgSlug={orgSlug}
-              initialOpen={isGroupInitiallyOpen(group)}
-            />
+            <NavGroupSection key={group.label} group={group} orgSlug={orgSlug} initialOpen={isGroupInitiallyOpen(group)} />
           ))}
 
-          {isPlatformOwner && (
+          {user?.isPlatformOwner && (
             <div>
-              <p className="px-3 mb-1 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-sidebar-foreground/35">
+              <p className="mb-1 px-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45">
                 Platform console
               </p>
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {platformItems.map((item) => (
-                  <NavLink key={item.href} item={item} orgSlug={orgSlug} isPlatform />
+                  <NavLink key={item.href} item={item} href={item.href} exact={item.href === "/platform"} />
                 ))}
               </div>
             </div>
@@ -247,39 +236,31 @@ export function AppSidebar() {
         </nav>
       </SidebarContent>
 
-      {/* Footer — user info + theme toggle */}
-      <SidebarFooter className="border-t border-sidebar-border p-3 space-y-2">
+      <SidebarFooter className="space-y-2 p-3">
         <button
           type="button"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-foreground/8 transition-all duration-200"
+          onClick={() => setTheme(dark ? "light" : "dark")}
+          className="flex min-h-11 w-full items-center gap-3 rounded-2xl px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-primary/8 hover:text-sidebar-foreground"
         >
-          {theme === "dark"
-            ? <Sun className="h-4 w-4 shrink-0" />
-            : <Moon className="h-4 w-4 shrink-0" />
-          }
-          <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/8 text-primary">
+            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </span>
+          {dark ? "Light mode" : "Dark mode"}
         </button>
 
-        <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-sidebar-foreground/5">
-          <div
-            className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs"
-            style={{
-              backgroundColor: "color-mix(in srgb, var(--brand-primary, hsl(var(--primary))) 20%, transparent)",
-              color: "var(--brand-primary, hsl(var(--primary)))",
-            }}
-          >
+        <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/40 p-2.5 dark:border-white/10 dark:bg-white/5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-sm font-semibold text-primary">
             {displayInitial}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-sidebar-foreground truncate">{displayName}</p>
-            <p className="text-[10px] text-sidebar-foreground/50 mt-0.5 truncate">{user?.email}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-sidebar-foreground">{displayName}</p>
+            <p className="truncate text-xs text-sidebar-foreground/60">{user?.email}</p>
           </div>
           <button
             type="button"
             onClick={() => logout()}
-            className="h-7 w-7 rounded-lg flex items-center justify-center text-sidebar-foreground/40 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-            title="Sign out"
+            aria-label="Sign out"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-sidebar-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive"
           >
             <LogOut className="h-4 w-4" />
           </button>

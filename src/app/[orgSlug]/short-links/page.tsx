@@ -113,7 +113,7 @@ export default function ShortLinksPage() {
                   <TableRow key={s.id}>
                     <TableCell className="font-mono text-xs">
                       <a
-                        className="text-[var(--brand-primary)] underline"
+                        className="text-primary underline"
                         href={`${appUrl}/s/${s.code}`}
                         target="_blank"
                         rel="noreferrer"

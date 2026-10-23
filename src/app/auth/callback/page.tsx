@@ -111,7 +111,7 @@ function CallbackHandler() {
   return (
     <div className="flex h-screen items-center justify-center">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--brand-primary) mx-auto mb-4" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
         <p className="text-muted-foreground">Signing you in...</p>
       </div>
     </div>
@@ -122,7 +122,7 @@ export default function SSOCallbackPage() {
   return (
     <Suspense fallback={
       <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--brand-primary)" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     }>
       <CallbackHandler />

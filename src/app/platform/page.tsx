@@ -1,30 +1,33 @@
+import Link from "next/link";
+import { Building2, Cog, Gauge, KeyRound, Receipt, Shield } from "lucide-react";
+import { PageHeader } from "@/components/ui-kit";
+
+const SECTIONS = [
+  { title: "Tenants", href: "/platform/tenants", icon: Building2, desc: "Every tenant using MarketFlow, with plan and status. Open one to act as that tenant." },
+  { title: "Providers", href: "/platform/providers", icon: KeyRound, desc: "AI, advertising, calendar and messaging providers shared by all tenants." },
+  { title: "Billing", href: "/platform/billing", icon: Receipt, desc: "Plans, service charges and plan overrides per tenant." },
+  { title: "Usage", href: "/platform/usage", icon: Gauge, desc: "Leads, chats, campaigns and meetings across the platform this week." },
+  { title: "Service config", href: "/platform/service-config", icon: Cog, desc: "Platform defaults and per-tenant overrides for service settings." },
+  { title: "Security", href: "/platform/security", icon: Shield, desc: "Encryption key status and rotation, and the admin audit trail." },
+];
+
 export default function PlatformOverviewPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Platform console</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage shared infrastructure, tenant lifecycle, and security for every MarketFlow deployment.
-        </p>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card title="Integrations" href="/platform/providers" desc="AI, advertising, scheduling — every provider in one tabbed catalog. Messaging opens notifications console in a new tab." />
-        <Card title="Tenants" href="/platform/tenants" desc="Create, suspend, or override plan for any tenant." />
-        <Card title="Usage" href="/platform/usage" desc="Per-tenant usage against plan limits." />
-        <Card title="Security" href="/platform/security" desc="Encryption key rotation, audit log, recent admin actions." />
+      <PageHeader title="Platform console" description="Shared configuration, tenants and security for every MarketFlow workspace." icon={<Shield />} />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {SECTIONS.map(({ title, href, icon: Icon, desc }) => (
+          <Link key={href} href={href} className="glass group flex gap-4 rounded-[1.25rem] p-5 transition-transform hover:-translate-y-0.5 motion-reduce:transform-none">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Icon className="h-5 w-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-display text-base font-semibold group-hover:text-primary">{title}</span>
+              <span className="mt-1 block text-sm text-muted-foreground">{desc}</span>
+            </span>
+          </Link>
+        ))}
       </div>
     </div>
-  );
-}
-
-function Card({ title, desc, href }: { title: string; desc: string; href: string }) {
-  return (
-    <a
-      href={href}
-      className="block rounded-lg border bg-card p-4 transition hover:border-[var(--brand-primary)] hover:shadow-sm"
-    >
-      <div className="text-base font-medium">{title}</div>
-      <div className="mt-1 text-sm text-muted-foreground">{desc}</div>
-    </a>
   );
 }

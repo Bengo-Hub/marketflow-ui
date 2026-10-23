@@ -1,12 +1,13 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { DEFAULT_BRAND_COLOR, normalizeHex } from '@/lib/brand';
 
 const AUTH_API_BASE =
   process.env.NEXT_PUBLIC_SSO_URL ||
   process.env.NEXT_PUBLIC_AUTH_API_URL ||
   'https://sso.codevertexafrica.com';
 
-const DEFAULT_PRIMARY = '#6366f1';
-const DEFAULT_BG = '#0f0f23';
+// Light app background, matching --background in globals.css.
+const APP_BG = '#fcf8fc';
 
 interface TenantResponse {
   name?: string;
@@ -37,34 +38,32 @@ export async function GET(
 
   const name = tenant?.name ?? 'Codevertex';
   const primaryColor =
-    tenant?.brand_colors?.primary ??
-    (tenant?.metadata?.primary_color as string | undefined) ??
-    DEFAULT_PRIMARY;
-  const bgColor =
-    tenant?.brand_colors?.secondary ??
-    (tenant?.metadata?.secondary_color as string | undefined) ??
-    DEFAULT_BG;
+    normalizeHex(tenant?.brand_colors?.primary) ??
+    normalizeHex(tenant?.metadata?.primary_color) ??
+    DEFAULT_BRAND_COLOR;
   const logoUrl = tenant?.logo_url ?? (tenant?.metadata?.logo_url as string | undefined);
 
   const icons = logoUrl
     ? [
-        { src: logoUrl, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-        { src: logoUrl, sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+        { src: logoUrl, sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: logoUrl, sizes: '512x512', type: 'image/png', purpose: 'any' },
       ]
     : [
-        { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-        { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+        { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: '/icons/maskable-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+        { src: '/icons/maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       ];
 
   const manifest = {
     name: `${name} MarketFlow`,
     short_name: name,
-    description: 'AI-powered marketing automation for your business.',
+    description: 'Leads, follow-ups and campaigns for your business.',
     start_url: `/${orgSlug}/`,
     scope: `/${orgSlug}/`,
     display: 'standalone',
     orientation: 'portrait-primary',
-    background_color: bgColor,
+    background_color: APP_BG,
     theme_color: primaryColor,
     categories: ['business', 'marketing', 'productivity'],
     lang: 'en',
@@ -75,7 +74,7 @@ export async function GET(
         short_name: 'Campaigns',
         description: 'View and manage campaigns',
         url: `/${orgSlug}/campaigns`,
-        icons: [{ src: logoUrl ?? '/icons/icon-192.png', sizes: '192x192' }],
+        icons: [{ src: logoUrl ?? '/icons/icon-192x192.png', sizes: '192x192' }],
       },
     ],
   };

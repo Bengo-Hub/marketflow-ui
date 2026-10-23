@@ -179,7 +179,7 @@ export default function MeetingsPage() {
                     <TableCell>
                       {m.meeting_url ? (
                         <a
-                          className="text-xs text-[var(--brand-primary)] underline"
+                          className="text-xs text-primary underline"
                           href={m.meeting_url}
                           target="_blank"
                           rel="noreferrer"
@@ -188,7 +188,7 @@ export default function MeetingsPage() {
                         </a>
                       ) : m.google_event_link ? (
                         <a
-                          className="text-xs text-[var(--brand-primary)] underline"
+                          className="text-xs text-primary underline"
                           href={m.google_event_link}
                           target="_blank"
                           rel="noreferrer"

@@ -11,6 +11,8 @@ import { AppHeader } from "@/components/layout/app-header";
 import { SubscriptionBanner } from "@/components/subscription/subscription-banner";
 import { VerifyEmailPrompt } from "@/components/auth/VerifyEmailPrompt";
 import { SubscriptionEntitlementsProvider } from "@/components/subscription/subscription-entitlements-provider";
+import { MobileNav } from "@/components/layout/mobile-nav";
+import { AppCanvas } from "@/components/ui-kit";
 
 export default function OrgLayout({ children }: { children: React.ReactNode }) {
   const { status, user, initialize, redirectToSSO } = useAuthStore();
@@ -46,8 +48,8 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
   // Show loading during auth init
   if (status === "idle" || status === "loading" || status === "syncing") {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--brand-primary)" />
+      <div className="flex min-h-dvh items-center justify-center" role="status" aria-label="Loading">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
       </div>
     );
   }
@@ -62,14 +64,22 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
       <SidebarProvider>
         <PWAUpdateBanner />
         <PlatformScopeGuard />
-        <div className="flex min-h-screen w-full">
+        <div className="app-surface relative flex min-h-dvh w-full">
+          <AppCanvas />
           <AppSidebar />
-          <div className="flex flex-1 flex-col">
+          <div className="flex min-w-0 flex-1 flex-col">
             <AppHeader />
             <SubscriptionBanner />
             <VerifyEmailPrompt />
-            <main className="flex-1 p-6">{children}</main>
+            {/* The shell owns the padding and width; pages add only their own vertical rhythm. */}
+            <main
+              id="main"
+              className="mx-auto w-full max-w-7xl flex-1 px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-8 lg:pb-12"
+            >
+              {children}
+            </main>
           </div>
+          <MobileNav />
         </div>
       </SidebarProvider>
     </SubscriptionEntitlementsProvider>

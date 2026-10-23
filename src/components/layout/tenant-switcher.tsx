@@ -146,7 +146,7 @@ export function TenantSwitcher() {
                 placeholder="Search tenants…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="h-8 w-full rounded border bg-background pl-7 pr-7 text-xs outline-none focus:border-[var(--brand-primary)]"
+                className="h-8 w-full rounded border bg-background pl-7 pr-7 text-xs outline-none focus:border-primary"
               />
               {query && (
                 <button

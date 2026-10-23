@@ -249,7 +249,7 @@ export default function ChatPage() {
                 disabled={!input.trim()}
                 size="icon"
                 className="shrink-0"
-                style={{ backgroundColor: "var(--brand-primary)" }}
+                style={{ backgroundColor: "hsl(var(--primary))" }}
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -305,7 +305,7 @@ function ThinkingIndicator({ label }: { label: string }) {
     <div className="flex gap-3 items-start">
       <div
         className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
-        style={{ backgroundColor: "var(--brand-primary)" }}
+        style={{ backgroundColor: "hsl(var(--primary))" }}
       >
         <Bot className="h-3.5 w-3.5 text-black" />
       </div>
@@ -343,7 +343,7 @@ function ChatBubble({ message }: { message: Message }) {
     <div className="flex gap-2 py-1 group">
       <div
         className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-        style={{ backgroundColor: "var(--brand-primary)" }}
+        style={{ backgroundColor: "hsl(var(--primary))" }}
       >
         <Bot className="h-3.5 w-3.5 text-black" />
       </div>

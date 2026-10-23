@@ -23,7 +23,7 @@ export default function SettingsPage() {
       <div className="grid gap-4 md:grid-cols-2">
         {sections.map((s) => (
           <Link key={s.href} href={s.href}>
-            <Card className="h-full transition hover:border-[var(--brand-primary)] hover:shadow-sm">
+            <Card className="h-full transition hover:border-primary hover:shadow-sm">
               <CardContent className="p-4">
                 <div className="text-base font-medium">{s.title}</div>
                 <div className="mt-1 text-sm text-muted-foreground">{s.desc}</div>
