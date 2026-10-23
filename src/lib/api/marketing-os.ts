@@ -243,10 +243,7 @@ async function askStream(body: AskBody, onProgress: (p: TeamProgress) => void): 
 }
 
 /** The server's own message (both services answer {error: "..."}), else a fallback. */
-export function apiError(e: unknown, fallback: string): string {
-  const err = e as { response?: { data?: { error?: string; message?: string } } };
-  return err?.response?.data?.error || err?.response?.data?.message || fallback;
-}
+export { apiErrorMessage as apiError } from "./errors";
 
 export const marketingOsApi = {
   team: () =>

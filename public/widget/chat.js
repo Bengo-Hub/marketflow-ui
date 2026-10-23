@@ -192,7 +192,7 @@
   position:absolute;bottom:68px;right:0;\
   background:#fff;border-radius:14px;padding:12px 16px;\
   box-shadow:0 6px 24px rgba(0,0,0,.15);\
-  font-size:13px;color:#374151;max-width:240px;\
+  font-size:13px;color:#374151;width:max-content;max-width:240px;\
   animation:slideUp .3s ease-out;cursor:pointer;\
   border:1px solid #f3f4f6\
 }\
