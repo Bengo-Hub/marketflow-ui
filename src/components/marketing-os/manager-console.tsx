@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
@@ -273,6 +273,29 @@ function StepOutput({ step, shortlist }: { step: TeamStep; shortlist: Set<string
   );
 }
 
+/** Seconds since `active` became true, ticking once a second; 0 when idle. */
+function useElapsed(active: boolean): number {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setSecs(0);
+      return;
+    }
+    const started = Date.now();
+    const id = setInterval(() => setSecs(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return secs;
+}
+
+/** What the owner sees while the team works, so a long request never looks frozen. */
+function workingText(secs: number, approving: boolean): string {
+  if (secs < 5) return approving ? "Starting the work…" : "Reading your request…";
+  if (secs < 25) return approving ? "The team is writing your drafts…" : "The team is working on it…";
+  if (secs < 60) return `Still working (${secs}s). Bigger jobs take up to a minute and a half.`;
+  return `Still working (${secs}s). If a writer is slow the team switches to a backup, and you get whatever is ready.`;
+}
+
 /**
  * The owner's one box: type what you need, see what the team understood (free),
  * send it (1 credit), answer a question or approve a quote, review the drafts.
@@ -310,7 +333,14 @@ export function ManagerConsole({
       if (r.result.spec) setSpec(r.result.spec);
       if (r.credits_charged > 0) qc.invalidateQueries({ queryKey: ["wallet"] });
     },
-    onError: (e) => toast.error(apiError(e, "The team could not finish this request")),
+    onError: (e) => {
+      const timedOut = (e as { code?: string })?.code === "ECONNABORTED";
+      toast.error(
+        timedOut
+          ? "The team took too long to answer. Try again, or ask for one part at a time."
+          : apiError(e, "The team could not finish this request"),
+      );
+    },
   });
 
   const saveBrand = useMutation({
@@ -326,6 +356,7 @@ export function ManagerConsole({
   const shortlist = new Set(result?.shortlist ?? []);
   const tooLong = draft.length > MAX_ASK;
   const busy = preview.isPending || ask.isPending;
+  const elapsed = useElapsed(ask.isPending);
   const brandStep = result?.steps?.find((s) => s.contract === "brand_context" && s.output);
 
   const reset = () => {
@@ -367,6 +398,13 @@ export function ManagerConsole({
             </div>
           </div>
         </div>
+
+        {ask.isPending && (
+          <p role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {workingText(elapsed, !!ask.variables?.approve)}
+          </p>
+        )}
 
         {spec && <SpecPreview spec={spec} team={team} />}
 
