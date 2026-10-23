@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CheckCircle2, CircleAlert, ExternalLink, Save, UserCircle } from "lucide-react";
 import { PhoneInputField, CountrySelect } from "@bengo-hub/shared-ui-lib/contact";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { ErrorState, Field, GlassPanel, PageHeader } from "@/components/ui-kit";
 import { OfferingsEditor } from "@/components/public-profile/offerings-editor";
 import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import type { Offering, PublicMetadata, Socials } from "@/lib/api/public";
-import type { TenantProfileUpdate } from "@/lib/api/tenant-profile";
+import type { TenantProfile, TenantProfileUpdate } from "@/lib/api/tenant-profile";
 import { publicProfileUrl } from "@/lib/urls";
 
 /** The public metadata keys this form edits (marketflow-api tenant.PublicMetadataKeys). */
@@ -31,57 +31,7 @@ const SOCIALS: Array<{ key: keyof Socials; label: string }> = [
 const isHttp = (v?: string) => !v || /^https?:\/\/\S+$/i.test(v.trim());
 
 export default function ProfileSettingsPage() {
-  const { data, isLoading, error, refetch } = useTenantProfile();
-  const save = useUpdateTenantProfile();
-  const [form, setForm] = useState<Required<Omit<TenantProfileUpdate, "metadata">>>({
-    name: "",
-    whatsapp_number: "",
-    fbo_distrib_id: "",
-    flp_store_code: "",
-    flp_language: "",
-    country: "",
-  });
-  const [meta, setMeta] = useState<Meta>({ socials: {}, offerings: [] });
-
-  useEffect(() => {
-    if (!data) return;
-    const m = data.metadata ?? {};
-    setForm({
-      name: data.name ?? "",
-      whatsapp_number: data.whatsapp_number ?? "",
-      fbo_distrib_id: data.fbo_distrib_id ?? "",
-      flp_store_code: data.flp_store_code ?? "",
-      flp_language: data.flp_language ?? "",
-      country: data.country ?? "",
-    });
-    setMeta({
-      tagline: m.tagline,
-      bio: m.bio,
-      story: m.story,
-      video_url: m.video_url,
-      logo_url: m.logo_url,
-      cover_url: m.cover_url,
-      contact_email: m.contact_email,
-      booking_enabled: m.booking_enabled,
-      brand_primary_color: m.brand_primary_color,
-      opportunity_text: m.opportunity_text,
-      socials: (m.socials as Socials) ?? {},
-      offerings: Array.isArray(m.offerings) ? (m.offerings as Offering[]) : [],
-    });
-  }, [data]);
-
-  const isFLP = data?.business_type === "flp";
-  const errors = useMemo(() => {
-    const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = "Enter your business name.";
-    for (const k of ["video_url", "logo_url", "cover_url"] as const) if (!isHttp(meta[k])) e[k] = "Use a full link starting with https://";
-    if (meta.contact_email && !/^\S+@\S+\.\S+$/.test(meta.contact_email)) e.contact_email = "Enter a valid email address.";
-    if (meta.offerings.some((o) => !o.name.trim())) e.offerings = "Every item needs a name, or remove the empty ones.";
-    if (meta.offerings.some((o) => !isHttp(o.image_url) || !isHttp(o.url))) e.offerings = "Item links must start with https://";
-    for (const s of SOCIALS) if (!isHttp(meta.socials[s.key])) e[`social_${s.key}`] = "Use a full link starting with https://";
-    return e;
-  }, [form, meta]);
-
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useTenantProfile();
   if (error) return <ErrorState message="Could not load your profile." onRetry={() => void refetch()} />;
   if (isLoading || !data) {
     return (
@@ -92,6 +42,51 @@ export default function ProfileSettingsPage() {
       </div>
     );
   }
+  // Remount the form when fresh data arrives, so its fields start from the saved values.
+  return <ProfileForm key={dataUpdatedAt} data={data} />;
+}
+
+function initialMeta(data: TenantProfile): Meta {
+  const m = data.metadata ?? {};
+  return {
+    tagline: m.tagline,
+    bio: m.bio,
+    story: m.story,
+    video_url: m.video_url,
+    logo_url: m.logo_url,
+    cover_url: m.cover_url,
+    contact_email: m.contact_email,
+    booking_enabled: m.booking_enabled,
+    brand_primary_color: m.brand_primary_color,
+    opportunity_text: m.opportunity_text,
+    socials: (m.socials as Socials) ?? {},
+    offerings: Array.isArray(m.offerings) ? (m.offerings as Offering[]) : [],
+  };
+}
+
+function ProfileForm({ data }: { data: TenantProfile }) {
+  const save = useUpdateTenantProfile();
+  const [form, setForm] = useState<Required<Omit<TenantProfileUpdate, "metadata">>>({
+    name: data.name ?? "",
+    whatsapp_number: data.whatsapp_number ?? "",
+    fbo_distrib_id: data.fbo_distrib_id ?? "",
+    flp_store_code: data.flp_store_code ?? "",
+    flp_language: data.flp_language ?? "",
+    country: data.country ?? "",
+  });
+  const [meta, setMeta] = useState<Meta>(() => initialMeta(data));
+
+  const isFLP = data.business_type === "flp";
+  const errors = useMemo(() => {
+    const e: Record<string, string> = {};
+    if (!form.name.trim()) e.name = "Enter your business name.";
+    for (const k of ["video_url", "logo_url", "cover_url"] as const) if (!isHttp(meta[k])) e[k] = "Use a full link starting with https://";
+    if (meta.contact_email && !/^\S+@\S+\.\S+$/.test(meta.contact_email)) e.contact_email = "Enter a valid email address.";
+    if (meta.offerings.some((o) => !o.name.trim())) e.offerings = "Every item needs a name, or remove the empty ones.";
+    if (meta.offerings.some((o) => !isHttp(o.image_url) || !isHttp(o.url))) e.offerings = "Item links must start with https://";
+    for (const s of SOCIALS) if (!isHttp(meta.socials[s.key])) e[`social_${s.key}`] = "Use a full link starting with https://";
+    return e;
+  }, [form, meta]);
 
   const missing = [
     !form.whatsapp_number && !meta.contact_email ? "WhatsApp number or email" : null,

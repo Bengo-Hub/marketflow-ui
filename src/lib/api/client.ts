@@ -1,4 +1,4 @@
-import axios, { type InternalAxiosRequestConfig } from "axios";
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
 // Next.js bakes NEXT_PUBLIC_* at build time. Defaults point at production
 // DNS so a build that forgets to pass --build-arg still works; local dev
@@ -88,8 +88,9 @@ export function setOn401(cb: () => void) {
 }
 
 // Response interceptor: handle 401 with token refresh
-const handle401 = async (error: any) => {
-  if (error.response?.status === 401 && !error.config?._retried) {
+const handle401 = async (error: AxiosError & { config?: InternalAxiosRequestConfig & { _retried?: boolean } }) => {
+  const cfg = error.config;
+  if (error.response?.status === 401 && cfg && !cfg._retried) {
     try {
       const { refreshTokens } = await import("@/lib/auth/pkce");
       const { useAuthStore } = await import("@/store/auth-store");
@@ -110,11 +111,12 @@ const handle401 = async (error: any) => {
         });
 
         // Retry failed request
-        error.config._retried = true;
-        error.config.headers.Authorization = `Bearer ${newToken}`;
+        cfg._retried = true;
+        cfg.headers.Authorization = `Bearer ${newToken}`;
         apiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
         aiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-        return apiClient.request(error.config);
+        // The config keeps its own baseURL, so this retries against the API that failed.
+        return apiClient.request(cfg);
       }
     } catch {
       // Refresh failed — trigger logout

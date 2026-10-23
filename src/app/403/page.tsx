@@ -1,14 +1,21 @@
+import Link from "next/link";
+import { ShieldX } from "lucide-react";
+import { AppCanvas } from "@/components/ui-kit";
+
 export default function ForbiddenPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-3 p-6 text-center">
-      <h1 className="text-3xl font-semibold">403 — Not allowed</h1>
-      <p className="max-w-md text-sm text-muted-foreground">
-        Your account does not have platform-owner privileges. If you believe this is a mistake,
-        contact your platform administrator.
-      </p>
-      <a href="/" className="rounded bg-primary px-4 py-2 text-sm font-medium text-white">
-        Back to home
-      </a>
+    <div className="relative flex min-h-dvh items-center justify-center p-6">
+      <AppCanvas />
+      <div className="glass max-w-md rounded-[1.75rem] p-8 text-center">
+        <ShieldX className="mx-auto h-10 w-10 text-primary" />
+        <h1 className="mt-4 font-display text-2xl font-semibold">You do not have access to this page</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          This area is for platform owners. If you think you should have access, ask your Codevertex administrator.
+        </p>
+        <Link href="/" className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground">
+          Back to home
+        </Link>
+      </div>
     </div>
   );
 }

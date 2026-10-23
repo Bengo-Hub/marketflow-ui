@@ -39,8 +39,10 @@ export function InstallPrompt() {
     if (isStandalone() || isDismissedRecently()) return;
 
     if (isIOS()) {
-      setIos(true);
-      setTimeout(() => setVisible(true), 3000);
+      setTimeout(() => {
+        setIos(true);
+        setVisible(true);
+      }, 3000);
       return;
     }
 
@@ -89,9 +91,9 @@ export function InstallPrompt() {
     >
       <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-          <div className="h-11 w-11 rounded-xl overflow-hidden border border-border shrink-0 flex items-center justify-center bg-amber-400/10">
+          <div className="h-11 w-11 rounded-xl overflow-hidden border border-border shrink-0 flex items-center justify-center bg-primary/10">
             {ios ? (
-              <Share className="h-5 w-5 text-amber-500" />
+              <Share className="h-5 w-5 text-primary" />
             ) : (
               <img
                 src="/icons/icon-96x96.png"
@@ -120,25 +122,25 @@ export function InstallPrompt() {
         {ios ? (
           <ol className="px-4 pb-4 space-y-2 text-xs text-muted-foreground">
             <li className="flex items-center gap-2.5">
-              <span className="h-5 w-5 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center text-[10px] font-bold shrink-0">
+              <span className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
                 1
               </span>
               Tap{" "}
-              <Share className="h-3.5 w-3.5 inline mx-0.5 text-amber-500 shrink-0" />{" "}
+              <Share className="h-3.5 w-3.5 inline mx-0.5 text-primary shrink-0" />{" "}
               <strong className="text-foreground">Share</strong> in Safari
             </li>
             <li className="flex items-center gap-2.5">
-              <span className="h-5 w-5 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center text-[10px] font-bold shrink-0">
+              <span className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
                 2
               </span>
               Tap{" "}
-              <strong className="text-foreground">"Add to Home Screen"</strong>
+              <strong className="text-foreground">&ldquo;Add to Home Screen&rdquo;</strong>
             </li>
             <li className="flex items-center gap-2.5">
-              <span className="h-5 w-5 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center text-[10px] font-bold shrink-0">
+              <span className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
                 3
               </span>
-              Tap <strong className="text-foreground">"Add"</strong>
+              Tap <strong className="text-foreground">&ldquo;Add&rdquo;</strong>
             </li>
           </ol>
         ) : (
@@ -151,7 +153,7 @@ export function InstallPrompt() {
             </button>
             <button
               onClick={install}
-              className="flex-1 text-sm bg-amber-400 text-black py-2 px-3 rounded-xl hover:bg-amber-500 transition-colors font-semibold flex items-center justify-center gap-1.5"
+              className="flex-1 text-sm bg-primary text-primary-foreground py-2 px-3 rounded-xl hover:bg-primary-dark transition-colors font-semibold flex items-center justify-center gap-1.5"
             >
               <Download className="h-3.5 w-3.5 shrink-0" />
               Install

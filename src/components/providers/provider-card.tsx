@@ -64,8 +64,9 @@ export function ProviderCard({
     return out;
   }, [provider.fields, settingsQ.data]);
 
-  const [values, setValues] = useState<Record<string, string>>({});
-  useEffect(() => setValues(initial), [initial]);
+  // Typed edits sit on top of the saved values, so a refetch never wipes what is being typed.
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const values = useMemo(() => ({ ...initial, ...edits }), [initial, edits]);
 
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
@@ -130,7 +131,7 @@ export function ProviderCard({
   });
 
   function set(key: string, value: string) {
-    setValues((s) => ({ ...s, [key]: value }));
+    setEdits((s) => ({ ...s, [key]: value }));
     setFeedback(null);
   }
 

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAdminTenants } from "@/hooks/use-admin";
+import { StatusBadge } from "@/components/ui-kit";
 import { apiClient } from "@/lib/api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -108,17 +110,7 @@ export default function PlatformBillingPage() {
     },
   });
 
-  const { data: tenants, isLoading: tenantsLoading } = useQuery<Tenant[]>({
-    queryKey: ["admin-tenants"],
-    queryFn: async () => {
-      try {
-        const r = await apiClient.get<{ data: Tenant[] }>(`${MARKETFLOW_API_URL}/api/v1/admin/tenants`);
-        return r.data.data ?? [];
-      } catch {
-        return [];
-      }
-    },
-  });
+  const { data: tenants, isLoading: tenantsLoading } = useAdminTenants();
 
   // ---- Mutations ----
   const updateCharge = useMutation({
@@ -415,7 +407,7 @@ export default function PlatformBillingPage() {
                   <TableRow>
                     <TableHead>Tenant</TableHead>
                     <TableHead>Slug</TableHead>
-                    <TableHead>Current Plan</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="w-32"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -425,13 +417,7 @@ export default function PlatformBillingPage() {
                       <TableCell className="font-medium">{tenant.name}</TableCell>
                       <TableCell className="text-muted-foreground">{tenant.slug}</TableCell>
                       <TableCell>
-                        {tenant.plan_name || tenant.plan_code ? (
-                          <Badge variant="outline">
-                            {tenant.plan_name || tenant.plan_code}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">No plan assigned</span>
-                        )}
+                        <StatusBadge status={tenant.status} />
                       </TableCell>
                       <TableCell>
                         <Button
