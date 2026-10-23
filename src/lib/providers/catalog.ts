@@ -601,6 +601,87 @@ export const tenantIntegrations: {
   },
 ];
 
+// ── Media generation (Creative Studio, platform-wide) ─────────────────────
+// Saved as ProviderSetting media/<id>, key api_key; marketflow-ai reads them
+// (internal/app/media.go). Routes and prices: marketflow docs,
+// integrations/video-generation-providers.md (confirmed 2026-10-24).
+
+const mediaProviders: ProviderDef[] = [
+  {
+    id: "fal",
+    type: "media",
+    name: "fal.ai",
+    description:
+      "Pay as you go. Poster images (Seedream, Nano Banana), talking presenters (VEED Fabric, Creatify Aurora), the voice fallback and video assembly.",
+    scope: "platform",
+    brandColor: "#5B21B6",
+    docsUrl: "https://fal.ai/dashboard/keys",
+    fields: [
+      {
+        key: "api_key",
+        label: "API key",
+        type: "password",
+        secret: true,
+        required: true,
+        placeholder: "key-id:key-secret",
+        help: "Keep a balance: generation fails at USD 0, and the router skips fal.ai when it is low.",
+      },
+    ],
+  },
+  {
+    id: "higgsfield",
+    type: "media",
+    name: "Higgsfield",
+    description:
+      "Pay as you go. The video engine (Kling, Seedance, Wan, Hailuo) at lower per-second prices, and Recraft as the poster fallback.",
+    scope: "platform",
+    brandColor: "#84CC16",
+    docsUrl: "https://console.higgsfield.ai",
+    fields: [
+      {
+        key: "api_key",
+        label: "API key",
+        type: "password",
+        secret: true,
+        required: true,
+        placeholder: "key-id:key-secret",
+        help: "Keep a balance: generation fails at USD 0.",
+      },
+    ],
+  },
+  {
+    id: "elevenlabs",
+    type: "media",
+    name: "ElevenLabs",
+    description: "Voice-overs (eleven_v4_turbo, English by default, Swahili when asked) and music beds.",
+    scope: "platform",
+    logoSlug: "elevenlabs",
+    logoColor: "000000",
+    brandColor: "#000000",
+    docsUrl: "https://elevenlabs.io/app/settings/api-keys",
+    fields: [
+      {
+        key: "api_key",
+        label: "API key",
+        type: "password",
+        secret: true,
+        required: true,
+        help: "Needs a paid plan: free-plan audio can never be used in ads, even after upgrading.",
+      },
+    ],
+  },
+  {
+    id: "creatomate",
+    type: "media",
+    name: "Creatomate (optional)",
+    description: "Designed templates for premium posters and videos. Subscription only, so it is off the default path.",
+    scope: "platform",
+    brandColor: "#2563EB",
+    docsUrl: "https://creatomate.com/docs/api/introduction",
+    fields: [{ key: "api_key", label: "API key", type: "password", secret: true }],
+  },
+];
+
 // ── Categorised export for the Platform UI ────────────────────────────────
 
 export const providerCatalog: ProviderCategory[] = [
@@ -615,6 +696,12 @@ export const providerCatalog: ProviderCategory[] = [
     label: "Advertising platforms",
     description: "OAuth clients for Meta, TikTok, Google Ads, LinkedIn Ads, X.",
     providers: adProviders,
+  },
+  {
+    id: "media",
+    label: "Media generation",
+    description: "Creative Studio providers: images, video, voice and assembly. Pay as you go first.",
+    providers: mediaProviders,
   },
   {
     id: "scheduling",
