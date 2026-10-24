@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Field, GlassPanel } from "@/components/ui-kit";
+import { useFieldDefs } from "@/hooks/use-custom-fields";
 import type { EntityType } from "@/lib/api/activities";
 import { customFieldsApi, type CustomFieldDef } from "@/lib/api/custom-fields";
 import { apiErrorMessage } from "@/lib/api/errors";
@@ -21,7 +22,7 @@ import { apiErrorMessage } from "@/lib/api/errors";
 export function CustomFieldsPanel({ entity, id }: { entity: EntityType; id: string }) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const qc = useQueryClient();
-  const defs = useQuery({ queryKey: ["cf-defs", entity], queryFn: () => customFieldsApi.defs(entity), staleTime: 5 * 60_000 });
+  const defs = useFieldDefs(entity);
   const values = useQuery({ queryKey: ["cf-values", entity, id], queryFn: () => customFieldsApi.values(entity, id), enabled: !!id });
   const [edits, setEdits] = useState<Record<string, string>>({});
 
