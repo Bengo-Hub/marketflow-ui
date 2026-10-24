@@ -230,16 +230,27 @@ Plan: `.claude/plans/marketflow-ui-glass-revamp-2026-10-23.md`. Design rules: `d
 | Distributors seeded with 7 products each | 5 | `tenants_bk_flp_offerings_20261023` |
 | Forever copy removed from the `codevertex` tenant | 1 | same backup table as the first row |
 
-### Open (Phase 5: every tenant page restyled and wired)
+### Phase 5 done (2026-10-24)
+
+| Page | What changed | Commits |
+|---|---|---|
+| dashboard | 7/30/90 day switch, lead trend and leads-by-source charts (one validated chart hue). Visitor tiles read keys `/analytics/profile` never returned, so they always showed "--" | `2432335` |
+| leads | Server search (`q`), real source filter, dates, status tabs, phone card list. Export streams `/leads/export`; the old one stopped at 100 rows and failed silently. The detail page has status tabs and answers. The Delete button is gone: DELETE only marks a lead lost | `2432335`, api `7322fb3` |
+| contacts | CSV import (500-row chunks, per-row results), merge into a chosen record, 360 detail page (orders, payments, loyalty, deals, meetings, tasks), edit, delete with a warning | `2432335`, api `86f848f` |
+| activities | Logging sent `type` and was always a 400. Now there is a shared `ActivityTimeline` and a tenant-wide feed | `2432335`, api `90d23ab` |
+| custom fields | Values panel on lead and contact pages (the values endpoints had no UI) | `2432335` |
+| campaigns | Send SMS was a 404 (missing tenant segment). The campaign header never loaded. Added pause, resume and start, End (DELETE completes), lead counts, `channel`, and the campaign's own currency | `1245bc3`, api `9c0b70e` |
+| funnels | Block builder, publish, take offline, archive, copy link, results. Leads now carry `funnel_id`. Slugs are validated and one tenant owns each slug | `a45e5ef`, api `26d721b`, `5791ac2` |
+| sequences | Cards with an on/off switch, editor with WhatsApp/SMS/email messages, waits and variables, results from both analytics endpoints | `26a770c` |
+| meetings | Agenda grouped by day; held, no-show and cancel; booking dialog | `6012bf2` |
+| short links | Tap counts, kinds, copy, create; targets must be web links | `3e7bbbc`, api `95e98da` |
+| knowledge | API search (`q`) done; page still to restyle | api `e891225` |
+
+### Open (Phase 5, remaining pages)
 
 | Page | Still to do |
 |---|---|
-| dashboard | Trend chart and leads-by-source chart from the new `/analytics/dashboard` fields |
-| leads | CSV export (`/leads/export`), source filter, StatusBadge |
-| contacts | Bulk import (`/contacts/bulk-import`), merge (`/contacts/merge`) |
-| campaigns | Pause and resume (`/campaigns/{id}/pause`, `/resume`) |
-| funnels | Publish (`/funnels/{id}/publish`), step builder, analytics drawer (`/funnels/{id}/analytics`) |
-| sequences | Analytics panel; move inline calls to `lib/api/sequences.ts` |
+| knowledge | Restyle and add search. Platform-shared entries (`scope = platform`) are read-only for tenants |
 | crm/deals | Deal drawer with timeline (`dealTimeline`) |
 | crm/tasks | Contract fix: the page sends `due_date` and `priority: medium` and filters `completed`, but the API uses `due_at`, `normal` and `done` |
 | settings/integrations | Google business hours editor (`PUT /integrations/google/business-hours`) |
@@ -250,7 +261,13 @@ Plan: `.claude/plans/marketflow-ui-glass-revamp-2026-10-23.md`. Design rules: `d
 
 ### Flagged, not yet fixed
 
-- **Tenant audit events.** Only `chat.completed` is written at tenant scope. Profile, team, integration, agent and funnel-publish changes should be audited too.
+- **Tenant audit events.** Done in api `1630db5` for profile, funnels, campaigns and leads (plus lead export). Still open:
+  - Team members live in auth-api; no audit there yet.
+  - Integrations belong to the Sprint 14 session.
+  - Agent create and delete belong to the Sprint 15 session, which will use `audit.Tenant`.
 - **Suggestion producer.** No producer writes `suggestion` activities, so the bell's suggestions list stays empty until an agent writes them.
-- **Funnel status.** Funnels created by marketflow-ai's `create_funnel` start as drafts and need the publish button above.
+- **Funnel status.** Done: drafts, including the assistant's, are published from the Funnels page.
 - **Image upload.** There is no image upload endpoint; logo, cover and product images are links.
+- **Contact delete.** It is a hard delete with no event, so POS and Books records lose their customer link. Merge is the safe path for duplicates. A `crm.contact.deleted` event, or a soft delete, needs a decision.
+- **Soft-delete naming.** Several "delete" endpoints don't delete: leads are marked lost, campaigns completed, funnels archived and sequences turned off. The UI labels each one by what it does.
+- **Visual check.** Signed-in pages are screenshotted with a mocked API (a fake local session in Playwright). A pass against real tenant data after deploy is still due.
