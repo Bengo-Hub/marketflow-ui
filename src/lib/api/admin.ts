@@ -37,7 +37,32 @@ export interface AuditEntry {
   occurred_at: string;
 }
 
+/** GET /api/v1/admin/usage: counts across every tenant (cached a minute server-side). */
+export interface PlatformUsage {
+  tenants: { total: number; active: number };
+  leads: { total: number; this_week: number };
+  chat_sessions: { this_week: number };
+  campaigns: { active: number };
+  meetings: { upcoming: number };
+  nurture: { active_enrollments: number };
+  leaderboard: { tenant_id: string; tenant_name: string; slug: string; leads_this_week: number }[];
+  generated_at: string;
+}
+
+/** GET /api/v1/admin/encryption-key: which key encrypts provider secrets. The raw key is never returned. */
+export interface EncryptionKeyStatus {
+  configured: boolean;
+  source: "db" | "env";
+  key_fingerprint: string;
+  updated_at: string | null;
+}
+
 export const adminApi = {
+  encryptionKey: () => apiClient.get<EncryptionKeyStatus>("/api/v1/admin/encryption-key").then((r) => r.data),
+  /** generate: true makes a new random key; key activates a base64 32-byte key the owner supplies. */
+  setEncryptionKey: (body: { generate?: boolean; key?: string }) =>
+    apiClient.put<EncryptionKeyStatus>("/api/v1/admin/encryption-key", body).then((r) => r.data),
+  usage: () => apiClient.get<PlatformUsage>("/api/v1/admin/usage").then((r) => ({ ...r.data, leaderboard: r.data.leaderboard ?? [] })),
   tenants: () => apiClient.get<{ tenants: AdminTenant[]; total: number }>("/api/v1/admin/tenants").then((r) => r.data.tenants ?? []),
   platformConfig: () => apiClient.get<{ data: ServiceConfig[] }>("/api/v1/admin/service-config").then((r) => r.data.data ?? []),
   upsertPlatformConfig: (key: string, body: { config_value: string; description?: string }) =>

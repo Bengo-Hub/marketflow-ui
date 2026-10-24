@@ -5,6 +5,10 @@ import { toast } from "sonner";
 import { adminApi, auditApi } from "@/lib/api/admin";
 import { apiErrorMessage } from "@/lib/api/errors";
 
+export function usePlatformUsage() {
+  return useQuery({ queryKey: ["admin", "usage"], queryFn: adminApi.usage, refetchInterval: 60_000 });
+}
+
 export function useAdminTenants() {
   return useQuery({ queryKey: ["admin", "tenants"], queryFn: adminApi.tenants, staleTime: 5 * 60_000 });
 }
