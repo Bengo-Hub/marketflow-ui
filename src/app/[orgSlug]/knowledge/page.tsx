@@ -1,256 +1,191 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { useRef, useState } from "react";
+import { BookOpen, CheckCircle2, FileUp, Loader2, Lock, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { useTenantBranding } from "@bengo-hub/shared-ui-lib/tenant";
+import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { STALE_TIMES } from "@/app/providers";
+import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, Pager, PageHeader, ToneBadge, humanize } from "@/components/ui-kit";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useDeleteKnowledge, useImportKnowledge, useKnowledge, useSaveKnowledge } from "@/hooks/use-knowledge";
+import { KB_CATEGORIES, type KbEntry, type KbInput } from "@/lib/api/knowledge";
 
-// Tenant-scoped KB editor. Nothing platform-level is exposed here.
-// On save the marketflow-api side emits `embedding.requested`; the worker
-// re-embeds the entry via Ollama + pgvector upsert.
-type KBEntry = {
-  id: string;
-  category: string;
-  title: string;
-  content: string;
-  tags?: string[];
-  metadata?: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-};
+const label = (c: string) => (c === "faq" ? "Questions" : c === "business_opportunity" ? "Opportunity" : c === "custom" ? "Other" : humanize(c));
 
-const CATEGORIES = ["product", "faq", "business", "compliance"];
+function EntryForm({ initial, id, onDone }: { initial: KbInput; id?: string; onDone: () => void }) {
+  const save = useSaveKnowledge();
+  const [f, setF] = useState<KbInput>(initial);
+  const [tags, setTags] = useState((initial.tags ?? []).join(", "));
+  const num = (v: string) => (v === "" ? undefined : Number(v));
+  return (
+    <>
+      <div className="max-h-[62vh] space-y-4 overflow-y-auto pr-1">
+        <div>
+          <p className="mb-1.5 text-sm font-medium">Kind</p>
+          <CapsuleTabs label="Category" value={f.category} onChange={(v) => setF({ ...f, category: v })} options={KB_CATEGORIES.map((c) => ({ value: c, label: label(c) }))} />
+        </div>
+        <Field label={f.category === "faq" ? "Question" : "Title"} required htmlFor="kb-t">
+          <Input id="kb-t" value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} />
+        </Field>
+        <Field label={f.category === "faq" ? "Answer" : "What the assistant should know"} required htmlFor="kb-c" hint="Plain sentences work best. The assistant quotes this when people ask.">
+          <Textarea id="kb-c" rows={8} value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} />
+        </Field>
+        {f.category === "product" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Product code" htmlFor="kb-pc"><Input id="kb-pc" value={f.product_code ?? ""} onChange={(e) => setF({ ...f, product_code: e.target.value || undefined })} /></Field>
+            <Field label="Price" htmlFor="kb-pp"><Input id="kb-pp" type="number" inputMode="decimal" min={0} value={f.product_price ?? ""} onChange={(e) => setF({ ...f, product_price: num(e.target.value) })} /></Field>
+            <Field label="Image link" className="sm:col-span-2" htmlFor="kb-pi"><Input id="kb-pi" inputMode="url" value={f.product_image_url ?? ""} onChange={(e) => setF({ ...f, product_image_url: e.target.value || undefined })} /></Field>
+          </div>
+        )}
+        <Field label="Tags" htmlFor="kb-tags" hint="Separate with commas.">
+          <Input id="kb-tags" value={tags} onChange={(e) => setTags(e.target.value)} />
+        </Field>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onDone}>Cancel</Button>
+        <Button
+          disabled={!f.title.trim() || !f.content.trim() || save.isPending}
+          onClick={() =>
+            save.mutate(
+              { id, data: { ...f, title: f.title.trim(), content: f.content.trim(), tags: tags.split(",").map((t) => t.trim()).filter(Boolean) } },
+              { onSuccess: onDone },
+            )
+          }
+        >
+          {save.isPending ? "Saving..." : id ? "Save entry" : "Add entry"}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
 
 export default function KnowledgePage() {
-  const qc = useQueryClient();
+  const has = useFeature("knowledge_base");
+  const { tenant } = useTenantBranding();
   const [category, setCategory] = useState("all");
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<KBEntry | null>(null);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState<{ id?: string; data: KbInput } | null>(null);
+  const [deleting, setDeleting] = useState<KbEntry | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const q = useDebouncedValue(search.trim(), 300);
+  const list = useKnowledge({ q, category }, page);
+  const del = useDeleteKnowledge();
+  const imp = useImportKnowledge();
+  const rows = list.data?.data ?? [];
+  const isShared = (e: KbEntry) => e.scope === "platform" && (!tenant?.id || e.tenant_id !== tenant.id);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["kb", category],
-    queryFn: async () => {
-      const params = new URLSearchParams({ limit: "50" });
-      if (category !== "all") params.set("category", category);
-      const res = await apiClient.get(`/api/v1/knowledge/entries?${params}`);
-      return res.data;
-    },
-    staleTime: STALE_TIMES.OPERATIONAL,
-  });
-
-  const save = useMutation({
-    mutationFn: async (input: Partial<KBEntry>) => {
-      if (editing?.id) {
-        return apiClient.put(`/api/v1/knowledge/entries/${editing.id}`, input);
-      }
-      return apiClient.post(`/api/v1/knowledge/entries`, input);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["kb"] });
-      setOpen(false);
-      setEditing(null);
-    },
-  });
-
-  const remove = useMutation({
-    mutationFn: async (id: string) => apiClient.delete(`/api/v1/knowledge/entries/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["kb"] }),
-  });
-
-  function openCreate() {
-    setEditing({ id: "", category: "faq", title: "", content: "" } as KBEntry);
-    setOpen(true);
-  }
-  function openEdit(e: KBEntry) {
-    setEditing(e);
-    setOpen(true);
-  }
+  const add = (
+    <div className="flex gap-2">
+      <Button variant="outline" disabled={imp.isPending} onClick={() => fileRef.current?.click()}>
+        {imp.isPending ? <Loader2 className="animate-spin" /> : <FileUp />} Import CSV
+      </Button>
+      <Button onClick={() => setEditing({ data: { category: category === "all" ? "faq" : category, title: "", content: "" } })}><Plus /> Add entry</Button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Knowledge base</h1>
-          <p className="text-muted-foreground">
-            What your AI chatbot cites. Saving re-embeds the entry for semantic search.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select value={category} onValueChange={(v) => setCategory(v ?? "all")}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={openCreate}>+ New entry</Button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Failed to load knowledge entries: {(error as Error).message}
+      <PageHeader icon={<BookOpen />} title="Knowledge base" description="What your chat assistant knows: products, common questions and your rules." actions={has ? add : <FeatureLock feature="knowledge_base" mode="block">{add}</FeatureLock>} />
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) imp.mutate(file);
+          e.target.value = "";
+        }}
+      />
+      {imp.data?.errors && imp.data.errors.length > 0 && (
+        <div role="alert" className="rounded-2xl border border-warning/25 bg-warning/10 p-4 text-sm">
+          <p className="font-medium">Some rows were skipped:</p>
+          <ul className="mt-1 list-disc pl-5 text-muted-foreground">{imp.data.errors.slice(0, 8).map((e, i) => <li key={i}>{e}</li>)}</ul>
         </div>
       )}
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Preview</TableHead>
-                <TableHead>Updated</TableHead>
-                <TableHead className="w-32"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 5 }).map((_, j) => (
-                      <TableCell key={j}>
-                        <Skeleton className="h-4 w-24" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : data?.data?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                    No knowledge entries yet. Add one to teach the chatbot.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.data?.map((e: KBEntry) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="font-medium">{e.title}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{e.category}</Badge>
-                    </TableCell>
-                    <TableCell className="max-w-md truncate text-sm text-muted-foreground">
-                      {e.content.slice(0, 120)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(e.updated_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openEdit(e)}>
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            if (confirm(`Delete "${e.title}"?`)) remove.mutate(e.id);
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <CapsuleTabs label="Filter by kind" value={category} onChange={(v) => { setCategory(v); setPage(1); }} options={[{ value: "all", label: "All" }, ...KB_CATEGORIES.map((c) => ({ value: c, label: label(c) }))]} />
+        <div className="relative sm:ml-auto sm:w-72">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input aria-label="Search the knowledge base" className="pl-9" placeholder="Search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        </div>
+      </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <div className="glass overflow-hidden rounded-[1.25rem]">
+        {list.isError && <ErrorState message="Could not load the knowledge base." onRetry={() => void list.refetch()} />}
+        {list.isLoading && <div className="space-y-2 p-4" aria-busy>{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />)}</div>}
+        {!list.isLoading && !list.isError && rows.length === 0 && (
+          <EmptyState icon={<BookOpen />} title={q ? "Nothing matches" : "Nothing here yet"} description="Add your products, prices, delivery terms and the questions customers ask most. The assistant answers from them." />
+        )}
+        {rows.length > 0 && (
+          <ul className="divide-y divide-border">
+            {rows.map((e) => {
+              const shared = isShared(e);
+              return (
+                <li key={e.id} className="flex items-start gap-3 p-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{e.title}</p>
+                    <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{e.content}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <ToneBadge>{label(e.category)}</ToneBadge>
+                      {e.embedded ? (
+                        <ToneBadge tone="success"><CheckCircle2 /> The assistant knows this</ToneBadge>
+                      ) : (
+                        <ToneBadge tone="warning"><Loader2 className="animate-spin" /> Learning</ToneBadge>
+                      )}
+                      {shared && <ToneBadge tone="info"><Lock /> Shared by Codevertex</ToneBadge>}
+                      {(e.tags ?? []).slice(0, 3).map((t) => <span key={t} className="text-xs text-muted-foreground">#{t}</span>)}
+                    </div>
+                  </div>
+                  {!shared && (
+                    <div className="flex shrink-0 gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Edit ${e.title}`}
+                        onClick={() =>
+                          setEditing({
+                            id: e.id,
+                            data: {
+                              category: e.category, title: e.title, content: e.content, product_code: e.product_code ?? undefined,
+                              product_price: e.product_price ?? undefined, product_image_url: e.product_image_url ?? undefined, tags: e.tags ?? [],
+                            },
+                          })
+                        }
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button variant="ghost" size="icon" aria-label={`Delete ${e.title}`} onClick={() => setDeleting(e)}><Trash2 className="text-destructive" /></Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {list.data && <div className="px-4 pb-4"><Pager page={page} limit={list.data.limit || 20} total={list.data.total} onPage={setPage} /></div>}
+      </div>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editing?.id ? "Edit entry" : "New entry"}</DialogTitle>
-          </DialogHeader>
-          {editing && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                save.mutate({
-                  title: editing.title,
-                  content: editing.content,
-                  category: editing.category,
-                  tags: editing.tags,
-                });
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Title</label>
-                <Input
-                  value={editing.title}
-                  onChange={(e) => setEditing({ ...editing, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Category</label>
-                <Select
-                  value={editing.category}
-                  onValueChange={(v) => setEditing({ ...editing, category: v ?? "faq" })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Content</label>
-                <Textarea
-                  rows={8}
-                  value={editing.content}
-                  onChange={(e) => setEditing({ ...editing, content: e.target.value })}
-                  required
-                />
-              </div>
-              {save.isError && (
-                <p className="text-sm text-red-600">
-                  Save failed: {(save.error as Error)?.message ?? "unknown error"}
-                </p>
-              )}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? "Saving…" : editing.id ? "Update" : "Create"}
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
+          <DialogHeader><DialogTitle>{editing?.id ? "Edit entry" : "New entry"}</DialogTitle></DialogHeader>
+          {editing && <EntryForm key={editing.id ?? "new"} initial={editing.data} id={editing.id} onDone={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title={`Delete "${deleting?.title}"?`}
+        description="The assistant stops using it right away. This cannot be undone."
+        confirmLabel="Delete entry"
+        pending={del.isPending}
+        onConfirm={() => deleting && del.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
+      />
     </div>
   );
 }
