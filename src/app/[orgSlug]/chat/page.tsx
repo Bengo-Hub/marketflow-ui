@@ -5,13 +5,13 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Check, Copy, MessageSquare, RotateCcw, Send, Square } from "lucide-react";
+import { Check, Copy, Eraser, MessageSquare, RotateCcw, Send, Square, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BrandMark } from "@/components/landing/brand-mark";
-import { PageHeader, ToneBadge } from "@/components/ui-kit";
+import { ConfirmDialog, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { useTenantProfile } from "@/hooks/use-tenant-profile";
-import { ChatError, INTENT_LABEL, MAX_QUESTION, phaseFor, streamChat, type ChatMeta } from "@/lib/api/chat";
+import { ChatError, INTENT_LABEL, MAX_QUESTION, clearSession, deleteTurn, phaseFor, streamChat, type ChatMeta } from "@/lib/api/chat";
 
 interface Message {
   id: number;
@@ -20,6 +20,8 @@ interface Message {
   meta?: ChatMeta;
   streaming?: boolean;
   error?: { text: string; credits?: boolean };
+  /** Position of this answer in the stored conversation (0-based); unset when the server never stored it. */
+  turn?: number;
 }
 
 const FLP_PROMPTS = [
@@ -35,7 +37,7 @@ const GENERIC_PROMPTS = [
   "Write a follow-up message for a customer who went quiet",
 ];
 
-function Answer({ m, onRetry }: { m: Message; onRetry: () => void }) {
+function Answer({ m, onRetry, onDelete }: { m: Message; onRetry: () => void; onDelete: () => void }) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -51,11 +53,14 @@ function Answer({ m, onRetry }: { m: Message; onRetry: () => void }) {
           {m.error ? (
             <div className="space-y-2">
               <p className="text-destructive">{m.error.text}</p>
-              {m.error.credits ? (
-                <Link href={`/${orgSlug}/settings/billing`} className={buttonVariants({ size: "sm", variant: "outline" })}>Buy AI credits</Link>
-              ) : (
-                <Button size="sm" variant="outline" onClick={onRetry}><RotateCcw /> Try again</Button>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {m.error.credits ? (
+                  <Link href={`/${orgSlug}/settings/billing`} className={buttonVariants({ size: "sm", variant: "outline" })}>Buy AI credits</Link>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={onRetry}><RotateCcw /> Try again</Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 /> Remove</Button>
+              </div>
             </div>
           ) : m.content ? (
             <div className="prose prose-sm max-w-none leading-relaxed dark:prose-invert [&_a]:text-primary [&_p]:my-1.5 [&_pre]:rounded-lg [&_pre]:bg-muted">
@@ -70,6 +75,7 @@ function Answer({ m, onRetry }: { m: Message; onRetry: () => void }) {
             {m.meta?.intent && INTENT_LABEL[m.meta.intent] && <ToneBadge>{INTENT_LABEL[m.meta.intent]}</ToneBadge>}
             {(m.meta?.sources ?? 0) > 0 && <ToneBadge tone="info">From {m.meta!.sources} knowledge base {m.meta!.sources === 1 ? "entry" : "entries"}</ToneBadge>}
             <Button variant="ghost" size="icon-sm" className="ml-auto" aria-label="Copy answer" onClick={copy}>{copied ? <Check /> : <Copy />}</Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Delete this question and answer" onClick={onDelete}><Trash2 /></Button>
           </div>
         )}
       </div>
@@ -89,7 +95,9 @@ export default function ChatPage() {
   const sessionRef = useRef<string | undefined>(undefined);
   const abortRef = useRef<AbortController | null>(null);
   const idRef = useRef(0);
+  const turnsRef = useRef(0);
   const endRef = useRef<HTMLDivElement>(null);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -122,7 +130,8 @@ export default function ChatPage() {
         },
         controller.signal,
       );
-      patch(aid, { streaming: false });
+      // A completed answer is stored server-side as the next turn of the session.
+      patch(aid, { streaming: false, turn: turnsRef.current++ });
     } catch (e) {
       if ((e as Error).name === "AbortError") {
         setMessages((all) => all.map((m) => (m.id === aid ? { ...m, streaming: false, content: m.content || "Stopped." } : m)));
@@ -143,10 +152,32 @@ export default function ChatPage() {
     if (q) void ask(q);
   };
 
-  const newChat = () => {
+  /** Removes one question and its answer, from the stored conversation too when it was stored. */
+  const remove = (aid: number) => {
+    const idx = messages.findIndex((m) => m.id === aid);
+    const answer = messages[idx];
+    const question = messages[idx - 1];
+    if (!answer) return;
+    if (answer.turn !== undefined && sessionRef.current) {
+      void deleteTurn(orgSlug, sessionRef.current, answer.turn);
+      turnsRef.current = Math.max(0, turnsRef.current - 1);
+    }
+    const gone = answer.turn;
+    setMessages((all) =>
+      all
+        .filter((m) => m.id !== aid && m.id !== question?.id)
+        .map((m) => (gone !== undefined && m.turn !== undefined && m.turn > gone ? { ...m, turn: m.turn - 1 } : m)),
+    );
+  };
+
+  /** Erases the whole conversation and starts a new one. */
+  const clearChat = () => {
     abortRef.current?.abort();
+    if (sessionRef.current) void clearSession(orgSlug, sessionRef.current);
     sessionRef.current = undefined;
+    turnsRef.current = 0;
     setMessages([]);
+    setClearing(false);
   };
 
   return (
@@ -155,7 +186,7 @@ export default function ChatPage() {
         icon={<MessageSquare />}
         title="Chat"
         description="Ask about your products and leads, or have a post or message drafted for you."
-        actions={messages.length > 0 && <Button variant="outline" onClick={newChat}><RotateCcw /> New chat</Button>}
+        actions={messages.length > 0 && <Button variant="outline" disabled={busy} onClick={() => setClearing(true)}><Eraser /> Clear chat</Button>}
       />
 
       <section className="glass flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.25rem]">
@@ -186,7 +217,7 @@ export default function ChatPage() {
                   <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-md bg-primary px-4 py-2.5 text-sm text-primary-foreground">{m.content}</p>
                 </div>
               ) : (
-                <Answer key={m.id} m={m} onRetry={() => retry(m.id)} />
+                <Answer key={m.id} m={m} onRetry={() => retry(m.id)} onDelete={() => remove(m.id)} />
               ),
             )
           )}
@@ -225,6 +256,15 @@ export default function ChatPage() {
           {input.length > MAX_QUESTION - 100 && <p className="mx-auto mt-1 max-w-3xl text-right text-xs text-muted-foreground tabular">{input.length}/{MAX_QUESTION}</p>}
         </form>
       </section>
+
+      <ConfirmDialog
+        open={clearing}
+        onOpenChange={setClearing}
+        title="Clear this chat?"
+        description="Every question and answer here is erased, and the assistant forgets this conversation. This cannot be undone."
+        confirmLabel="Clear chat"
+        onConfirm={clearChat}
+      />
     </div>
   );
 }

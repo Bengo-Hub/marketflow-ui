@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { CalendarDays, Mail, ShoppingBag, Star } from "lucide-react";
 import { PoweredByBadge } from "@/components/powered-by";
 import { BookingWidget } from "@/components/booking/booking-widget";
-import { MediaImage } from "@/components/media-image";
 import { AppCanvas } from "@/components/ui-kit";
 import { FlpOpportunity } from "@/components/public-profile/flp-sections";
+import { ProfileAvatar } from "@/components/public-profile/profile-avatar";
 import { ProfileTracker } from "@/components/public-profile/profile-tracker";
 import { VideoFacade } from "@/components/public-profile/video-facade";
 import { WhatsAppIcon } from "@/components/public-profile/whatsapp-icon";
@@ -94,21 +94,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         )}
         <div className="relative mx-auto max-w-5xl px-4 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:px-6 sm:pt-24">
           <div className="glass-strong mx-auto max-w-2xl rounded-[1.75rem] p-6 text-center sm:p-8">
-            {v.logo ? (
-              <MediaImage
-                src={v.logo}
-                displayWidth={96}
-                fit="cover"
-                aspect={1}
-                loading="eager"
-                alt={v.name}
-                className="mx-auto h-24 w-24 rounded-full border-4 border-background object-cover shadow-soft"
-              />
-            ) : (
-              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-primary font-display text-3xl font-semibold text-primary-foreground">
-                {v.name.charAt(0).toUpperCase()}
-              </div>
-            )}
+            <ProfileAvatar src={v.logo} name={v.name} />
             <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{v.name}</h1>
             {v.tagline && <p className="mt-1 text-base font-medium text-primary">{v.tagline}</p>}
             {v.bio && <p className="mx-auto mt-3 max-w-prose text-[15px] leading-relaxed text-muted-foreground">{v.bio}</p>}

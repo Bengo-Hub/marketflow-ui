@@ -84,6 +84,23 @@ async function chatPlain(orgSlug: string, turn: ChatTurn, h: ChatHandlers, signa
   }
 }
 
+/**
+ * Erases a conversation's stored history (marketflow-ai 84d29f9: empties and closes
+ * the session, 204 even for an unknown id). A failure is ignored; the screen is cleared anyway.
+ */
+export function clearSession(orgSlug: string, sessionId: string): Promise<void> {
+  return aiClient
+    .delete(`/api/v1/chat/sessions/${encodeURIComponent(sessionId)}`, { headers: { "X-Tenant-ID": orgSlug } })
+    .then(() => undefined, () => undefined);
+}
+
+/** Removes the n-th stored question and answer (0-based); later turns shift down by one. A failure is ignored, as in clearSession. */
+export function deleteTurn(orgSlug: string, sessionId: string, turn: number): Promise<void> {
+  return aiClient
+    .delete(`/api/v1/chat/sessions/${encodeURIComponent(sessionId)}/turns/${turn}`, { headers: { "X-Tenant-ID": orgSlug } })
+    .then(() => undefined, () => undefined);
+}
+
 /** Sends one question and streams the answer into `h`. Resolves when the answer is complete. */
 export async function streamChat(orgSlug: string, turn: ChatTurn, h: ChatHandlers, signal: AbortSignal): Promise<void> {
   const auth = aiClient.defaults.headers.common.Authorization;

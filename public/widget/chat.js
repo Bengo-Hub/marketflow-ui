@@ -52,7 +52,8 @@
 
   var businessType = (script && script.dataset.businessType) || '';
   var primaryColor = (script && script.dataset.primaryColor) || '#EC4899';
-  var accentColor  = (script && script.dataset.accentColor)  || '#7C3AED';
+  // One brand colour unless the page names a second: a two-hue default clashed with tenant colours.
+  var accentColor  = (script && script.dataset.accentColor)  || primaryColor;
   var widgetTitle  = (script && script.dataset.widgetTitle)  || 'Vera';
   var waNumber     = (script && script.dataset.whatsapp)     || '';
   var phoneNumber  = (script && script.dataset.phone)        || '';
@@ -118,16 +119,25 @@
   // Session history
   var SESSION_KEY   = 'vera_session_' + tenantSlug;
   var HISTORY_KEY   = 'vera_history_' + tenantSlug;
+  var TURNS_KEY     = 'vera_turns_' + tenantSlug;
   var sessionID     = null;
-  var chatHistory   = []; // [{q, a}] last 5 pairs, persisted in sessionStorage
+  // [{q, a, t}] last 5 pairs, persisted in sessionStorage. t is the pair's position in the
+  // server-stored conversation (0-based), so a delete can name it; undefined if never stored.
+  var chatHistory   = [];
+  var turnCount     = 0; // answers the server has stored for this session
   try { sessionID = sessionStorage.getItem(SESSION_KEY); } catch { }
   try {
     var _h = sessionStorage.getItem(HISTORY_KEY);
     if (_h) chatHistory = JSON.parse(_h);
+    turnCount = parseInt(sessionStorage.getItem(TURNS_KEY) || '0', 10) || 0;
   } catch { }
 
   function saveHistory() {
-    try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory.slice(-5))); } catch { }
+    chatHistory = chatHistory.slice(-5);
+    try {
+      sessionStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory));
+      sessionStorage.setItem(TURNS_KEY, String(turnCount));
+    } catch { }
   }
 
   // ── Client-side rate limiting ─────────────────────────────────────────────
@@ -265,12 +275,41 @@
   max-width:84%;margin-bottom:8px;padding:9px 13px;\
   border-radius:16px;line-height:1.55;font-size:13px;word-break:break-word\
 }\
-.msg a{color:' + accentColor + ';text-decoration:underline}\
+.msg a{color:' + accentColor + ';text-decoration:underline;text-underline-offset:2px}\
+.msg a.bare{word-break:break-all}\
 .msg strong,.msg b{font-weight:600}\
 .msg em,.msg i{font-style:italic}\
-.msg ul,.msg ol{padding-left:16px;margin:4px 0}\
-.msg li{margin-bottom:2px}\
-.msg code{background:#f1f5f9;padding:1px 4px;border-radius:3px;font-size:11px;font-family:monospace}\
+.msg p{margin:0 0 8px}\
+.msg > :last-child{margin-bottom:0}\
+.msg .h{font-weight:700;font-size:13.5px;margin:10px 0 4px}\
+.msg > .h:first-child{margin-top:0}\
+.msg ul,.msg ol{padding-left:18px;margin:4px 0 8px}\
+.msg li{margin-bottom:3px;padding-left:2px}\
+.msg li::marker{color:' + primaryColor + '}\
+.msg code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace}\
+.msg pre{background:#f1f5f9;border-radius:8px;padding:8px 10px;margin:6px 0 8px;overflow-x:auto}\
+.msg pre code{background:none;padding:0;font-size:11.5px;white-space:pre}\
+.msg blockquote{margin:6px 0 8px;padding:2px 0 2px 10px;border-left:3px solid ' + primaryColor + '66;color:#4b5563}\
+.msg hr{border:0;border-top:1px solid #e5e7eb;margin:10px 0}\
+.msg del{opacity:.7}\
+.msg .tbl{overflow-x:auto;margin:6px 0 8px;border:1px solid #e5e7eb;border-radius:10px;-webkit-overflow-scrolling:touch}\
+.msg table{border-collapse:collapse;width:100%;font-size:12px;line-height:1.4}\
+.msg th,.msg td{padding:6px 8px;text-align:left;vertical-align:top;border-bottom:1px solid #eef0f3;min-width:72px}\
+.msg th{background:#f8fafc;font-weight:600;white-space:nowrap}\
+.msg tbody tr:last-child td{border-bottom:0}\
+.bot:has(.tbl){max-width:100%}\
+.msg-tools{display:flex;justify-content:flex-end;margin:6px -4px -4px 0}\
+.tool{\
+  display:inline-flex;align-items:center;gap:4px;border:none;background:none;\
+  color:#9ca3af;font:inherit;font-size:11px;padding:4px 6px;border-radius:8px;cursor:pointer;\
+  min-height:28px;transition:color .15s,background .15s\
+}\
+.tool:hover,.tool:focus-visible{color:#dc2626;background:#fef2f2}\
+.tool.armed{color:#dc2626;background:#fef2f2;font-weight:600}\
+.hdr-btn.armed{background:rgba(255,255,255,.4);box-shadow:0 0 0 2px #fff inset}\
+.hdr-btn[hidden]{display:none}\
+:host(.dark) .tool{color:#64748b}\
+:host(.dark) .tool:hover,:host(.dark) .tool.armed{color:#fca5a5;background:#3b1d24}\
 .user{\
   background:linear-gradient(135deg,' + primaryColor + ',' + accentColor + ');\
   color:#fff;margin-left:auto;border-bottom-right-radius:4px\
@@ -379,6 +418,12 @@
 :host(.dark) .panel{background:#1e2535;border-color:rgba(255,255,255,.06)}\
 :host(.dark) .body{background:#131c2e}\
 :host(.dark) .bot{background:#2a3448;color:#f1f5f9;border-color:#374357}\
+:host(.dark) .msg code,:host(.dark) .msg pre{background:#1b2436}\
+:host(.dark) .msg .tbl{border-color:#374357}\
+:host(.dark) .msg th{background:#232d40}\
+:host(.dark) .msg th,:host(.dark) .msg td{border-bottom-color:#374357}\
+:host(.dark) .msg blockquote{color:#cbd5e1}\
+:host(.dark) .msg hr{border-top-color:#374357}\
 :host(.dark) .typing{background:#2a3448;border-color:#374357}\
 :host(.dark) .typing-text{color:#94a3b8}\
 :host(.dark) .greeting{background:#1e2535;color:#e2e8f0;border-color:#374357}\
@@ -491,6 +536,9 @@
   if (callHref) {
     hdrActions += '<a class="hdr-btn" href="' + escAttr(callHref) + '" ' + (callUrl ? 'target="_blank" rel="noreferrer"' : '') + ' title="Call us">&#x260E;</a>';
   }
+  hdrActions += '<button class="hdr-btn" id="vera-clear" aria-label="Clear chat" title="Clear chat" hidden>' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>' +
+    '</button>';
   hdrActions += '<button class="hdr-btn" id="vera-close" aria-label="Close">&#x2715;</button>';
 
   // ── Panel ────────────────────────────────────────────────────────
@@ -498,6 +546,15 @@
   panel.className = 'panel';
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-label', widgetTitle + ' AI chat');
+
+  var welcomeHTML = [
+    '  <div class="welcome" id="vera-welcome">',
+    '    <div class="welcome-icon">' + escHTML(widgetTitle.charAt(0).toUpperCase()) + '</div>',
+    '    <div class="welcome-title">Hello! I\'m ' + escHTML(widgetTitle) + '</div>',
+    '    <div class="welcome-sub">' + subtitleText + '<br>Ask me anything.</div>',
+    '    <div class="faqs" id="vera-faqs">' + faqHTML + '</div>',
+    '  </div>',
+  ].join('');
 
   panel.innerHTML = [
     '<div class="hdr">',
@@ -509,12 +566,7 @@
     '  <div class="hdr-actions">' + hdrActions + '</div>',
     '</div>',
     '<div class="body" id="vera-body">',
-    '  <div class="welcome" id="vera-welcome">',
-    '    <div class="welcome-icon">' + escHTML(widgetTitle.charAt(0).toUpperCase()) + '</div>',
-    '    <div class="welcome-title">Hello! I\'m ' + escHTML(widgetTitle) + '</div>',
-    '    <div class="welcome-sub">' + subtitleText + '<br>Ask me anything.</div>',
-    '    <div class="faqs" id="vera-faqs">' + faqHTML + '</div>',
-    '  </div>',
+    welcomeHTML,
     '</div>',
     '<form class="inp" id="vera-form">',
     '  <input id="vera-input" placeholder="Ask Vera anything…" autocomplete="off" aria-label="Message" />',
@@ -535,7 +587,7 @@
     removeWelcome();
     chatHistory.forEach(function (pair) {
       appendMsg('user', escHTML(pair.q));
-      appendMsg('bot', md(pair.a));
+      addTools(appendMsg('bot', md(pair.a)), pair);
     });
   }
 
@@ -564,8 +616,9 @@
   });
   shadow.getElementById('vera-close').addEventListener('click', function () { closePanel(); });
 
-  // FAQ chip clicks
-  shadow.getElementById('vera-faqs').addEventListener('click', function (e) {
+  // FAQ chip clicks (delegated on the panel, since a cleared chat redraws the welcome block)
+  panel.addEventListener('click', function (e) {
+    if (!e.target.closest('#vera-faqs')) return;
     var btn = e.target.closest('.faq');
     if (!btn) return;
     var q = btn.dataset.q;
@@ -614,7 +667,107 @@
     d.innerHTML = html;
     body.appendChild(d);
     scrollBottom();
+    syncClearButton();
     return d;
+  }
+
+  // ── Delete and clear ─────────────────────────────────────────────
+  // marketflow-ai (84d29f9) empties the stored session or drops one stored turn. The call is
+  // fire and forget: a failure still leaves this browser's copy removed.
+  function eraseOnServer(path) {
+    if (!sessionID) return;
+    try {
+      fetch(apiURL + '/api/v1/public/chat/sessions/' + encodeURIComponent(sessionID) + path, {
+        method: 'DELETE',
+        headers: { 'X-Tenant-ID': tenantSlug },
+      }).catch(function () {});
+    } catch (e) { /* ignore */ }
+  }
+
+  var clearBtn = shadow.getElementById('vera-clear');
+  function syncClearButton() {
+    if (clearBtn) clearBtn.hidden = !body.querySelector('.msg');
+  }
+
+  // A two-tap confirm: the first tap arms the button for three seconds.
+  function armed(btn, label) {
+    if (btn.dataset.armed === '1') return true;
+    btn.dataset.armed = '1';
+    var prev = btn.getAttribute('aria-label');
+    btn.classList.add('armed');
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
+    setTimeout(function () {
+      btn.dataset.armed = '';
+      btn.classList.remove('armed');
+      btn.setAttribute('aria-label', prev);
+      btn.title = prev;
+    }, 3000);
+    return false;
+  }
+
+  // Removes one exchange: the question above the answer, the answer, and the cards,
+  // chips or forms that came with it (everything up to the next question).
+  function removeExchange(bubble, entry) {
+    var q = bubble.previousElementSibling;
+    while (q && !(q.classList.contains('msg') && q.classList.contains('user'))) q = q.previousElementSibling;
+    var n = bubble.nextElementSibling;
+    while (n && !(n.classList.contains('msg') && n.classList.contains('user'))) {
+      var next = n.nextElementSibling;
+      n.remove();
+      n = next;
+    }
+    if (q) q.remove();
+    bubble.remove();
+    if (entry) {
+      var t = entry.t;
+      if (typeof t === 'number') {
+        eraseOnServer('/turns/' + t);
+        turnCount = Math.max(0, turnCount - 1);
+        chatHistory.forEach(function (p) { if (typeof p.t === 'number' && p.t > t) p.t -= 1; });
+      }
+      chatHistory = chatHistory.filter(function (p) { return p !== entry; });
+      saveHistory();
+    }
+    if (!body.querySelector('.msg')) body.innerHTML = welcomeHTML;
+    syncClearButton();
+  }
+
+  // addTools puts a delete button under an answer. entry is its chatHistory pair, or null.
+  function addTools(bubble, entry) {
+    var tools = document.createElement('div');
+    tools.className = 'msg-tools';
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'tool';
+    del.setAttribute('aria-label', 'Delete this question and answer');
+    del.title = 'Delete';
+    del.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg><span>Delete</span>';
+    del.addEventListener('click', function () {
+      if (!armed(del, 'Tap again to delete')) { del.querySelector('span').textContent = 'Tap again'; setTimeout(function () { var s = del.querySelector('span'); if (s) s.textContent = 'Delete'; }, 3000); return; }
+      removeExchange(bubble, entry);
+    });
+    tools.appendChild(del);
+    bubble.appendChild(tools);
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      if (sending || !armed(clearBtn, 'Tap again to clear the chat')) return;
+      eraseOnServer('');
+      sessionID = null;
+      chatHistory = [];
+      turnCount = 0;
+      try {
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(HISTORY_KEY);
+        sessionStorage.removeItem(TURNS_KEY);
+      } catch { }
+      formSubmitCount = 0;
+      body.innerHTML = welcomeHTML;
+      syncClearButton();
+      input.focus();
+    });
   }
 
   function showTyping(label) {
@@ -1055,43 +1208,120 @@
   }
 
   // ── Markdown renderer ────────────────────────────────────────────
+  // Block level: paragraphs, headings, bullet and numbered lists, tables,
+  // quotes, fenced code and rules. Everything is escaped first; only http(s)
+  // links become anchors. Safe to call on a half-streamed answer: an
+  // unfinished table or list simply renders as text until it completes.
+
+  // inline renders one line: code spans, links, bold, italic, strikethrough.
+  function inline(text) {
+    var keep = [];
+    function hold(html) { keep.push(html); return '\x00' + (keep.length - 1) + '\x00'; }
+    var s = String(text)
+      .replace(/`([^`]+)`/g, function (_, c) { return hold('<code>' + escHTML(c) + '</code>'); })
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function (_, label, url) {
+        return hold('<a href="' + escAttr(url) + '" target="_blank" rel="noreferrer">' + escHTML(label) + '</a>');
+      })
+      .replace(/(https?:\/\/[^\s<>)\]"]+)/g, function (url) {
+        var clean = url.replace(/[.,;:!?)]+$/, '');
+        var label = clean.length > 46 ? clean.replace(/^https?:\/\//, '').slice(0, 36) + '…' : clean;
+        return hold('<a href="' + escAttr(clean) + '" target="_blank" rel="noreferrer" class="bare">' + escHTML(label) + '</a>') + url.slice(clean.length);
+      });
+    s = escHTML(s)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.+?)__/g, '<strong>$1</strong>')
+      .replace(/(^|[^*\w])\*(?!\s)([^*]+?)\*(?![*\w])/g, '$1<em>$2</em>')
+      .replace(/(^|[\s(])_(?!\s)([^_]+?)_(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>')
+      .replace(/~~(.+?)~~/g, '<del>$1</del>');
+    return s.replace(/\x00(\d+)\x00/g, function (_, i) { return keep[+i]; });
+  }
+
+  var TABLE_RULE = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+  function cells(row) {
+    return row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function (c) { return c.trim(); });
+  }
+
   function md(text) {
     if (!text) return '';
-    var urls = [];
-    var safe = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function (_, label, url) {
-      var i = urls.length;
-      urls.push({ label: label, url: url });
-      return '\x00LINK' + i + '\x00';
-    }).replace(/(https?:\/\/[^\s<>)\]"]+)/g, function (url) {
-      var clean = url.replace(/[.,;:!?)]+$/, '');
-      var i = urls.length;
-      urls.push({ label: null, url: clean });
-      return '\x00BARE' + i + '\x00' + url.slice(clean.length);
-    });
-
-    safe = escHTML(safe)
-      .replace(/^### (.+)$/gm, '<strong>$1</strong>')
-      .replace(/^## (.+)$/gm, '<strong>$1</strong>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/`(.+?)`/g, '<code>$1</code>')
-      .replace(/^- (.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
-      .replace(/\n/g, '<br>');
-
-    var linkStyle = 'color:' + accentColor + ';text-decoration:underline;word-break:break-all';
-    safe = safe
-      .replace(/\x00LINK(\d+)\x00/g, function (_, i) {
-        var u = urls[+i];
-        return '<a href="' + escAttr(u.url) + '" target="_blank" rel="noreferrer" style="' + linkStyle + '">' + escHTML(u.label) + '</a>';
-      })
-      .replace(/\x00BARE(\d+)\x00/g, function (_, i) {
-        var u = urls[+i];
-        var label = u.url.length > 46 ? u.url.replace(/^https?:\/\//, '').slice(0, 36) + '…' : u.url;
-        return '<a href="' + escAttr(u.url) + '" target="_blank" rel="noreferrer" style="' + linkStyle + '">' + escHTML(label) + '</a>';
-      });
-
-    return safe;
+    var lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+    var out = [];
+    var para = [];
+    function flush() {
+      if (para.length) out.push('<p>' + para.map(inline).join('<br>') + '</p>');
+      para = [];
+    }
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var m;
+      if (/^\s*```/.test(line)) {
+        flush();
+        var code = [];
+        for (i++; i < lines.length && !/^\s*```/.test(lines[i]); i++) code.push(lines[i]);
+        out.push('<pre><code>' + escHTML(code.join('\n')) + '</code></pre>');
+        continue;
+      }
+      if (!line.trim()) { flush(); continue; }
+      // The rule row must have a cell per header, so a half-streamed "|---" stays text.
+      if (line.indexOf('|') !== -1 && i + 1 < lines.length && TABLE_RULE.test(lines[i + 1]) &&
+          cells(lines[i + 1]).length >= cells(line).length) {
+        flush();
+        var head = cells(line);
+        var aligns = cells(lines[i + 1]).map(function (c) {
+          return /^:-+:$/.test(c) ? 'center' : /-:$/.test(c) ? 'right' : '';
+        });
+        var html = '<div class="tbl"><table><thead><tr>' + head.map(function (c, k) {
+          return '<th' + (aligns[k] ? ' style="text-align:' + aligns[k] + '"' : '') + '>' + inline(c) + '</th>';
+        }).join('') + '</tr></thead><tbody>';
+        for (i += 2; i < lines.length && lines[i].indexOf('|') !== -1 && lines[i].trim(); i++) {
+          var row = cells(lines[i]);
+          html += '<tr>' + head.map(function (_, k) {
+            return '<td' + (aligns[k] ? ' style="text-align:' + aligns[k] + '"' : '') + '>' + inline(row[k] || '') + '</td>';
+          }).join('') + '</tr>';
+        }
+        i--;
+        out.push(html + '</tbody></table></div>');
+        continue;
+      }
+      if ((m = line.match(/^\s{0,3}(#{1,6})\s+(.*)$/))) {
+        flush();
+        out.push('<p class="h">' + inline(m[2].replace(/\s+#+\s*$/, '')) + '</p>');
+        continue;
+      }
+      if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(line)) { flush(); out.push('<hr>'); continue; }
+      if (/^\s*>/.test(line)) {
+        flush();
+        var quote = [];
+        for (; i < lines.length && /^\s*>/.test(lines[i]); i++) quote.push(lines[i].replace(/^\s*>\s?/, ''));
+        i--;
+        out.push('<blockquote>' + md(quote.join('\n')) + '</blockquote>');
+        continue;
+      }
+      var bullet = /^\s*[-*+•]\s+(.*)$/;
+      var number = /^\s*(\d+)[.)]\s+(.*)$/;
+      if (bullet.test(line) || number.test(line)) {
+        flush();
+        var ordered = number.test(line);
+        var re = ordered ? number : bullet;
+        var start = ordered ? parseInt(line.match(number)[1], 10) : 1;
+        var items = [];
+        for (; i < lines.length; i++) {
+          var l = lines[i];
+          if (re.test(l)) { items.push(l.match(re)[ordered ? 2 : 1]); continue; }
+          // An indented line continues the item above; a blank line followed by another item keeps the list going.
+          if (items.length && /^\s{2,}\S/.test(l) && !bullet.test(l) && !number.test(l)) { items[items.length - 1] += ' ' + l.trim(); continue; }
+          if (!l.trim() && i + 1 < lines.length && re.test(lines[i + 1])) continue;
+          break;
+        }
+        i--;
+        var tag = ordered ? 'ol' : 'ul';
+        out.push('<' + tag + (ordered && start !== 1 ? ' start="' + start + '"' : '') + '>' +
+          items.map(function (it) { return '<li>' + inline(it) + '</li>'; }).join('') + '</' + tag + '>');
+        continue;
+      }
+      para.push(line.trim());
+    }
+    flush();
+    return out.join('');
   }
 
   // ── Action chips ─────────────────────────────────────────────────
@@ -1156,7 +1386,7 @@
 
   // ── Response renderer ────────────────────────────────────────────
   function renderAnswer(text, meta) {
-    appendMsg('bot', md(text));
+    var bubble = appendMsg('bot', md(text));
 
     if (meta && Array.isArray(meta.courses)) {
       meta.courses.slice(0, 2).forEach(function (c) {
@@ -1194,6 +1424,15 @@
     }
 
     scrollBottom();
+    return bubble;
+  }
+
+  // remember stores a completed answer as the session's next turn and gives its bubble a delete button.
+  function remember(bubble, q, a) {
+    var entry = { q: q, a: a, t: turnCount++ };
+    chatHistory.push(entry);
+    saveHistory();
+    addTools(bubble, entry);
   }
 
   // ── Escape helpers ────────────────────────────────────────────────
@@ -1304,11 +1543,9 @@
         var answer = (data.result && data.result.response) || data.response || '';
         var meta   = (data.result && data.result.meta) || data.meta || null;
         if (answer) {
-          renderAnswer(answer, meta);
-          chatHistory.push({ q: q, a: answer });
-          saveHistory();
+          remember(renderAnswer(answer, meta), q, answer);
         } else {
-          appendMsg('bot', md("I didn't get a response. Please try again."));
+          addTools(appendMsg('bot', md("I didn't get a response. Please try again.")), null);
         }
         return;
       }
@@ -1368,8 +1605,7 @@
       // Finalize bubble with full rendered markdown
       if (accumulated) {
         botBubble.innerHTML = md(accumulated);
-        chatHistory.push({ q: q, a: accumulated });
-        saveHistory();
+        remember(botBubble, q, accumulated);
         // Render meta cards + action chips after streaming completes
         if (finalMeta) {
           if (Array.isArray(finalMeta.courses)) {
@@ -1406,6 +1642,7 @@
         }
       } else {
         botBubble.innerHTML = md("I didn't get a response. Please try again.");
+        addTools(botBubble, null);
       }
       scrollBottom();
 
@@ -1414,7 +1651,7 @@
       var fallbackChips = [];
       if (waHref) fallbackChips.push({ label: '💬 WhatsApp us', href: waHref });
       if (callHref) fallbackChips.push({ label: '📞 Call us', href: callHref });
-      appendMsg('bot', md('Sorry, something went wrong. Please try again.'));
+      addTools(appendMsg('bot', md('Sorry, something went wrong. Please try again.')), null);
       renderActionChips(fallbackChips);
       console.error('[vera-widget]', err);
     } finally {
