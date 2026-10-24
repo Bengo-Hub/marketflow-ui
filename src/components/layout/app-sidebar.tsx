@@ -19,7 +19,7 @@ import {
   Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
   Briefcase, Activity, CheckSquare, ChevronDown, LogOut, UsersRound, Filter,
   SlidersHorizontal, Workflow, Palette, UserCircle, CreditCard, PlugZap, Quote,
-  ScrollText, Gauge, KeyRound, Cog, Receipt,
+  ScrollText, Gauge, KeyRound, Cog, Receipt, ImageIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
@@ -47,6 +47,7 @@ export const navGroups: NavGroup[] = [
       { label: "Leads", icon: Users, href: "/leads", feature: "lead_management" },
       { label: "Contacts", icon: UserCheck, href: "/contacts", feature: "contact_management" },
       { label: "Campaigns", icon: Megaphone, href: "/campaigns", feature: "basic_campaigns" },
+      { label: "Studio", icon: ImageIcon, href: "/studio" },
       { label: "Funnels", icon: Globe, href: "/funnels", feature: "funnel_builder" },
       { label: "Sequences", icon: Mail, href: "/sequences", feature: "email_sequences" },
       { label: "Chat", icon: MessageSquare, href: "/chat", feature: "ai_chat_agent" },
