@@ -294,7 +294,7 @@ Plan: `.claude/plans/marketflow-ui-glass-revamp-2026-10-23.md`. Design rules: `d
   - pos-api `dcd447a`: sales per SKU are now summed in SQL; before, every order was loaded into memory. The S2S route also takes `order` and `limit`.
   - inventory-api `c778868`: items can be listed with `?skus=`.
   - codevertex-website `9ae0989`: `GET /api/catalog`.
-- `tenant.SetMetadataKeys` merges metadata keys in one UPDATE. The profile, brand context and settings writers still rewrite the whole map, so concurrent saves can drop each other's key; session 80 was told about the helper for `marketingos`.
+- `metastore.SetKeys` (api `c48b2fb`, a leaf package) merges metadata keys in one UPDATE. The profile PATCH now writes only the sent keys through it, so a form posting stale metadata no longer undoes a brand context saved meanwhile. Session 80 is moving `SaveBrandContext` and `SaveSettings` to it.
 
 ### Open (Phase 5 and the owner's 2026-10-24 asks)
 
@@ -302,7 +302,6 @@ Plan: `.claude/plans/marketflow-ui-glass-revamp-2026-10-23.md`. Design rules: `d
 |---|---|
 | Onboarding UI | `/{org}/onboarding` flow (profile with auth defaults, link top offerings, brand context review, channels, first lead capture), a dashboard prompt from the checklist, and the brand context page redesign: chip lists, "Fill from my business data", offerings picked from the draft. Session 80 agreed this session owns `settings/marketing-context` |
 | Shared components | Most tables and pickers are hand-rolled: move them to shared-ui-lib's DataTable and SearchableCombobox, wire missing edit and delete actions, and merge duplicated components |
-| Profile PATCH | Switch to `tenant.SetMetadataKeys` with only the changed keys |
 | settings/integrations | Restyle and the Google business hours editor. Asked session fc first (Sprint 14 owner); no answer yet |
 | settings/custom-fields, settings hub | Restyle on the ui-kit; the hub still describes the profile as "FBO profile" for every tenant |
 | studio (Sprint 15) | `[orgSlug]/studio` after the pages above. API: briefs, versions (202 then poll), revise (free), extend, approve/discard (Approve only for `marketflow_admin` or `fbo_owner`, api `7e6c943`), review links, `/os/creative/quote`, `daily_render_limit`, `restricted_categories` notice, assets kind `image` only |
