@@ -346,7 +346,7 @@ const adProviders: ProviderDef[] = [
     type: "meta_ads",
     name: "Meta (Facebook + Instagram)",
     description:
-      "Meta App used for lead-ads webhook + tenant Page OAuth. Tenants connect their own Page on /settings/integrations.",
+      "The Meta app for Facebook Login for Business, Pages, Instagram, Lead Ads and the Marketing API. Tenants connect their own Page on /settings/integrations. In the Meta app set: privacy policy https://accounts.codevertexafrica.com/privacy, terms https://accounts.codevertexafrica.com/terms-of-service, data deletion callback https://marketflowapi.codevertexafrica.com/api/v1/integrations/meta/data-deletion, deauthorize callback https://marketflowapi.codevertexafrica.com/api/v1/integrations/meta/deauthorize, lead webhook https://marketflowapi.codevertexafrica.com/api/v1/webhooks/meta/leadgen.",
     scope: "platform",
     logoSlug: "meta",
     logoColor: "0866FF",
@@ -355,7 +355,14 @@ const adProviders: ProviderDef[] = [
     capabilities: { test: true },
     fields: [
       { key: "app_id", label: "App ID", type: "text", required: true },
-      { key: "app_secret", label: "App secret", type: "password", secret: true, required: true },
+      {
+        key: "app_secret",
+        label: "App secret",
+        type: "password",
+        secret: true,
+        required: true,
+        help: "Also verifies Meta's data deletion and deauthorize callbacks. Reset it in Meta if it was ever shared.",
+      },
       {
         key: "verify_token",
         label: "Webhook verify token",
@@ -388,6 +395,67 @@ const adProviders: ProviderDef[] = [
         label: "Graph API version",
         type: "text",
         default: "v21.0",
+      },
+    ],
+  },
+  {
+    id: "capi",
+    type: "meta_ads",
+    name: "Meta Conversions API (Codevertex dataset)",
+    description:
+      "Server events to Codevertex's own Meta dataset (Events Manager > Datasets). Tenants send their own conversions with their own dataset from their settings. Test sends one event with the test event code, shown only on the dataset's Test events tab.",
+    scope: "platform",
+    logoSlug: "meta",
+    logoColor: "0866FF",
+    brandColor: "#0866FF",
+    docsUrl: "https://business.facebook.com/events_manager2",
+    capabilities: { test: true },
+    fields: [
+      { key: "dataset_id", label: "Dataset (pixel) ID", type: "text", required: true },
+      {
+        key: "access_token",
+        label: "Conversions API access token",
+        type: "password",
+        secret: true,
+        required: true,
+        help: "Events Manager > dataset > Settings > Conversions API > Generate access token (a system user token, not a Graph Explorer token).",
+      },
+      {
+        key: "test_event_code",
+        label: "Test event code",
+        type: "text",
+        help: "From the dataset's Test events tab (for example TEST12345). Leave empty in production.",
+      },
+      { key: "graph_version", label: "Graph API version", type: "text", default: "v21.0" },
+    ],
+  },
+  {
+    id: "threads",
+    type: "meta_ads",
+    name: "Threads",
+    description:
+      "The Threads use case of the same Meta app (its own app ID and secret), for publishing to a business's Threads profile (Sprint 16). In the Threads settings set the redirect callback https://marketflowapi.codevertexafrica.com/api/v1/integrations/threads/callback, and the uninstall and delete callbacks to the Meta deauthorize and data deletion URLs above.",
+    scope: "platform",
+    logoSlug: "threads",
+    logoColor: "000000",
+    brandColor: "#000000",
+    docsUrl: "https://developers.facebook.com/docs/threads",
+    capabilities: { test: true },
+    fields: [
+      { key: "app_id", label: "Threads app ID", type: "text", required: true },
+      { key: "app_secret", label: "Threads app secret", type: "password", secret: true, required: true },
+      {
+        key: "redirect_url",
+        label: "OAuth redirect URL",
+        type: "url",
+        default: "https://marketflowapi.codevertexafrica.com/api/v1/integrations/threads/callback",
+      },
+      {
+        key: "scopes",
+        label: "Permissions requested at connect",
+        type: "text",
+        default: "threads_basic,threads_content_publish",
+        help: "Comma-separated; only permissions Meta has approved for the app.",
       },
     ],
   },
@@ -617,6 +685,7 @@ const mediaProviders: ProviderDef[] = [
     scope: "platform",
     brandColor: "#5B21B6",
     docsUrl: "https://fal.ai/dashboard/keys",
+    capabilities: { test: true },
     fields: [
       {
         key: "api_key",
@@ -624,8 +693,7 @@ const mediaProviders: ProviderDef[] = [
         type: "password",
         secret: true,
         required: true,
-        placeholder: "key-id:key-secret",
-        help: "Keep a balance: generation fails at USD 0, and the router skips fal.ai when it is low.",
+        help: "Format key-id:key-secret. Keep a balance: generation fails at USD 0, and the router skips fal.ai when it is low.",
       },
     ],
   },
@@ -638,6 +706,7 @@ const mediaProviders: ProviderDef[] = [
     scope: "platform",
     brandColor: "#84CC16",
     docsUrl: "https://console.higgsfield.ai",
+    capabilities: { test: true },
     fields: [
       {
         key: "api_key",
@@ -645,8 +714,7 @@ const mediaProviders: ProviderDef[] = [
         type: "password",
         secret: true,
         required: true,
-        placeholder: "key-id:key-secret",
-        help: "Keep a balance: generation fails at USD 0.",
+        help: "Format key-id:key-secret. Keep a balance: generation fails at USD 0.",
       },
     ],
   },
@@ -660,6 +728,7 @@ const mediaProviders: ProviderDef[] = [
     logoColor: "000000",
     brandColor: "#000000",
     docsUrl: "https://elevenlabs.io/app/settings/api-keys",
+    capabilities: { test: true },
     fields: [
       {
         key: "api_key",
@@ -679,6 +748,7 @@ const mediaProviders: ProviderDef[] = [
     scope: "platform",
     brandColor: "#2563EB",
     docsUrl: "https://creatomate.com/docs/api/introduction",
+    capabilities: { test: true },
     fields: [{ key: "api_key", label: "API key", type: "password", secret: true }],
   },
 ];
