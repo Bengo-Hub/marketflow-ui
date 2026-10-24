@@ -254,20 +254,34 @@ Plan: `.claude/plans/marketflow-ui-glass-revamp-2026-10-23.md`. Design rules: `d
 
 **App icons (2026-10-24).** `public/logo-mark.svg` is the source for every icon: an MF monogram on the mail-ui style white card over the brand gradient tile, with the Codevertex vertex mark as a seal. `favicon.svg`, a 16/32/48 `favicon.ico` (the Next default had been shipping), the manifest PNGs, apple-touch and maskable icons are all rendered from it, and `BrandMark` shows it. The generator lives outside the repo; to redo it, render `logo-mark.svg` with sharp at each size in `public/manifest.json`, with maskable art scaled to 78% so it sits in the safe zone.
 
+### Done (2026-10-24, second round)
+
+| Area | What changed | Commits |
+|---|---|---|
+| chat (dashboard) | SSE moved to `lib/api/chat.ts`. Compliance `replace` events now replace the text (the unfiltered answer used to stay on screen). Stream errors and the 402 credits reply show a message with retry or a billing link. Session memory works from turn one (marketflow-ai `e4daad5`). Prompts follow the business type. Delete per answer and Clear chat, erasing stored history through marketflow-ai `84d29f9` | `917e503`, `e8daaa9` |
+| chat widget (`public/widget/chat.js`) | Block markdown renderer: tables, numbered lists, headings, quotes, code and rules (tables showed as raw pipes). Delete under each answer and a Clear button in the header, both two-tap and both erasing server history. Header uses the tenant colour alone | `e8daaa9` |
+| /p | A broken profile photo link falls back to the initial (it failed before hydration, so onError never fired) | `e8daaa9` |
+| settings/testimonials | Typed module and hooks, reorder, show/hide switch, star picker | `a752ff3`, api `94a548f` |
+| settings/team | Was always empty (read `data.data`, API sends `members`) and offered roles that don't exist. Now Admin, Member, Viewer; admin-only controls; one-time temporary password for brand-new accounts | `542f704`, api `d669328` |
+
+**Security fixes in marketflow-api (2026-10-24).**
+- `d669328` team members: any signed-in member, a viewer included, could invite, change roles (including their own to admin) or remove people. These now need `marketflow_admin` (or a platform owner or service key), and nobody can change or remove themselves. The caller came from a client `X-User-ID` header; it now comes from the token. Invites went to an auth-api path that doesn't exist; they now use `/api/v1/s2s/tenants/{id}/members` with a body built server-side, because that route acts with platform rights. Role changes and removals are audited.
+- `94a548f` testimonials: PATCH reset `display_order` to 0 on every publish toggle; role and photo could never be cleared; raw database errors reached the client. Now partial updates, input checks and audit events.
+
 ### Open (Phase 5, remaining pages)
 
 | Page | Still to do |
 |---|---|
 | settings/integrations | Google business hours editor (`PUT /integrations/google/business-hours`) |
 | settings/billing | A separate client for subscriptions and treasury, so MarketFlow tenant headers stop going to other services |
-| chat | Move SSE fetch to `lib/api/chat.ts`; drop the AI-look icons |
+| settings/custom-fields, settings hub | Restyle on the ui-kit; the hub still describes the profile as "FBO profile" for every tenant |
 | platform/billing | Plans query filters `service=marketflow`, which matches no plan; per-tenant plan lookup; errors are swallowed |
-| all others | Restyle on the ui-kit, move inline `apiClient` calls into modules and hooks |
+| studio (Sprint 15) | Owner confirmed on 2026-10-24 that this session builds `[orgSlug]/studio` after the pages above. API from f2: briefs, versions (202 then poll), revise (free), extend, approve/discard, review links, `/os/creative/quote`, `daily_render_limit`, `restricted_categories` notice, assets kind `image` only |
 
 ### Flagged, not yet fixed
 
-- **Tenant audit events.** Done in api `1630db5` for profile, funnels, campaigns and leads (plus lead export). Still open:
-  - Team members live in auth-api; no audit there yet.
+- **Team invites need a live check.** The s2s route and service key match what other services use, but no invite has been sent against production yet. A member's role inside MarketFlow comes from the JIT sync on first sign-in (auth `admin` maps to Admin, `member` to Member, anything else to Viewer); someone already synced keeps their MarketFlow role until an admin changes it here.
+- **Tenant audit events.** Done in api `1630db5` for profile, funnels, campaigns and leads (plus lead export), and now team changes and testimonials. Still open:
   - Integrations belong to the Sprint 14 session.
   - Agent create and delete belong to the Sprint 15 session, which will use `audit.Tenant`.
 - **Suggestion producer.** No producer writes `suggestion` activities, so the bell's suggestions list stays empty until an agent writes them.
