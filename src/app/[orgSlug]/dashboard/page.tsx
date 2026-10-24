@@ -9,6 +9,7 @@ import {
 import { WhatsAppIcon } from "@/components/public-profile/whatsapp-icon";
 import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, PageHeader, StatCard } from "@/components/ui-kit";
 import { LeadTrendChart, SourceBars } from "@/components/dashboard/charts";
+import { SetupCard } from "@/components/onboarding/setup-card";
 import { useDashboard, useProfileMetrics } from "@/hooks/use-analytics";
 import type { DashboardDays } from "@/lib/api/analytics";
 
@@ -52,6 +53,8 @@ export default function DashboardPage() {
           />
         }
       />
+
+      <SetupCard orgSlug={orgSlug} />
 
       {dash.isError && <ErrorState message="Could not load the dashboard." onRetry={() => void dash.refetch()} />}
 
