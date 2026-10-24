@@ -56,6 +56,7 @@ Use shadcn primitives from `src/components/ui`. Control defaults are 40px tall (
 - Don't use em-dash connectors or "§".
 - Don't use "AI-powered", "on autopilot" or other copy that narrates itself.
 - Don't use sparkle, wand or robot icons, colour gradients, glowing halos, or emoji in the UI.
+- **App icon.** `public/logo-mark.svg` (MF monogram plus the Codevertex vertex mark, same tile as mail-ui) is the one source. Regenerate the favicon and PWA icons from it rather than drawing new ones; use `BrandMark` for the mark in the UI. A tenant without a logo shows its initials in the sidebar, never the MarketFlow mark.
 - **Claims on public pages must be true of the product today.** The landing page was checked against the code on 2026-10-23.
 - **Forever Living content** follows `marketflow/docs/compliance-rules.md`:
   - no income figures or guarantees

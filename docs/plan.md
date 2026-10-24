@@ -244,15 +244,20 @@ Plan: `.claude/plans/marketflow-ui-glass-revamp-2026-10-23.md`. Design rules: `d
 | sequences | Cards with an on/off switch, editor with WhatsApp/SMS/email messages, waits and variables, results from both analytics endpoints | `26a770c` |
 | meetings | Agenda grouped by day; held, no-show and cancel; booking dialog | `6012bf2` |
 | short links | Tap counts, kinds, copy, create; targets must be web links | `3e7bbbc`, api `95e98da` |
-| knowledge | API search (`q`) done; page still to restyle | api `e891225` |
+| knowledge | Restyled with search; platform-shared entries are read-only for tenants | `67a092a`, api `e891225` |
+| crm/tasks | Contract fixed (`due_at`, `normal`, `done`, `overdue=true`); record picker for the linked lead, contact or deal | `5d68d47` |
+| crm/deals | Board by stage, deal sheet with timeline, won/lost with `reason`; pipelines can be set up | `53936a2` |
+| crm/segments | Rule builder over contact fields (match all or any), recount, delete. Lead segments count every lead and say so | `6bc36c3` |
+| crm/accounts | Rebuilt on the typed API: edit, delete (contacts and deals are unlinked, `ON DELETE SET NULL`), contacts sheet. The old name search box was dropped: the API has no name filter | `6bc36c3` |
+
+**Production crash fixed (2026-10-24).** `/{org}/dashboard` threw "Cannot read properties of null (reading 'length')" for a tenant with no leads: Go sent `by_source: null`. The API now returns `[]` (api `d37a81b`) and the UI normalises null lists in the dashboard, contact 360 and sequence modules (`6bc36c3`).
+
+**App icons (2026-10-24).** `public/logo-mark.svg` is the source for every icon: an MF monogram on the mail-ui style white card over the brand gradient tile, with the Codevertex vertex mark as a seal. `favicon.svg`, a 16/32/48 `favicon.ico` (the Next default had been shipping), the manifest PNGs, apple-touch and maskable icons are all rendered from it, and `BrandMark` shows it. The generator lives outside the repo; to redo it, render `logo-mark.svg` with sharp at each size in `public/manifest.json`, with maskable art scaled to 78% so it sits in the safe zone.
 
 ### Open (Phase 5, remaining pages)
 
 | Page | Still to do |
 |---|---|
-| knowledge | Restyle and add search. Platform-shared entries (`scope = platform`) are read-only for tenants |
-| crm/deals | Deal drawer with timeline (`dealTimeline`) |
-| crm/tasks | Contract fix: the page sends `due_date` and `priority: medium` and filters `completed`, but the API uses `due_at`, `normal` and `done` |
 | settings/integrations | Google business hours editor (`PUT /integrations/google/business-hours`) |
 | settings/billing | A separate client for subscriptions and treasury, so MarketFlow tenant headers stop going to other services |
 | chat | Move SSE fetch to `lib/api/chat.ts`; drop the AI-look icons |
