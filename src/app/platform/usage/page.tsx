@@ -1,19 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, CalendarDays, Gauge, Megaphone, MessageSquare, Repeat, Trophy, Users } from "lucide-react";
+import { Building2, CalendarDays, Gauge, HardDrive, Megaphone, MessageSquare, Repeat, Trophy, Users } from "lucide-react";
 import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
 import { EmptyState, ErrorState, ListTable, PageHeader, StatCard } from "@/components/ui-kit";
 import { usePlatformUsage } from "@/hooks/use-admin";
 import type { PlatformUsage } from "@/lib/api/admin";
 
 const nf = new Intl.NumberFormat("en-KE");
+
+function size(bytes: number): string {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let v = bytes;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toLocaleString("en-KE", { maximumFractionDigits: i ? 1 : 0 })} ${units[i]}`;
+}
 type Row = PlatformUsage["leaderboard"][number];
 
 export default function PlatformUsagePage() {
   const usage = usePlatformUsage();
   const d = usage.data;
   const loading = usage.isLoading;
+  const cs = d?.creative_storage;
 
   const columns: DataTableColumn<Row>[] = [
     {
@@ -47,6 +59,15 @@ export default function PlatformUsagePage() {
         <StatCard label="Active campaigns" icon={<Megaphone />} loading={loading} value={d ? nf.format(d.campaigns.active) : "0"} />
         <StatCard label="Upcoming meetings" icon={<CalendarDays />} loading={loading} value={d ? nf.format(d.meetings.upcoming) : "0"} />
         <StatCard label="In follow-up sequences" icon={<Repeat />} loading={loading} value={d ? nf.format(d.nurture.active_enrollments) : "0"} />
+        {(loading || cs) && (
+          <StatCard
+            label="Studio files stored"
+            icon={<HardDrive />}
+            loading={loading}
+            value={cs ? size(cs.bytes) : "0"}
+            hint={cs && `${size(cs.kept.bytes)} kept, ${size(cs.drafts.bytes)} drafts that expire. ${nf.format(cs.files)} files.`}
+          />
+        )}
       </div>
 
       <div>

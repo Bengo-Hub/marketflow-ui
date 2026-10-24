@@ -46,7 +46,16 @@ export interface PlatformUsage {
   meetings: { upcoming: number };
   nurture: { active_enrollments: number };
   leaderboard: { tenant_id: string; tenant_name: string; slug: string; leads_this_week: number }[];
+  /** Studio files not yet purged. Drafts still expire; kept files belong to approved versions. */
+  creative_storage?: { bytes: number; files: number; drafts: StoredFiles; kept: StoredFiles };
   generated_at: string;
+}
+
+/** by_kind keys: image, scene (a poster's background), video. */
+export interface StoredFiles {
+  bytes: number;
+  files: number;
+  by_kind: Record<string, { bytes: number; files: number }>;
 }
 
 /** GET /api/v1/admin/encryption-key: which key encrypts provider secrets. The raw key is never returned. */

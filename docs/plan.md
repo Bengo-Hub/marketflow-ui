@@ -333,7 +333,7 @@ Only `components/contacts/import-dialog.tsx` still renders a plain table: per-ro
 |---|---|
 | Shared components | Tables done (above). Still to sweep: the remaining `components/ui/select` uses (agents, team-roster, provider-card are session 80's), and card grids that could share one card component |
 | settings/integrations | Restyle and the Google business hours editor. Asked session fc first (Sprint 14 owner); no answer yet |
-| studio (Sprint 15) | `[orgSlug]/studio` after the pages above. API: briefs, versions (202 then poll), revise (free), extend, approve/discard (Approve only for `marketflow_admin` or `fbo_owner`, api `7e6c943`), review links, `/os/creative/quote`, `daily_render_limit`, `restricted_categories` notice, assets kind `image` only |
+| studio (Sprint 15) | Poster studio shipped 2026-10-24 (`c9ced4e`): ads list, new-ad form with the offering picker, poster form with the credit quote, polling, version cards with approve, discard, word changes, motion, extend and review links. Still open: the video script editor, storyboard and review player (they wait for the video pipeline), brand kit settings, and a real-data pass once posters render in production |
 
 ### Flagged, not yet fixed
 
