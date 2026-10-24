@@ -36,6 +36,8 @@ These rules apply to every screen in marketflow-ui. Read them before you add a p
 - **`CapsuleTabs`**: status filters and view switches. Use it instead of a `Select` for short fixed lists.
 - **`StatusBadge` and `ToneBadge`**: one status vocabulary for every list. Add a status to the map in `status-badge.tsx`, not a colour to a page.
 - **`EmptyState`, `ErrorState`, `Pager`, `Field`**: an empty list says what goes there and what to do next. A failed query shows an error with Try again.
+- **`ListEditor`**: a short list of phrases (audience, offers, banned claims) as chips. Enter or a multi-line paste adds; click a chip to edit; limits come from the API. Don't use one-item-per-line textareas.
+- **Grids with chips or long unbroken text** need `grid-cols-1` plus `min-w-0` on the items. An implicit grid column grows to the widest chip and pushes the page sideways on phones.
 
 Use shadcn primitives from `src/components/ui`. Control defaults are 40px tall (`h-10`), and every button or link a finger can hit is at least 44px tall. For dropdowns over data, such as tenants, contacts or pipelines, use the shared-ui-lib `SearchableCombobox`.
 

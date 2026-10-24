@@ -296,14 +296,29 @@ Plan: `.claude/plans/marketflow-ui-glass-revamp-2026-10-23.md`. Design rules: `d
   - codevertex-website `9ae0989`: `GET /api/catalog`.
 - `metastore.SetKeys` (api `c48b2fb`, a leaf package) merges metadata keys in one UPDATE. The profile PATCH now writes only the sent keys through it, so a form posting stale metadata no longer undoes a brand context saved meanwhile. Session 80 is moving `SaveBrandContext` and `SaveSettings` to it.
 
+**Onboarding UI (`d319f14`).**
+- `/{org}/onboarding` shows progress and the setup steps. Three steps are finished in place:
+  - **Profile:** pre-filled from the account: contact, WhatsApp and logo.
+  - **Offerings:** best sellers from POS (or the catalogue) are ticked and added to the public page.
+  - **Brief:** the suggested brief is saved as a start.
+
+  The other steps link to their pages, and the guide can be hidden.
+- The dashboard shows a "Finish setting up" card until setup is done or hidden.
+- The brand context page is redesigned:
+  - "Fill from my business data" fills only empty fields;
+  - products go into "what you sell" with one tap;
+  - the five-question interview is still available;
+  - lists use the ui-kit `ListEditor` (chips, API limits enforced);
+  - a sticky bar saves or undoes changes.
+- The settings hub is regrouped and includes the setup guide with its progress.
+
 ### Open (Phase 5 and the owner's 2026-10-24 asks)
 
 | Item | Still to do |
 |---|---|
-| Onboarding UI | `/{org}/onboarding` flow (profile with auth defaults, link top offerings, brand context review, channels, first lead capture), a dashboard prompt from the checklist, and the brand context page redesign: chip lists, "Fill from my business data", offerings picked from the draft. Session 80 agreed this session owns `settings/marketing-context` |
 | Shared components | Most tables and pickers are hand-rolled: move them to shared-ui-lib's DataTable and SearchableCombobox, wire missing edit and delete actions, and merge duplicated components |
 | settings/integrations | Restyle and the Google business hours editor. Asked session fc first (Sprint 14 owner); no answer yet |
-| settings/custom-fields, settings hub | Restyle on the ui-kit; the hub still describes the profile as "FBO profile" for every tenant |
+| settings/custom-fields | Restyle on the ui-kit (the settings hub is done) |
 | studio (Sprint 15) | `[orgSlug]/studio` after the pages above. API: briefs, versions (202 then poll), revise (free), extend, approve/discard (Approve only for `marketflow_admin` or `fbo_owner`, api `7e6c943`), review links, `/os/creative/quote`, `daily_render_limit`, `restricted_categories` notice, assets kind `image` only |
 
 ### Flagged, not yet fixed
