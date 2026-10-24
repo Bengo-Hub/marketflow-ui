@@ -32,8 +32,11 @@ export interface ProfileMetrics {
 export type DashboardDays = 7 | 30 | 90;
 
 export const analyticsApi = {
+  // Go encodes an empty slice as null; normalise so pages can read .length safely.
   dashboard: (days: DashboardDays) =>
-    apiClient.get<DashboardData>("/api/v1/analytics/dashboard", { params: { days } }).then((r) => r.data),
+    apiClient
+      .get<DashboardData>("/api/v1/analytics/dashboard", { params: { days } })
+      .then((r) => ({ ...r.data, daily: r.data.daily ?? [], by_source: r.data.by_source ?? [] })),
   profile: (days: DashboardDays) =>
     apiClient.get<ProfileMetrics>("/api/v1/analytics/profile", { params: { days } }).then((r) => r.data),
 };

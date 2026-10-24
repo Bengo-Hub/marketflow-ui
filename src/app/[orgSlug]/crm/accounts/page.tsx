@@ -1,176 +1,212 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Building2, ExternalLink, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { STALE_TIMES } from "@/app/providers";
-import { accountsApi } from "@/lib/api/accounts";
-import { Search } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ConfirmDialog, EmptyState, ErrorState, Field, Pager, PageHeader, ToneBadge } from "@/components/ui-kit";
+import { useAccountContacts, useAccounts, useRemoveAccount, useSaveAccount } from "@/hooks/use-accounts-segments";
+import type { Account, AccountInput } from "@/lib/api/accounts";
+import { contactName } from "@/lib/api/contacts";
 
-type Account = {
-  id: string;
-  name: string;
-  industry?: string;
-  website?: string;
-  contact_count?: number;
-  created_at: string;
-};
+const dateFmt = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium" });
+
+function hostOf(url?: string | null) {
+  if (!url) return "";
+  try {
+    return new URL(url.startsWith("http") ? url : `https://${url}`).host;
+  } catch {
+    return url;
+  }
+}
+
+function AccountForm({ account, onDone }: { account?: Account; onDone: () => void }) {
+  const save = useSaveAccount();
+  const [form, setForm] = useState({
+    name: account?.name ?? "",
+    industry: account?.industry ?? "",
+    website: account?.website ?? "",
+    phone: account?.phone ?? "",
+    employee_count: account?.employee_count ? String(account.employee_count) : "",
+  });
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const submit = () => {
+    const data: AccountInput = { name: form.name.trim() };
+    if (form.industry.trim()) data.industry = form.industry.trim();
+    if (form.website.trim()) data.website = form.website.trim();
+    if (form.phone.trim()) data.phone = form.phone.trim();
+    if (Number(form.employee_count) > 0) data.employee_count = Math.round(Number(form.employee_count));
+    save.mutate({ id: account?.id, data }, { onSuccess: onDone });
+  };
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Company name" required htmlFor="ac-n" className="sm:col-span-2"><Input id="ac-n" value={form.name} onChange={set("name")} autoComplete="organization" /></Field>
+        <Field label="Industry" htmlFor="ac-i"><Input id="ac-i" value={form.industry} onChange={set("industry")} placeholder="Retail, health, schools..." /></Field>
+        <Field label="Employees" htmlFor="ac-e"><Input id="ac-e" type="number" inputMode="numeric" min={0} value={form.employee_count} onChange={set("employee_count")} /></Field>
+        <Field label="Website" htmlFor="ac-w"><Input id="ac-w" type="url" inputMode="url" value={form.website} onChange={set("website")} placeholder="https://" /></Field>
+        <Field label="Phone" htmlFor="ac-p"><Input id="ac-p" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} placeholder="+2547..." /></Field>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onDone}>Cancel</Button>
+        <Button disabled={!form.name.trim() || save.isPending} onClick={submit}>
+          {save.isPending ? "Saving..." : account ? "Save account" : "Add account"}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
+
+function AccountContacts({ account, orgSlug }: { account: Account; orgSlug: string }) {
+  const contacts = useAccountContacts(account.id);
+  const list = contacts.data ?? [];
+  if (contacts.isLoading) return <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-muted" />)}</div>;
+  if (contacts.isError) return <ErrorState message="Could not load this account's contacts." onRetry={() => void contacts.refetch()} />;
+  if (list.length === 0) return <EmptyState icon={<Users />} title="No contacts linked" description="Contacts join an account when their record names it, for example after an import." />;
+  return (
+    <ul className="divide-y divide-border">
+      {list.map((c) => (
+        <li key={c.id}>
+          <Link href={`/${orgSlug}/contacts/${c.id}`} className="block py-3 active:opacity-70 hover:text-primary">
+            <p className="truncate font-medium">{contactName(c)}</p>
+            <p className="truncate text-xs text-muted-foreground">{[c.email, c.phone].filter(Boolean).join("  ") || "No contact details"}</p>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function AccountsPage() {
-  const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: "", industry: "", website: "" });
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const [page, setPage] = useState(1);
+  const list = useAccounts(page);
+  const remove = useRemoveAccount();
+  const [editing, setEditing] = useState<{ account?: Account } | null>(null);
+  const [deleting, setDeleting] = useState<Account | null>(null);
+  const [viewing, setViewing] = useState<Account | null>(null);
+  const rows = list.data?.data ?? [];
 
-  const params: Record<string, string> = {};
-  if (search) params.name = search;
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["accounts", search],
-    queryFn: () => accountsApi.list(params).then((r) => r.data),
-    staleTime: STALE_TIMES.OPERATIONAL,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (d: Record<string, unknown>) => accountsApi.create(d),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-      setShowCreate(false);
-      setForm({ name: "", industry: "", website: "" });
-    },
-  });
+  const actions = (a: Account) => (
+    <div className="flex justify-end gap-1">
+      <Button variant="ghost" size="icon-sm" aria-label={`Edit ${a.name}`} onClick={() => setEditing({ account: a })}><Pencil /></Button>
+      <Button variant="ghost" size="icon-sm" aria-label={`Delete ${a.name}`} onClick={() => setDeleting(a)}><Trash2 className="text-destructive" /></Button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Accounts</h1>
-          <p className="text-muted-foreground">{data?.total ?? 0} total accounts</p>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>New Account</Button>
-      </div>
+      <PageHeader
+        icon={<Building2 />}
+        title="Accounts"
+        description="Companies and organisations your contacts belong to."
+        actions={<Button onClick={() => setEditing({})}><Plus /> New account</Button>}
+      />
 
-      <div className="flex items-center gap-3">
-        <div className="relative w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-8"
-            placeholder="Search accounts..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+      <div className="glass overflow-hidden rounded-[1.25rem]">
+        {list.isError && <div className="p-4"><ErrorState message="Could not load accounts." onRetry={() => void list.refetch()} /></div>}
+        {list.isLoading && <div className="space-y-2 p-4">{[0, 1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-muted" />)}</div>}
+        {!list.isLoading && !list.isError && rows.length === 0 && (
+          <EmptyState
+            icon={<Building2 />}
+            title="No accounts yet"
+            description="Add the businesses you sell to, then see every contact who works there in one place."
+            action={<Button onClick={() => setEditing({})}><Plus /> Add an account</Button>}
           />
-        </div>
-        {search && (
-          <Button variant="ghost" size="sm" onClick={() => setSearch("")}>
-            Clear
-          </Button>
+        )}
+
+        {rows.length > 0 && (
+          <ul className="divide-y divide-border md:hidden">
+            {rows.map((a) => (
+              <li key={a.id} className="flex items-start gap-3 p-4">
+                <button type="button" className="min-w-0 flex-1 text-left active:opacity-70" onClick={() => setViewing(a)}>
+                  <p className="truncate font-medium">{a.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{[a.industry, hostOf(a.website)].filter(Boolean).join("  ") || "No details yet"}</p>
+                </button>
+                {actions(a)}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {rows.length > 0 && (
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[680px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs font-semibold text-muted-foreground">
+                  <th className="px-4 py-3">Account</th>
+                  <th className="px-4 py-3">Industry</th>
+                  <th className="px-4 py-3">Website</th>
+                  <th className="px-4 py-3 text-right">Employees</th>
+                  <th className="px-4 py-3">Added</th>
+                  <th className="px-4 py-3"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((a) => (
+                  <tr key={a.id} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
+                    <td className="px-4 py-3">
+                      <button type="button" className="font-medium hover:text-primary" onClick={() => setViewing(a)}>{a.name}</button>
+                      {a.phone && <p className="text-xs text-muted-foreground">{a.phone}</p>}
+                    </td>
+                    <td className="px-4 py-3">{a.industry ? <ToneBadge>{a.industry}</ToneBadge> : <span className="text-muted-foreground">Not set</span>}</td>
+                    <td className="px-4 py-3">
+                      {a.website ? (
+                        <a href={a.website.startsWith("http") ? a.website : `https://${a.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                          {hostOf(a.website)} <ExternalLink className="size-3" />
+                        </a>
+                      ) : <span className="text-muted-foreground">Not set</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular">{a.employee_count ? a.employee_count.toLocaleString() : ""}</td>
+                    <td className="px-4 py-3 text-muted-foreground tabular">{dateFmt.format(new Date(a.created_at))}</td>
+                    <td className="px-4 py-3">{actions(a)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {list.data && (
+          <div className="px-4 pb-4">
+            <Pager page={page} limit={list.data.limit || 25} total={list.data.total} onPage={setPage} />
+          </div>
         )}
       </div>
 
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Failed to load accounts: {(error as Error).message}
-        </div>
-      )}
-
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Industry</TableHead>
-                <TableHead>Website</TableHead>
-                <TableHead>Contacts</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 5 }).map((_, j) => (
-                      <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (data?.data ?? []).length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                    No accounts yet. Add your first account to get started.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                (data?.data ?? []).map((account: Account) => (
-                  <TableRow key={account.id}>
-                    <TableCell className="font-medium">{account.name}</TableCell>
-                    <TableCell>{account.industry ?? "--"}</TableCell>
-                    <TableCell>
-                      {account.website ? (
-                        <a href={account.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
-                          {account.website}
-                        </a>
-                      ) : "--"}
-                    </TableCell>
-                    <TableCell>{account.contact_count ?? 0}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(account.created_at).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>New Account</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Name</label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="Company name"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Industry</label>
-              <Input
-                value={form.industry}
-                onChange={(e) => setForm((f) => ({ ...f, industry: e.target.value }))}
-                placeholder="e.g. Technology"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Website</label>
-              <Input
-                value={form.website}
-                onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
-                placeholder="https://example.com"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button
-                onClick={() => createMutation.mutate({ name: form.name, industry: form.industry, website: form.website })}
-                disabled={!form.name || createMutation.isPending}
-              >
-                Create
-              </Button>
-            </div>
-          </div>
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editing?.account ? "Edit account" : "New account"}</DialogTitle></DialogHeader>
+          {editing && <AccountForm key={editing.account?.id ?? "new"} account={editing.account} onDone={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
+
+      <Sheet open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+          <SheetHeader><SheetTitle>{viewing?.name}</SheetTitle></SheetHeader>
+          {viewing && (
+            <div className="space-y-4 px-4 pb-6">
+              <p className="text-sm text-muted-foreground">{[viewing.industry, viewing.phone, hostOf(viewing.website)].filter(Boolean).join("  ") || "No details yet"}</p>
+              <h3 className="font-display text-sm font-semibold">Contacts</h3>
+              <AccountContacts account={viewing} orgSlug={orgSlug} />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title={`Delete "${deleting?.name}"?`}
+        description="Its contacts and deals stay; they are just no longer linked to an account. This cannot be undone."
+        confirmLabel="Delete account"
+        pending={remove.isPending}
+        onConfirm={() => deleting && remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
+      />
     </div>
   );
 }

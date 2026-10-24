@@ -60,7 +60,10 @@ export interface DeliveryStats {
 }
 
 export const sequencesApi = {
-  list: (page: number, limit = 50) => apiClient.get<Paginated<Sequence>>("/api/v1/sequences", { params: { page, limit } }).then((r) => r.data),
+  list: (page: number, limit = 50) =>
+    apiClient
+      .get<Paginated<Sequence>>("/api/v1/sequences", { params: { page, limit } })
+      .then((r) => ({ ...r.data, data: (r.data.data ?? []).map((s) => ({ ...s, steps: s.steps ?? [] })) })),
   create: (data: SequenceInput) => apiClient.post<Sequence>("/api/v1/sequences", data).then((r) => r.data),
   update: (id: string, data: Partial<SequenceInput>) => apiClient.put<Sequence>(`/api/v1/sequences/${id}`, data).then((r) => r.data),
   enrollments: (id: string) => apiClient.get<EnrollmentStats>(`/api/v1/sequences/${id}/analytics`).then((r) => r.data),

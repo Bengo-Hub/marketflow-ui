@@ -78,7 +78,17 @@ export const contactsApi = {
       })
       .then((r) => r.data),
   get: (id: string) => apiClient.get<Contact>(`/api/v1/contacts/${id}`).then((r) => r.data),
-  view360: (id: string) => apiClient.get<Contact360>(`/api/v1/contacts/${id}/360`).then((r) => r.data),
+  // Go encodes empty slices as null; every list here is normalised to [].
+  view360: (id: string) =>
+    apiClient.get<Contact360>(`/api/v1/contacts/${id}/360`).then(({ data: d }) => ({
+      ...d,
+      open_deals: d.open_deals ?? [],
+      won_deals: d.won_deals ?? [],
+      activities: d.activities ?? [],
+      open_tasks: d.open_tasks ?? [],
+      meetings: d.meetings ?? [],
+      nurture_active: d.nurture_active ?? [],
+    })),
   update: (id: string, body: ContactUpdate) => apiClient.put<Contact>(`/api/v1/contacts/${id}`, body).then((r) => r.data),
   remove: (id: string) => apiClient.delete(`/api/v1/contacts/${id}`),
   merge: (survivorId: string, duplicateIds: string[]) =>

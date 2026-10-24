@@ -20,7 +20,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "MarketFlow",
   description: "Capture leads, answer them on WhatsApp and the web, and follow up until they buy. MarketFlow is the marketing and CRM workspace by Codevertex.",
-  icons: { icon: "/favicon.svg", apple: "/icons/apple-touch-icon.png" },
+  icons: { icon: [{ url: "/favicon.svg", type: "image/svg+xml" }], apple: "/icons/apple-touch-icon.png" },
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "MarketFlow" },
 };
