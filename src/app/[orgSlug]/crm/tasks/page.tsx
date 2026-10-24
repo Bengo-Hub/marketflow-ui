@@ -1,249 +1,154 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Check, CheckSquare, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { STALE_TIMES } from "@/app/providers";
-import { tasksApi } from "@/lib/api/tasks";
-import { CheckSquare } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { RecordPicker, type RecordRef } from "@/components/crm/record-picker";
+import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, Pager, PageHeader, ToneBadge, humanize, type Tone } from "@/components/ui-kit";
+import { useCompleteTask, useDeleteTask, useSaveTask, useTasks, type TaskFilter } from "@/hooks/use-tasks";
+import { TASK_PRIORITIES, type Task } from "@/lib/api/tasks";
 
-const priorityColors: Record<string, string> = {
-  low: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  high: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-};
+const PRIORITY_TONE: Record<string, Tone> = { low: "neutral", normal: "info", high: "warning", urgent: "danger" };
+const dueFmt = new Intl.DateTimeFormat("en-KE", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
-const statusColors: Record<string, string> = {
-  open: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  overdue: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-};
+function TaskForm({ task, onDone }: { task?: Task; onDone: () => void }) {
+  const save = useSaveTask();
+  const due = task?.due_at ? new Date(task.due_at) : null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [description, setDescription] = useState(task?.description ?? "");
+  const [priority, setPriority] = useState<string>(task?.priority ?? "normal");
+  const [date, setDate] = useState(due ? `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}` : "");
+  const [time, setTime] = useState(due ? `${pad(due.getHours())}:${pad(due.getMinutes())}` : "09:00");
+  const [record, setRecord] = useState<RecordRef | null>(task ? { type: task.entity_type, id: task.entity_id, label: `${humanize(task.entity_type)} record` } : null);
+  const dueAt = date ? new Date(`${date}T${time || "09:00"}:00`).toISOString() : undefined;
 
-type Task = {
-  id: string;
-  title: string;
-  entity_type?: string;
-  entity_id?: string;
-  due_date?: string;
-  priority?: string;
-  status: string;
-};
+  return (
+    <>
+      <div className="space-y-4">
+        <Field label="What needs doing" required htmlFor="tk-t"><Input id="tk-t" value={title} maxLength={255} onChange={(e) => setTitle(e.target.value)} /></Field>
+        <Field label="For" required hint="The lead or contact this task is about.">
+          <RecordPicker value={record} onChange={setRecord} />
+        </Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Due date" htmlFor="tk-d"><Input id="tk-d" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label="Time" htmlFor="tk-h"><Input id="tk-h" type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+        </div>
+        <div>
+          <p className="mb-1.5 text-sm font-medium">Priority</p>
+          <CapsuleTabs label="Priority" value={priority} onChange={setPriority} options={TASK_PRIORITIES.map((p) => ({ value: p, label: humanize(p) }))} />
+        </div>
+        <Field label="Notes" htmlFor="tk-n"><Textarea id="tk-n" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onDone}>Cancel</Button>
+        <Button
+          disabled={!title.trim() || !record || save.isPending}
+          onClick={() =>
+            record &&
+            save.mutate(
+              { id: task?.id, data: { title: title.trim(), description: description.trim() || undefined, priority, due_at: dueAt, entity_type: record.type, entity_id: record.id } },
+              { onSuccess: onDone },
+            )
+          }
+        >
+          {save.isPending ? "Saving..." : task ? "Save task" : "Add task"}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
 
 export default function TasksPage() {
-  const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState("open");
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ title: "", due_date: "", priority: "medium", entity_type: "lead", entity_id: "" });
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const [filter, setFilter] = useState<TaskFilter>("open");
+  const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState<{ task?: Task } | null>(null);
+  const [deleting, setDeleting] = useState<Task | null>(null);
+  const list = useTasks(filter, page);
+  const complete = useCompleteTask();
+  const del = useDeleteTask();
+  const rows = list.data?.data ?? [];
+  // Compared against each row's due time; render-time "now" is fine for a label.
+  const [now] = useState(() => Date.now());
 
-  const params: Record<string, string> = {};
-  if (statusFilter !== "all") params.status = statusFilter;
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["tasks", statusFilter],
-    queryFn: () => tasksApi.list(params).then((r) => r.data),
-    staleTime: STALE_TIMES.OPERATIONAL,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (d: Record<string, unknown>) => tasksApi.create(d),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      setShowCreate(false);
-      setForm({ title: "", due_date: "", priority: "medium", entity_type: "lead", entity_id: "" });
-    },
-  });
-
-  const completeMutation = useMutation({
-    mutationFn: (id: string) => tasksApi.complete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
-  });
-
-  const tasks: Task[] = data?.data ?? data ?? [];
+  const recordHref = (t: Task) => (t.entity_type === "contact" ? `/${orgSlug}/contacts/${t.entity_id}` : t.entity_type === "lead" ? `/${orgSlug}/leads/${t.entity_id}` : `/${orgSlug}/crm/deals?deal=${t.entity_id}`);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Tasks</h1>
-          <p className="text-muted-foreground">{data?.total ?? tasks.length} tasks</p>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>New Task</Button>
+      <PageHeader icon={<CheckSquare />} title="Tasks" description="Follow-ups for your leads, contacts and deals." actions={<Button onClick={() => setEditing({})}><Plus /> Add task</Button>} />
+      <CapsuleTabs<TaskFilter>
+        label="Filter tasks"
+        value={filter}
+        onChange={(v) => { setFilter(v); setPage(1); }}
+        options={[{ value: "open", label: "To do" }, { value: "in_progress", label: "In progress" }, { value: "overdue", label: "Overdue" }, { value: "done", label: "Done" }]}
+      />
+
+      <div className="glass overflow-hidden rounded-[1.25rem]">
+        {list.isError && <ErrorState message="Could not load tasks." onRetry={() => void list.refetch()} />}
+        {list.isLoading && <div className="space-y-2 p-4" aria-busy>{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-muted" />)}</div>}
+        {!list.isLoading && !list.isError && rows.length === 0 && (
+          <EmptyState icon={<CheckSquare />} title={filter === "overdue" ? "Nothing overdue" : filter === "done" ? "Nothing finished yet" : "No tasks here"} description="Add a task to remember a call, a delivery or a follow-up." />
+        )}
+        {rows.length > 0 && (
+          <ul className="divide-y divide-border">
+            {rows.map((t) => {
+              const late = t.status !== "done" && t.due_at && Date.parse(t.due_at) < now;
+              return (
+                <li key={t.id} className="flex items-start gap-3 p-4">
+                  {t.status !== "done" ? (
+                    <button
+                      type="button"
+                      aria-label={`Mark "${t.title}" done`}
+                      onClick={() => complete.mutate(t.id)}
+                      className="group mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-primary/40 text-primary hover:bg-primary/10"
+                    >
+                      <Check className="h-4 w-4 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
+                    </button>
+                  ) : (
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-success text-success-foreground"><Check className="h-4 w-4" /></span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className={t.status === "done" ? "font-medium text-muted-foreground line-through" : "font-medium"}>{t.title}</p>
+                    {t.description && <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{t.description}</p>}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+                      <ToneBadge tone={PRIORITY_TONE[t.priority] ?? "neutral"}>{humanize(t.priority)}</ToneBadge>
+                      {t.due_at && <span className={late ? "font-semibold text-destructive" : "text-muted-foreground"}>{late ? "Overdue since " : "Due "}{dueFmt.format(new Date(t.due_at))}</span>}
+                      <Link href={recordHref(t)} className="text-primary hover:underline">Open {t.entity_type}</Link>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button variant="ghost" size="icon-sm" aria-label="Edit task" onClick={() => setEditing({ task: t })}><Pencil /></Button>
+                    <Button variant="ghost" size="icon-sm" aria-label="Delete task" onClick={() => setDeleting(t)}><Trash2 className="text-destructive" /></Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {list.data && <div className="px-4 pb-4"><Pager page={page} limit={list.data.limit || 30} total={list.data.total} onPage={setPage} /></div>}
       </div>
 
-      <div className="flex items-end gap-3">
-        <div>
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Status</span>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "open")}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="open">Open</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="overdue">Overdue</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Failed to load tasks: {(error as Error).message}
-        </div>
-      )}
-
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Entity</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-20"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 6 }).map((_, j) => (
-                      <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : tasks.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                    No tasks found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                tasks.map((task: Task) => (
-                  <TableRow key={task.id}>
-                    <TableCell className="font-medium">{task.title}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {task.entity_type && task.entity_id ? `${task.entity_type} / ${task.entity_id}` : "--"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {task.due_date ? new Date(task.due_date).toLocaleDateString() : "--"}
-                    </TableCell>
-                    <TableCell>
-                      {task.priority && (
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityColors[task.priority] ?? ""}`}>
-                          {task.priority}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[task.status] ?? ""}`}>
-                        {task.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {task.status !== "completed" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-1.5 text-xs text-green-600"
-                          onClick={() => completeMutation.mutate(task.id)}
-                          disabled={completeMutation.isPending}
-                        >
-                          <CheckSquare className="mr-1 h-3 w-3" />Done
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>New Task</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Title</label>
-              <Input
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder="Task title"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Due Date</label>
-              <Input
-                type="date"
-                value={form.due_date}
-                onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Priority</label>
-              <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v ?? "medium" }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Entity Type</label>
-              <Select value={form.entity_type} onValueChange={(v) => setForm((f) => ({ ...f, entity_type: v ?? "lead" }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lead">Lead</SelectItem>
-                  <SelectItem value="contact">Contact</SelectItem>
-                  <SelectItem value="deal">Deal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Entity ID (optional)</label>
-              <Input
-                value={form.entity_id}
-                onChange={(e) => setForm((f) => ({ ...f, entity_id: e.target.value }))}
-                placeholder="ID of the linked entity"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button
-                onClick={() => createMutation.mutate({
-                  title: form.title,
-                  due_date: form.due_date || undefined,
-                  priority: form.priority,
-                  entity_type: form.entity_type || undefined,
-                  entity_id: form.entity_id || undefined,
-                })}
-                disabled={!form.title || createMutation.isPending}
-              >
-                Create
-              </Button>
-            </div>
-          </div>
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editing?.task ? "Edit task" : "New task"}</DialogTitle></DialogHeader>
+          {editing && <TaskForm key={editing.task?.id ?? "new"} task={editing.task} onDone={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title={`Delete "${deleting?.title}"?`}
+        description="This cannot be undone."
+        confirmLabel="Delete task"
+        pending={del.isPending}
+        onConfirm={() => deleting && del.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
+      />
     </div>
   );
 }
