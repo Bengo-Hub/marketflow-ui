@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CapsuleTabs, EmptyState, ErrorState, Field, GlassPanel, Pager, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
+import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
+import { CapsuleTabs, EmptyState, ErrorState, Field, GlassPanel, ListTable, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { billingApi, type AdminCreditRow } from "@/lib/api/billing";
@@ -78,6 +79,41 @@ export default function PlatformBillingPage() {
   });
   const rows = list.data?.data ?? [];
 
+  const columns: DataTableColumn<AdminCreditRow>[] = [
+    {
+      key: "name",
+      header: "Business",
+      primary: true,
+      accessor: (r) => r.name,
+      render: (r) => (
+        <span>
+          <span className="font-medium">{r.name}</span>
+          <span className="block text-xs text-muted-foreground">{r.slug}</span>
+        </span>
+      ),
+    },
+    { key: "plan_name", header: "Plan", hideBelow: "md", accessor: (r) => r.plan_name || "None", render: (r) => <span className="text-muted-foreground">{r.plan_name || "None"}</span> },
+    { key: "balance", header: "Credits left", align: "right", accessor: (r) => (r.unlimited ? "Unlimited" : r.bundle_balance + r.quota_balance), render: (r) => <span className="font-medium tabular">{r.unlimited ? "Unlimited" : (r.bundle_balance + r.quota_balance).toLocaleString()}</span> },
+    { key: "units_used_month", header: "Used this month", align: "right", accessor: (r) => r.units_used_month, render: (r) => <span className="tabular">{r.units_used_month.toLocaleString()}</span> },
+    { key: "last_activity_at", header: "Last used", hideBelow: "lg", accessor: (r) => r.last_activity_at ?? "", render: (r) => <span className="text-muted-foreground tabular">{r.last_activity_at ? dateFmt.format(new Date(r.last_activity_at)) : "Never"}</span> },
+    {
+      key: "status",
+      header: "Status",
+      accessor: (r) => STATUS[r.status]?.label ?? r.status,
+      render: (r) => {
+        const st = STATUS[r.status] ?? { label: r.status, tone: "neutral" as Tone };
+        return <ToneBadge tone={st.tone}>{st.label}</ToneBadge>;
+      },
+    },
+    {
+      key: "actions",
+      header: <span className="sr-only">Actions</span>,
+      mobileAction: true,
+      exportable: false,
+      render: (r) => (!r.exempt ? <Button variant="ghost" size="sm" onClick={() => setGranting(r)}><Plus /> Add credits</Button> : null),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -108,56 +144,18 @@ export default function PlatformBillingPage() {
         <CapsuleTabs label="Status" value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={FILTERS} />
       </div>
 
-      <div className="glass overflow-hidden rounded-[1.25rem]">
-        {list.isError && <div className="p-4"><ErrorState message={apiErrorMessage(list.error, "Could not load credit balances.")} onRetry={() => void list.refetch()} /></div>}
-        {list.isLoading && <div className="space-y-2 p-4">{[0, 1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-muted" />)}</div>}
-        {!list.isLoading && !list.isError && rows.length === 0 && (
-          <EmptyState icon={<Zap />} title={search || status ? "No businesses match" : "No businesses yet"} description="Businesses appear here once they exist in subscriptions-api." />
-        )}
-        {rows.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs font-semibold text-muted-foreground">
-                  <th className="px-4 py-3">Business</th>
-                  <th className="px-4 py-3">Plan</th>
-                  <th className="px-4 py-3 text-right">Credits left</th>
-                  <th className="px-4 py-3 text-right">Used this month</th>
-                  <th className="px-4 py-3">Last used</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const st = STATUS[r.status] ?? { label: r.status, tone: "neutral" as Tone };
-                  return (
-                    <tr key={r.tenant_id} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{r.name}</p>
-                        <p className="text-xs text-muted-foreground">{r.slug}</p>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{r.plan_name || "None"}</td>
-                      <td className="px-4 py-3 text-right font-medium tabular">{r.unlimited ? "Unlimited" : (r.bundle_balance + r.quota_balance).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right tabular">{r.units_used_month.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-muted-foreground tabular">{r.last_activity_at ? dateFmt.format(new Date(r.last_activity_at)) : "Never"}</td>
-                      <td className="px-4 py-3"><ToneBadge tone={st.tone}>{st.label}</ToneBadge></td>
-                      <td className="px-4 py-3 text-right">
-                        {!r.exempt && <Button variant="ghost" size="sm" onClick={() => setGranting(r)}><Plus /> Add credits</Button>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {list.data && (
-          <div className="px-4 pb-4">
-            <Pager page={page} limit={list.data.limit || PAGE} total={list.data.total} onPage={setPage} />
-          </div>
-        )}
-      </div>
+      {list.isError && <ErrorState message={apiErrorMessage(list.error, "Could not load credit balances.")} onRetry={() => void list.refetch()} />}
+      <ListTable<AdminCreditRow>
+        columns={columns}
+        rows={rows}
+        rowKey={(r) => r.tenant_id}
+        loading={list.isLoading}
+        storageKey="mf-platform-credits-columns"
+        showExportCsv
+        exportFileName="ai-credits-by-business"
+        paging={{ page, limit: list.data?.limit || PAGE, total: list.data?.total ?? 0, onPage: setPage }}
+        emptyState={<EmptyState icon={<Zap />} title={search || status ? "No businesses match" : "No businesses yet"} description="Businesses appear here once they exist in subscriptions-api." />}
+      />
 
       <Dialog open={!!granting} onOpenChange={(o) => !o && setGranting(null)}>
         <DialogContent className="max-w-md">

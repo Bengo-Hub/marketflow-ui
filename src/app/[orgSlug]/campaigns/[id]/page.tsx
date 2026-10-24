@@ -6,9 +6,12 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, Coins, Eye, MousePointerClick, Pause, Play, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LeadTrendChart } from "@/components/dashboard/charts";
-import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, StatCard, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
+import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
+import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, ListTable, StatCard, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
 import { useCampaign, useCampaignAction, useCampaignMetrics } from "@/hooks/use-campaigns";
-import { formatMoney } from "@/lib/api/campaigns";
+import { formatMoney, type CampaignMetrics } from "@/lib/api/campaigns";
+
+type Point = CampaignMetrics["series"][number];
 import { SendSMSDialog } from "./send-sms-dialog";
 
 const nf = new Intl.NumberFormat("en-KE");
@@ -24,6 +27,17 @@ export default function CampaignDetailPage() {
   const t = metrics.data?.totals;
   const currency = metrics.data?.series[0]?.currency || c?.currency || "KES";
   const series = metrics.data?.series ?? [];
+  const num = (key: keyof Point & string, header: string, fmt: (r: Point) => string) =>
+    ({ key, header, align: "right", sortable: true, accessor: (r: Point) => r[key], render: (r: Point) => <span className="tabular">{fmt(r)}</span> }) as DataTableColumn<Point>;
+  const dailyColumns: DataTableColumn<Point>[] = [
+    { key: "date", header: "Day", primary: true, sortable: true, accessor: (r) => r.date, render: (r) => <span className="font-medium">{dayFmt.format(new Date(`${r.date}T00:00:00`))}</span> },
+    num("impressions", "Impressions", (r) => nf.format(r.impressions)),
+    num("clicks", "Clicks", (r) => nf.format(r.clicks)),
+    num("ctr", "Click rate", (r) => `${r.ctr.toFixed(2)}%`),
+    num("leads", "Leads", (r) => nf.format(r.leads)),
+    num("cpl", "Per lead", (r) => (r.leads > 0 ? formatMoney(r.cpl, r.currency) : "")),
+    num("spend", "Spend", (r) => formatMoney(r.spend, r.currency)),
+  ];
 
   return (
     <div className="space-y-6">
@@ -92,36 +106,18 @@ export default function CampaignDetailPage() {
           <GlassPanel title="Leads per day">
             {metrics.isLoading ? <div className="h-64 animate-pulse rounded-xl bg-muted" /> : <LeadTrendChart data={series.map((s) => ({ day: s.date, count: s.leads }))} />}
           </GlassPanel>
-          <GlassPanel title="Daily results" bodyClassName="p-0 sm:p-5">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs font-semibold text-muted-foreground">
-                    <th className="px-4 py-2">Day</th>
-                    <th className="px-4 py-2 text-right">Impressions</th>
-                    <th className="px-4 py-2 text-right">Clicks</th>
-                    <th className="px-4 py-2 text-right">Click rate</th>
-                    <th className="px-4 py-2 text-right">Leads</th>
-                    <th className="px-4 py-2 text-right">Per lead</th>
-                    <th className="px-4 py-2 text-right">Spend</th>
-                  </tr>
-                </thead>
-                <tbody className="tabular">
-                  {series.map((r) => (
-                    <tr key={r.date} className="border-b border-border/60 last:border-0">
-                      <td className="px-4 py-2 font-medium">{dayFmt.format(new Date(`${r.date}T00:00:00`))}</td>
-                      <td className="px-4 py-2 text-right">{nf.format(r.impressions)}</td>
-                      <td className="px-4 py-2 text-right">{nf.format(r.clicks)}</td>
-                      <td className="px-4 py-2 text-right">{r.ctr.toFixed(2)}%</td>
-                      <td className="px-4 py-2 text-right">{nf.format(r.leads)}</td>
-                      <td className="px-4 py-2 text-right">{r.leads > 0 ? formatMoney(r.cpl, r.currency) : ""}</td>
-                      <td className="px-4 py-2 text-right">{formatMoney(r.spend, r.currency)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </GlassPanel>
+          <section>
+            <h2 className="mb-3 font-display text-base font-semibold">Daily results</h2>
+            <ListTable<Point>
+              columns={dailyColumns}
+              rows={series}
+              rowKey={(r) => r.date}
+              loading={metrics.isLoading}
+              defaultSort={{ key: "date", dir: "desc" }}
+              showExportCsv
+              exportFileName="campaign-daily-results"
+            />
+          </section>
         </>
       )}
     </div>
