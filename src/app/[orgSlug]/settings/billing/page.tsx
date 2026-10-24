@@ -1,312 +1,289 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { CreditCard, Wallet, Zap, TrendingUp, ArrowUpRight, Info, X } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { BarChart3, ChevronDown, CreditCard, Info, Loader2, MessageCircle, Smartphone, Wallet, Zap } from "lucide-react";
+import { TreasuryPaymentModal } from "@bengo-hub/shared-ui-lib/payments";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { ErrorState, GlassPanel, PageHeader, StatusBadge, ToneBadge } from "@/components/ui-kit";
+import { useCreditHistory, useCredits, useLegacyWallet, useTenantSubscription, useUsage } from "@/hooks/use-billing";
+import { apiErrorMessage } from "@/lib/api/errors";
+import { billingApi, kes, type CreditService, type CreditSnapshot, type UsageMetric } from "@/lib/api/billing";
+import { PRICING_URL } from "@/lib/urls";
+import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
 
-const TREASURY_UI_URL = process.env.NEXT_PUBLIC_TREASURY_UI_URL || "https://books.codevertexafrica.com";
-const TREASURY_URL = process.env.NEXT_PUBLIC_TREASURY_API_URL || "https://booksapi.codevertexafrica.com";
-const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://pricingapi.codevertexafrica.com";
-// Subscriptions UI (pricing portal) — different domain from the API
-const SUBSCRIPTIONS_UI_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_UI_URL || "https://pricing.codevertexafrica.com";
+const dateFmt = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium" });
+const whenFmt = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
 
-type Subscription = {
-  plan_code?: string;
-  status?: string;
-  features?: Record<string, any>;
-  limits?: Record<string, any>;
+const SERVICE_META: Record<string, { icon: React.ReactNode; blurb: string }> = {
+  ai_credits: { icon: <Zap />, blurb: "Used when the assistant answers, writes posts or makes posters and videos. Bundles never expire." },
+  whatsapp: { icon: <MessageCircle />, blurb: "Follow-up sequences and broadcasts sent on WhatsApp." },
+  sms: { icon: <Smartphone />, blurb: "Follow-up sequences and campaigns sent by SMS." },
+};
+const ORDER: CreditService[] = ["ai_credits", "whatsapp", "sms"];
+
+const REASON_TEXT: Record<string, string> = {
+  no_subscription: "Subscribe to a plan first, then buy a bundle.",
+  service_not_activated: "Not switched on yet. Your first bundle switches it on.",
 };
 
-type WalletData = {
-  id: string;
-  balance: number;
-  currency: string;
-  is_active: boolean;
+const ACTION_LABEL: Record<string, string> = {
+  topup: "Bundle bought",
+  grant: "Added to your account",
+  deduction: "Used",
+  refund: "Returned",
+  adjustment: "Adjustment",
+  overage: "Sent beyond your bundles",
 };
 
-type UsageSummary = {
-  leads_captured?: number;
-  ai_chat_messages?: number;
-  campaigns_active?: number;
-  emails_sent?: number;
-};
+function UsageRow({ m }: { m: UsageMetric }) {
+  const capped = m.limit > 0;
+  const pct = capped ? Math.min(100, Math.round((m.used / m.limit) * 100)) : 0;
+  return (
+    <li className="space-y-1.5">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className="font-medium">{m.name}</span>
+        <span className="tabular text-muted-foreground">
+          {m.used.toLocaleString()} {capped ? `of ${m.limit.toLocaleString()}` : "used, no limit"}
+        </span>
+      </div>
+      {capped && (
+        <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={m.name}>
+          <div className={cn("h-full rounded-full", pct >= 90 ? "bg-destructive" : pct >= 75 ? "bg-warning" : "bg-primary")} style={{ width: `${pct}%` }} />
+        </div>
+      )}
+    </li>
+  );
+}
 
-const PLAN_LIMITS: Record<string, { leads: string; chats: string; campaigns: string }> = {
-  STARTER: { leads: "100", chats: "5", campaigns: "1" },
-  GROWTH: { leads: "1,000", chats: "100", campaigns: "5" },
-  PRO: { leads: "Unlimited", chats: "500", campaigns: "Unlimited" },
-};
+function CreditPanel({ snap, onBuy, buying }: { snap: CreditSnapshot; onBuy: (s: CreditSnapshot, code: string, price: number) => void; buying: string | null }) {
+  const [open, setOpen] = useState(false);
+  const history = useCreditHistory(snap.service as CreditService, open);
+  const meta = SERVICE_META[snap.service] ?? { icon: <CreditCard />, blurb: "" };
+  const balance = snap.unlimited ? "Unlimited" : (snap.bundle_balance + snap.quota_balance).toLocaleString();
+  const low = !snap.exempt && !snap.unlimited && snap.bundle_balance + snap.quota_balance <= 0;
+
+  return (
+    <section className="glass flex flex-col rounded-[1.25rem] p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary [&>svg]:size-5">{meta.icon}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-display text-base font-semibold">{snap.label}</h2>
+            {snap.exempt ? <ToneBadge tone="info">Included</ToneBadge> : snap.covered ? <ToneBadge tone="success">Active</ToneBadge> : <ToneBadge tone="warning">Not active</ToneBadge>}
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">{meta.blurb}</p>
+        </div>
+      </div>
+
+      {snap.exempt ? (
+        <p className="mt-4 text-sm text-muted-foreground">This account is never billed for {snap.label.toLowerCase()}.</p>
+      ) : (
+        <>
+          <div className="mt-4">
+            <p className={cn("font-display text-3xl font-semibold tabular", low && "text-destructive")}>{balance}</p>
+            <p className="text-xs text-muted-foreground">
+              {snap.quota_balance > 0 ? `${snap.bundle_balance.toLocaleString()} from bundles, ${snap.quota_balance.toLocaleString()} from your plan` : "left to use"}
+            </p>
+          </div>
+          {!snap.covered && snap.reason && <p className="mt-2 text-sm text-warning">{REASON_TEXT[snap.reason] ?? "Not available for this account yet."}</p>}
+          {snap.overage_pending_kes > 0 && (
+            <p className="mt-2 text-sm">
+              {kes(snap.overage_pending_kes)} owed for messages sent beyond your bundles; sending pauses at {kes(snap.overage_cap_kes)}.
+            </p>
+          )}
+          {snap.bundles.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {snap.bundles.map((b) => {
+                const key = `${snap.service}:${b.code}`;
+                return (
+                  <Button key={b.code} variant="outline" className="h-auto flex-col gap-0.5 py-3" disabled={buying !== null} onClick={() => onBuy(snap, b.code, b.price_kes)}>
+                    {buying === key ? <Loader2 className="animate-spin" /> : (
+                      <>
+                        <span className="font-display text-base font-semibold tabular">{b.units.toLocaleString()}</span>
+                        <span className="text-xs text-muted-foreground tabular">{kes(b.price_kes)}</span>
+                      </>
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      <button type="button" className="mt-4 flex items-center gap-1 self-start text-sm font-medium text-primary" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        Recent activity <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="mt-2">
+          {history.isLoading ? (
+            <div className="h-16 animate-pulse rounded-xl bg-muted" />
+          ) : (history.data ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nothing yet.</p>
+          ) : (
+            <ul className="divide-y divide-border text-sm">
+              {history.data!.map((t) => (
+                <li key={t.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate">{t.description || ACTION_LABEL[t.action] || t.action}</p>
+                    <p className="text-xs text-muted-foreground">{whenFmt.format(new Date(t.created_at))}</p>
+                  </div>
+                  <span className={cn("shrink-0 font-medium tabular", t.tokens > 0 && "text-success")}>{t.tokens > 0 ? "+" : ""}{t.tokens.toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function BillingPage() {
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const user = useAuthStore((s) => s.user);
   const qc = useQueryClient();
-  const [topUpOpen, setTopUpOpen] = useState(false);
-  const [topUpState, setTopUpState] = useState<"loading" | "checkout" | "confirmed" | "failed">("loading");
+  const sub = useTenantSubscription();
+  const usage = useUsage();
+  const credits = useCredits();
+  const wallet = useLegacyWallet();
+  const [buying, setBuying] = useState<string | null>(null);
+  const [buyError, setBuyError] = useState("");
+  const [pending, setPending] = useState<{ intentId: string; initiateUrl: string; amount: number; label: string } | null>(null);
 
-  const { data: subscription, isLoading: subLoading } = useQuery<Subscription>({
-    queryKey: ["subscription"],
-    queryFn: async () => {
-      try {
-        const r = await apiClient.get<Subscription>(`${SUBSCRIPTIONS_URL}/api/v1/subscription`);
-        return r.data;
-      } catch {
-        return { plan_code: "STARTER", status: "FREE" };
-      }
-    },
-  });
+  const snaps = [...(credits.data ?? [])]
+    .filter((s) => ORDER.includes(s.service as CreditService))
+    .sort((a, b) => ORDER.indexOf(a.service as CreditService) - ORDER.indexOf(b.service as CreditService));
+  const walletBalance = Number(wallet.data?.balance ?? 0);
 
-  const { data: wallet, isLoading: walletLoading } = useQuery<WalletData | null>({
-    queryKey: ["wallet"],
-    queryFn: async () => {
-      try {
-        const r = await apiClient.get<{ data: WalletData }>(`${TREASURY_URL}/api/v1/wallets/me`);
-        return r.data.data;
-      } catch {
-        return null;
-      }
-    },
-  });
-
-  const { data: usage } = useQuery<UsageSummary>({
-    queryKey: ["usage"],
-    queryFn: async () => {
-      try {
-        const r = await apiClient.get<UsageSummary>(`${SUBSCRIPTIONS_URL}/api/v1/usage`);
-        return r.data;
-      } catch {
-        return {};
-      }
-    },
-  });
-
-  const plan = subscription?.plan_code ?? "STARTER";
-  const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.STARTER;
-  const planLabel = plan === "STARTER" ? "Starter (Free)" : plan === "GROWTH" ? "Growth" : plan === "PRO" ? "Pro" : plan;
-
-  const openTopUp = () => {
-    setTopUpState("loading");
-    setTopUpOpen(true);
+  const buy = async (snap: CreditSnapshot, code: string, price: number) => {
+    setBuyError("");
+    setBuying(`${snap.service}:${code}`);
+    try {
+      const r = await billingApi.buyCredits(snap.service as CreditService, code, `${window.location.origin}/${orgSlug}/settings/billing?paid=1`);
+      if (r.initiate_url && r.intent_id) setPending({ intentId: r.intent_id, initiateUrl: r.initiate_url, amount: price, label: snap.label });
+      else if (r.authorization_url) window.location.assign(r.authorization_url);
+      else setBuyError("The payment could not start. Try again.");
+    } catch (e) {
+      setBuyError(apiErrorMessage(e, "The payment could not start. Try again."));
+    } finally {
+      setBuying(null);
+    }
   };
 
-  const handleTopUpConfirmed = useCallback(() => {
-    setTopUpState("confirmed");
-    qc.invalidateQueries({ queryKey: ["wallet"] });
-    setTimeout(() => setTopUpOpen(false), 2000);
-  }, [qc]);
+  if (user?.isPlatformOwner) {
+    return (
+      <div className="space-y-6">
+        <PageHeader icon={<CreditCard />} title="Billing" description="Plan, usage and credits for this business." />
+        <GlassPanel>
+          <p className="text-sm text-muted-foreground">
+            You are signed in as the platform owner, whose account is never billed. To see or change a business&apos;s plan and credits, open it from{" "}
+            <Link href="/platform/billing" className="font-medium text-primary hover:underline">platform billing</Link>.
+          </p>
+        </GlassPanel>
+      </div>
+    );
+  }
 
-  const openUpgrade = () => {
-    window.open(`${SUBSCRIPTIONS_UI_URL}/plans?service=marketflow`, "_blank");
-  };
-
-  const topUpIframeSrc = (() => {
-    const params = new URLSearchParams({
-      embed: "true",
-      currency: "KES",
-      reference_type: "wallet_topup",
-      source_service: "marketflow",
-      description: "MarketFlow wallet top-up",
-      gateways: "paystack,mpesa",
-    });
-    return `${TREASURY_UI_URL}/pay?${params}`;
-  })();
-
+  const s = sub.data;
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Billing & Usage</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your plan, AI credits, wallet balance, and view usage against limits.
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Plan</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {subLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-2xl font-semibold">{planLabel}</div>
-                <Badge
-                  variant={subscription?.status === "ACTIVE" ? "default" : "outline"}
-                  className="mt-1 text-xs"
-                >
-                  {subscription?.status ?? "FREE"}
-                </Badge>
-                <Button variant="outline" size="sm" className="mt-3 w-full" onClick={openUpgrade}>
-                  <ArrowUpRight className="mr-1 h-3 w-3" /> Upgrade
-                </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Wallet</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {walletLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-2xl font-semibold">
-                  {wallet ? `KES ${wallet.balance.toLocaleString()}` : "—"}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Used for ad campaigns + AI credits
-                </div>
-                <Button
-                  size="sm"
-                  className="mt-3 w-full bg-amber-400 hover:bg-amber-500 text-black"
-                  onClick={openTopUp}
-                >
-                  Top up wallet
-                </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase text-muted-foreground">AI Chats</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold">{usage?.ai_chat_messages ?? 0}</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              used this month ({limits.chats} included)
-            </div>
-            <UsageBar used={usage?.ai_chat_messages ?? 0} limit={parseInt(limits.chats.replace(/,/g, "")) || 9999} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Leads</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold">{usage?.leads_captured ?? 0}</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              captured this month ({limits.leads} limit)
-            </div>
-            <UsageBar used={usage?.leads_captured ?? 0} limit={parseInt(limits.leads.replace(/,/g, "")) || 9999} />
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Info className="h-4 w-4 text-amber-500" />
-          <CardTitle className="text-base">Service Charges</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>MarketFlow charges a small service fee on ad campaign budgets:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li><strong>5%</strong> of your ads budget per campaign</li>
-            <li>Minimum <strong>KES 5</strong>, maximum <strong>KES 500</strong> per campaign</li>
-            <li>Service charges are deducted from your wallet when the AI sets up a campaign</li>
-            <li>The ads budget itself is charged by the ad platform (Meta, Google) to your connected ad account</li>
-          </ul>
-          <p className="mt-3">
-            AI credits cost <strong>KES 10 per credit</strong> beyond your plan&apos;s included allowance.
-            Purchase more by topping up your wallet.
-          </p>
-        </CardContent>
-      </Card>
-
-      {topUpOpen && (
-        <TopUpModal
-          src={topUpIframeSrc}
-          state={topUpState}
-          onConfirmed={handleTopUpConfirmed}
-          onClose={() => setTopUpOpen(false)}
+      {pending && (
+        <TreasuryPaymentModal
+          open
+          onOpenChange={(o) => !o && setPending(null)}
+          paymentIntentId={pending.intentId}
+          initiateUrl={pending.initiateUrl}
+          tenantSlug={orgSlug}
+          amount={pending.amount}
+          currency="KES"
+          description={`${pending.label} bundle`}
+          referenceType="credit_purchase"
+          customerEmail={user?.email}
+          onPaymentConfirmed={() => {
+            setPending(null);
+            void qc.invalidateQueries({ queryKey: ["billing", orgSlug] });
+          }}
+          onPaymentFailed={() => setPending(null)}
         />
       )}
-    </div>
-  );
-}
 
-function TopUpModal({
-  src,
-  state,
-  onConfirmed,
-  onClose,
-}: {
-  src: string;
-  state: string;
-  onConfirmed: () => void;
-  onClose: () => void;
-}) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+      <PageHeader icon={<CreditCard />} title="Billing" description="Your plan, what you have used this period, and prepaid credits." />
 
-  useEffect(() => {
-    function onMessage(e: MessageEvent) {
-      if (!e.data || typeof e.data !== "object") return;
-      switch (e.data.type) {
-        case "treasury:payment_confirmed":
-          onConfirmed();
-          break;
-        case "treasury:payment_failed":
-          break;
-        case "treasury:resize":
-          if (iframeRef.current && e.data.height) {
-            iframeRef.current.style.height = `${e.data.height}px`;
-          }
-          break;
-      }
-    }
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, [onConfirmed]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="relative w-full max-w-lg rounded-xl border bg-card shadow-xl mx-4">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="text-base font-semibold">
-            {state === "confirmed" ? "Payment Confirmed" : "Top Up Wallet"}
-          </h2>
-          <button onClick={onClose} className="rounded-md p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        {state === "confirmed" ? (
-          <div className="p-8 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <GlassPanel title="Plan">
+          {sub.isLoading ? (
+            <div className="h-20 animate-pulse rounded-xl bg-muted" />
+          ) : sub.isError ? (
+            <ErrorState message="Could not load your plan." onRetry={() => void sub.refetch()} />
+          ) : (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-display text-2xl font-semibold">{s?.plan_name || s?.plan_code || "No plan"}</p>
+                {s?.status && <StatusBadge status={s.status.toLowerCase()} />}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {s?.status?.toUpperCase() === "TRIAL" && s.trial_ends_at
+                  ? `Trial ends ${dateFmt.format(new Date(s.trial_ends_at))}.`
+                  : s?.current_period_end
+                    ? `This period ends ${dateFmt.format(new Date(s.current_period_end))}.`
+                    : "No active subscription."}
+              </p>
+              <a href={`${PRICING_URL}/plans?service=marketflow`} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                {s?.plan_code ? "Change plan" : "Choose a plan"}
+              </a>
             </div>
-            <p className="text-sm text-muted-foreground">Your wallet has been topped up successfully.</p>
-          </div>
-        ) : (
-          <iframe
-            ref={iframeRef}
-            src={src}
-            className="w-full border-0"
-            style={{ minHeight: 480 }}
-            title="Top up wallet"
-          />
-        )}
-      </div>
-    </div>
-  );
-}
+          )}
+        </GlassPanel>
 
-function UsageBar({ used, limit }: { used: number; limit: number }) {
-  const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
-  const color = pct > 90 ? "bg-red-500" : pct > 70 ? "bg-amber-500" : "bg-green-500";
-  return (
-    <div className="mt-2 h-1.5 w-full rounded-full bg-muted">
-      <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+        <GlassPanel title="This period" description={usage.data?.billingPeriod ? `${dateFmt.format(new Date(usage.data.billingPeriod.start))} to ${dateFmt.format(new Date(usage.data.billingPeriod.end))}` : undefined}>
+          {usage.isLoading ? (
+            <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="h-8 animate-pulse rounded-lg bg-muted" />)}</div>
+          ) : usage.isError ? (
+            <ErrorState message="Could not load usage." onRetry={() => void usage.refetch()} />
+          ) : (usage.data?.metrics ?? []).length === 0 ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground"><BarChart3 className="size-4" /> Nothing used yet this period.</p>
+          ) : (
+            <ul className="space-y-4">{usage.data!.metrics.map((m) => <UsageRow key={m.key} m={m} />)}</ul>
+          )}
+        </GlassPanel>
+      </div>
+
+      <div>
+        <h2 className="font-display text-lg font-semibold">Prepaid credits</h2>
+        <p className="text-sm text-muted-foreground">Buy bundles with M-Pesa or card. Units are added as soon as the payment goes through.</p>
+      </div>
+      {buyError && <p role="alert" className="text-sm text-destructive">{buyError}</p>}
+      {credits.isError && <ErrorState message="Could not load your credits." onRetry={() => void credits.refetch()} />}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {credits.isLoading
+          ? [0, 1, 2].map((i) => <div key={i} className="glass h-64 animate-pulse rounded-[1.25rem]" />)
+          : snaps.map((snap) => <CreditPanel key={snap.service} snap={snap} onBuy={buy} buying={buying} />)}
+      </div>
+
+      <GlassPanel>
+        <div className="flex gap-3 text-sm">
+          <Info className="mt-0.5 size-4 shrink-0 text-primary" />
+          <p className="text-muted-foreground">
+            Ad budgets are paid on your own Meta, TikTok or Google ad account, at the platform&apos;s price. MarketFlow adds no fee to your ad spend; making the ads uses AI credits.
+          </p>
+        </div>
+      </GlassPanel>
+
+      {walletBalance > 0 && wallet.data && (
+        <GlassPanel>
+          <div className="flex gap-3 text-sm">
+            <Wallet className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <p className="text-muted-foreground">
+              You have {kes(walletBalance)} in your Codevertex wallet from an earlier top-up. MarketFlow no longer takes ad money through this wallet. Contact support if you would like it moved or refunded.
+            </p>
+          </div>
+        </GlassPanel>
+      )}
     </div>
   );
 }

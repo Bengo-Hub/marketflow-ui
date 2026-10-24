@@ -1,484 +1,168 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAdminTenants } from "@/hooks/use-admin";
-import { StatusBadge } from "@/components/ui-kit";
-import { apiClient } from "@/lib/api/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DollarSign, Pencil, Settings, Users } from "lucide-react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CreditCard, ExternalLink, Info, Plus, Search, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { CapsuleTabs, EmptyState, ErrorState, Field, GlassPanel, Pager, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { apiErrorMessage } from "@/lib/api/errors";
+import { billingApi, type AdminCreditRow } from "@/lib/api/billing";
+import { PRICING_URL } from "@/lib/urls";
 
-const SUBSCRIPTIONS_URL = process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL || "https://pricingapi.codevertexafrica.com";
-const MARKETFLOW_API_URL = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexafrica.com";
+const PAGE = 25;
+const dateFmt = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium" });
 
-type ServiceChargePlan = {
-  id: string;
-  code: string;
-  name: string;
-  description: string;
-  charge_type: string;
-  charge_value: number;
-  min_charge?: number;
-  max_charge?: number;
-  applicable_services?: string[];
-  is_active: boolean;
-  is_default: boolean;
+const STATUS: Record<string, { label: string; tone: Tone }> = {
+  active: { label: "Active", tone: "success" },
+  capped: { label: "Paused", tone: "danger" },
+  not_activated: { label: "Not active", tone: "neutral" },
+  exempt: { label: "Exempt", tone: "info" },
 };
 
-type Plan = {
-  id: string;
-  plan_code: string;
-  name: string;
-  description: string;
-  base_price: number;
-  billing_cycle: string;
-  currency: string;
-  tier_limits?: Record<string, any>;
-};
+const FILTERS = [
+  { value: "", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "not_activated", label: "Not active" },
+  { value: "exempt", label: "Exempt" },
+];
 
-type Tenant = {
-  id: string;
-  name: string;
-  slug: string;
-  plan_code?: string;
-  plan_name?: string;
-};
-
-type EditChargeForm = {
-  charge_value: number;
-  min_charge: number | undefined;
-  max_charge: number | undefined;
-  is_active: boolean;
-};
+function GrantDialog({ row, onDone }: { row: AdminCreditRow; onDone: () => void }) {
+  const qc = useQueryClient();
+  const [units, setUnits] = useState("100");
+  const [reason, setReason] = useState("");
+  // One key per dialog, so a double click or a retry after a timeout cannot grant twice.
+  const [key] = useState(() => crypto.randomUUID());
+  const grant = useMutation({
+    mutationFn: () => billingApi.grantCredits(row.tenant_id, "ai_credits", Math.round(Number(units)), reason.trim(), key),
+    onSuccess: () => {
+      toast.success(`Added ${Number(units).toLocaleString()} AI credits to ${row.name}`);
+      void qc.invalidateQueries({ queryKey: ["platform-credits"] });
+      onDone();
+    },
+    onError: (e) => toast.error(apiErrorMessage(e, "Could not add the credits")),
+  });
+  const n = Number(units);
+  const valid = Number.isFinite(n) && n > 0 && n <= 100000 && reason.trim().length >= 3;
+  return (
+    <>
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          {row.name} has {row.unlimited ? "unlimited" : (row.bundle_balance + row.quota_balance).toLocaleString()} AI credits. Added credits are free to the business and are recorded with your reason.
+        </p>
+        <Field label="Credits to add" required htmlFor="g-u"><Input id="g-u" type="number" inputMode="numeric" min={1} max={100000} value={units} onChange={(e) => setUnits(e.target.value)} /></Field>
+        <Field label="Reason" required htmlFor="g-r" hint="For example: launch promotion, refund for a failed poster"><Input id="g-r" value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} /></Field>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onDone}>Cancel</Button>
+        <Button disabled={!valid || grant.isPending} onClick={() => grant.mutate()}>{grant.isPending ? "Adding..." : "Add credits"}</Button>
+      </DialogFooter>
+    </>
+  );
+}
 
 export default function PlatformBillingPage() {
-  const qc = useQueryClient();
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [granting, setGranting] = useState<AdminCreditRow | null>(null);
+  const search = useDebouncedValue(q.trim(), 300);
 
-  // ---- State for inline editing of service charge plans ----
-  const [editingCharge, setEditingCharge] = useState<ServiceChargePlan | null>(null);
-  const [chargeForm, setChargeForm] = useState<EditChargeForm>({
-    charge_value: 0,
-    min_charge: undefined,
-    max_charge: undefined,
-    is_active: true,
+  const list = useQuery({
+    queryKey: ["platform-credits", "ai_credits", search, status, page],
+    queryFn: () => billingApi.adminCredits({ service: "ai_credits", q: search, status, limit: PAGE, offset: (page - 1) * PAGE }),
+    placeholderData: keepPreviousData,
   });
-
-  // ---- State for tenant plan override ----
-  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
-  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
-
-  // ---- Queries ----
-  const { data: chargePlans, isLoading: chargesLoading } = useQuery<ServiceChargePlan[]>({
-    queryKey: ["service-charge-plans"],
-    queryFn: async () => {
-      try {
-        const r = await apiClient.get<{ data: ServiceChargePlan[] }>(
-          `${SUBSCRIPTIONS_URL}/api/v1/service-charges/plans?service=marketflow`,
-        );
-        return r.data.data ?? [];
-      } catch {
-        return [];
-      }
-    },
-  });
-
-  const { data: plans, isLoading: plansLoading } = useQuery<Plan[]>({
-    queryKey: ["subscription-plans"],
-    queryFn: async () => {
-      try {
-        const r = await apiClient.get<{ data: Plan[] }>(`${SUBSCRIPTIONS_URL}/api/v1/plans?service=marketflow&active=true`);
-        return r.data.data ?? [];
-      } catch {
-        return [];
-      }
-    },
-  });
-
-  const { data: tenants, isLoading: tenantsLoading } = useAdminTenants();
-
-  // ---- Mutations ----
-  const updateCharge = useMutation({
-    mutationFn: async ({ id, body }: { id: string; body: Partial<ServiceChargePlan> }) => {
-      return apiClient.put(`${SUBSCRIPTIONS_URL}/api/v1/service-charges/plans/${id}`, body);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["service-charge-plans"] });
-      setEditingCharge(null);
-      toast.success("Service charge plan updated");
-    },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Failed to update service charge plan");
-    },
-  });
-
-  const overridePlan = useMutation({
-    mutationFn: async ({ tenantId, planId }: { tenantId: string; planId: string }) => {
-      return apiClient.put(`${SUBSCRIPTIONS_URL}/api/v1/subscriptions/${tenantId}/plan`, {
-        plan_id: planId,
-      });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-tenants"] });
-      setOverrideDialogOpen(false);
-      setSelectedTenantId(null);
-      setSelectedPlanId("");
-      toast.success("Tenant plan overridden successfully");
-    },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Failed to override tenant plan");
-    },
-  });
-
-  function openChargeEdit(plan: ServiceChargePlan) {
-    setEditingCharge(plan);
-    setChargeForm({
-      charge_value: plan.charge_value,
-      min_charge: plan.min_charge,
-      max_charge: plan.max_charge,
-      is_active: plan.is_active,
-    });
-  }
-
-  function handleChargeSave() {
-    if (!editingCharge) return;
-    updateCharge.mutate({
-      id: editingCharge.id,
-      body: {
-        charge_value: chargeForm.charge_value,
-        min_charge: chargeForm.min_charge,
-        max_charge: chargeForm.max_charge,
-        is_active: chargeForm.is_active,
-      },
-    });
-  }
-
-  function openOverrideDialog(tenantId: string) {
-    setSelectedTenantId(tenantId);
-    setSelectedPlanId("");
-    setOverrideDialogOpen(true);
-  }
-
-  function handleOverrideSave() {
-    if (!selectedTenantId || !selectedPlanId) return;
-    overridePlan.mutate({ tenantId: selectedTenantId, planId: selectedPlanId });
-  }
+  const rows = list.data?.data ?? [];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Billing Configuration</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure service charges, AI credit pricing, and subscription plans for all MarketFlow tenants.
-          Changes here affect every new campaign and billing cycle going forward.
-        </p>
+    <div className="space-y-6">
+      <PageHeader
+        icon={<CreditCard />}
+        title="Billing"
+        description="AI credits held and used by each business."
+        actions={
+          <a href={`${PRICING_URL}/platform/subscriptions`} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "outline" })}>
+            Plans and subscriptions <ExternalLink />
+          </a>
+        }
+      />
+
+      <GlassPanel>
+        <div className="flex gap-3 text-sm">
+          <Info className="mt-0.5 size-4 shrink-0 text-primary" />
+          <p className="text-muted-foreground">
+            MarketFlow bills AI credits only: a monthly plan or prepaid bundles, priced in subscriptions-api. Ad budgets are paid on each business&apos;s own ad account, with no fee from us. Plans, trials and exemptions are managed in the pricing console.
+          </p>
+        </div>
+      </GlassPanel>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative w-full sm:w-72">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input aria-label="Search businesses" placeholder="Search by name or slug" className="pl-9" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        </div>
+        <CapsuleTabs label="Status" value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={FILTERS} />
       </div>
 
-      {/* Service Charge Plans */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <DollarSign className="h-5 w-5 text-amber-500" />
-          <h2 className="text-lg font-semibold">Service Charge Plans</h2>
-        </div>
-        {chargesLoading ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <Skeleton className="h-40 rounded-xl" />
-            <Skeleton className="h-40 rounded-xl" />
-          </div>
-        ) : (chargePlans ?? []).length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              No MarketFlow service charge plans found. Run the subscriptions-api seed to create SC_MARKETFLOW_ADS and SC_MARKETFLOW_AI_CREDIT.
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {(chargePlans ?? []).map((plan) => (
-              <Card key={plan.id}>
-                <CardHeader className="flex flex-row items-start justify-between pb-2">
-                  <div>
-                    <CardTitle className="text-base">{plan.name}</CardTitle>
-                    <Badge variant="outline" className="mt-1 text-xs">{plan.code}</Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {plan.is_default && (
-                      <Badge className="bg-green-100 text-green-800 text-xs">Default</Badge>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openChargeEdit(plan)}
-                    >
-                      <Pencil className="mr-1 h-3 w-3" />
-                      Edit
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <p className="text-muted-foreground">{plan.description}</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <span className="text-muted-foreground">Type:</span>{" "}
-                      <span className="font-medium">{plan.charge_type}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Value:</span>{" "}
-                      <span className="font-medium">
-                        {plan.charge_type === "PERCENTAGE" ? `${plan.charge_value}%` : `KES ${plan.charge_value}`}
-                      </span>
-                    </div>
-                    {plan.min_charge != null && (
-                      <div>
-                        <span className="text-muted-foreground">Min:</span>{" "}
-                        <span className="font-medium">KES {plan.min_charge}</span>
-                      </div>
-                    )}
-                    {plan.max_charge != null && (
-                      <div>
-                        <span className="text-muted-foreground">Max:</span>{" "}
-                        <span className="font-medium">KES {plan.max_charge}</span>
-                      </div>
-                    )}
-                  </div>
-                  <Badge variant={plan.is_active ? "default" : "outline"} className="text-xs">
-                    {plan.is_active ? "Active" : "Inactive"}
-                  </Badge>
-                </CardContent>
-              </Card>
-            ))}
+      <div className="glass overflow-hidden rounded-[1.25rem]">
+        {list.isError && <div className="p-4"><ErrorState message={apiErrorMessage(list.error, "Could not load credit balances.")} onRetry={() => void list.refetch()} /></div>}
+        {list.isLoading && <div className="space-y-2 p-4">{[0, 1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-muted" />)}</div>}
+        {!list.isLoading && !list.isError && rows.length === 0 && (
+          <EmptyState icon={<Zap />} title={search || status ? "No businesses match" : "No businesses yet"} description="Businesses appear here once they exist in subscriptions-api." />
+        )}
+        {rows.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs font-semibold text-muted-foreground">
+                  <th className="px-4 py-3">Business</th>
+                  <th className="px-4 py-3">Plan</th>
+                  <th className="px-4 py-3 text-right">Credits left</th>
+                  <th className="px-4 py-3 text-right">Used this month</th>
+                  <th className="px-4 py-3">Last used</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const st = STATUS[r.status] ?? { label: r.status, tone: "neutral" as Tone };
+                  return (
+                    <tr key={r.tenant_id} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{r.name}</p>
+                        <p className="text-xs text-muted-foreground">{r.slug}</p>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{r.plan_name || "None"}</td>
+                      <td className="px-4 py-3 text-right font-medium tabular">{r.unlimited ? "Unlimited" : (r.bundle_balance + r.quota_balance).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right tabular">{r.units_used_month.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-muted-foreground tabular">{r.last_activity_at ? dateFmt.format(new Date(r.last_activity_at)) : "Never"}</td>
+                      <td className="px-4 py-3"><ToneBadge tone={st.tone}>{st.label}</ToneBadge></td>
+                      <td className="px-4 py-3 text-right">
+                        {!r.exempt && <Button variant="ghost" size="sm" onClick={() => setGranting(r)}><Plus /> Add credits</Button>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
-      </section>
-
-      {/* Edit Service Charge Dialog */}
-      <Dialog open={!!editingCharge} onOpenChange={(o) => { if (!o) setEditingCharge(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Service Charge: {editingCharge?.name}</DialogTitle>
-          </DialogHeader>
-          {editingCharge && (
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleChargeSave();
-              }}
-            >
-              <label className="block text-xs">
-                <span className="mb-1 block font-medium text-muted-foreground">
-                  Charge Value {editingCharge.charge_type === "PERCENTAGE" ? "(%)" : "(KES)"}
-                </span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  value={chargeForm.charge_value}
-                  onChange={(e) => setChargeForm({ ...chargeForm, charge_value: Number(e.target.value) })}
-                  required
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block text-xs">
-                  <span className="mb-1 block font-medium text-muted-foreground">Min Charge (KES)</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    value={chargeForm.min_charge ?? ""}
-                    onChange={(e) =>
-                      setChargeForm({
-                        ...chargeForm,
-                        min_charge: e.target.value ? Number(e.target.value) : undefined,
-                      })
-                    }
-                  />
-                </label>
-                <label className="block text-xs">
-                  <span className="mb-1 block font-medium text-muted-foreground">Max Charge (KES)</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    value={chargeForm.max_charge ?? ""}
-                    onChange={(e) =>
-                      setChargeForm({
-                        ...chargeForm,
-                        max_charge: e.target.value ? Number(e.target.value) : undefined,
-                      })
-                    }
-                  />
-                </label>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={chargeForm.is_active}
-                  onCheckedChange={(checked) =>
-                    setChargeForm({ ...chargeForm, is_active: Boolean(checked) })
-                  }
-                />
-                <span className="text-sm">{chargeForm.is_active ? "Active" : "Inactive"}</span>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditingCharge(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={updateCharge.isPending}>
-                  {updateCharge.isPending ? "Saving..." : "Save changes"}
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Subscription Plans */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Settings className="h-5 w-5 text-amber-500" />
-          <h2 className="text-lg font-semibold">Subscription Plans</h2>
-        </div>
-        {plansLoading ? (
-          <Skeleton className="h-40 rounded-xl" />
-        ) : (plans ?? []).length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              No MarketFlow subscription plans found. Seed the <code>marketflow</code> product in subscriptions-api.
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-3">
-            {(plans ?? []).map((plan) => (
-              <Card key={plan.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{plan.name}</CardTitle>
-                  <Badge variant="outline" className="text-xs">{plan.plan_code}</Badge>
-                </CardHeader>
-                <CardContent className="text-sm space-y-1">
-                  <div className="text-xl font-bold">
-                    {plan.base_price === 0 ? "Free" : `${plan.currency} ${plan.base_price.toLocaleString()}`}
-                    {plan.billing_cycle !== "ONE_TIME" && plan.base_price > 0 && (
-                      <span className="text-xs text-muted-foreground font-normal">
-                        /{plan.billing_cycle.toLowerCase()}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-muted-foreground text-xs">{plan.description}</p>
-                </CardContent>
-              </Card>
-            ))}
+        {list.data && (
+          <div className="px-4 pb-4">
+            <Pager page={page} limit={list.data.limit || PAGE} total={list.data.total} onPage={setPage} />
           </div>
         )}
-      </section>
+      </div>
 
-      {/* Tenant Subscriptions with Override */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-amber-500" />
-          <h2 className="text-lg font-semibold">Tenant Subscriptions</h2>
-        </div>
-        {tenantsLoading ? (
-          <Skeleton className="h-40 rounded-xl" />
-        ) : (tenants ?? []).length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              No tenants found. Tenants will appear here once they register on the platform.
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tenant</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-32"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(tenants ?? []).map((tenant) => (
-                    <TableRow key={tenant.id}>
-                      <TableCell className="font-medium">{tenant.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{tenant.slug}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={tenant.status} />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openOverrideDialog(tenant.id)}
-                        >
-                          Override
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-      </section>
-
-      {/* Override Plan Dialog */}
-      <Dialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Override Tenant Plan</DialogTitle>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleOverrideSave();
-            }}
-          >
-            <div className="text-sm text-muted-foreground">
-              Tenant: <span className="font-medium text-foreground">
-                {tenants?.find((t) => t.id === selectedTenantId)?.name ?? selectedTenantId}
-              </span>
-            </div>
-            <label className="block text-xs">
-              <span className="mb-1 block font-medium text-muted-foreground">Select Plan</span>
-              <Select value={selectedPlanId} onValueChange={(v) => setSelectedPlanId(v ?? "")}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(plans ?? []).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} ({p.plan_code}) - {p.base_price === 0 ? "Free" : `${p.currency} ${p.base_price}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOverrideDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={overridePlan.isPending || !selectedPlanId}>
-                {overridePlan.isPending ? "Saving..." : "Override Plan"}
-              </Button>
-            </DialogFooter>
-          </form>
+      <Dialog open={!!granting} onOpenChange={(o) => !o && setGranting(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add AI credits</DialogTitle></DialogHeader>
+          {granting && <GrantDialog key={granting.tenant_id} row={granting} onDone={() => setGranting(null)} />}
         </DialogContent>
       </Dialog>
     </div>

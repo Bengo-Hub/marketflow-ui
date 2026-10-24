@@ -13,16 +13,18 @@ export interface SubscriptionInfo {
 export async function fetchSubscriptionInfo(
   tenantId: string,
   _tenantSlug: string,
-  _accessToken: string,
+  accessToken: string,
 ): Promise<SubscriptionInfo | null> {
-  if (!tenantId) return null;
+  if (!tenantId || !accessToken) return null;
 
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
 
+    // The route forwards this token so subscriptions-api answers only for the caller's own tenant.
     const resp = await fetch(`/api/subscription?tenantId=${encodeURIComponent(tenantId)}`, {
       signal: controller.signal,
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     clearTimeout(timeout);
 

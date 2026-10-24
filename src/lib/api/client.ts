@@ -21,6 +21,20 @@ export const aiClient = axios.create({
   timeout: 120000,
 });
 
+export const SUBSCRIPTIONS_API_URL = (
+  process.env.NEXT_PUBLIC_SUBSCRIPTIONS_API_URL ||
+  process.env.NEXT_PUBLIC_SUBSCRIPTIONS_URL ||
+  "https://pricingapi.codevertexafrica.com"
+).replace(/\/$/, "");
+
+// subscriptions-api client (plan, billing, credits). It shares the signed-in token and the 401
+// refresh, but sends only the tenant's identity, never MarketFlow-only headers such as X-Outlet-ID.
+export const subscriptionsClient = axios.create({
+  baseURL: SUBSCRIPTIONS_API_URL,
+  headers: { "Content-Type": "application/json" },
+  timeout: 30000,
+});
+
 // Request interceptor: attach tenant headers.
 //
 // Two contexts, both may apply for platform owners:
@@ -74,6 +88,14 @@ const attachTenantHeaders = (config: InternalAxiosRequestConfig) => {
 
 apiClient.interceptors.request.use(attachTenantHeaders);
 aiClient.interceptors.request.use(attachTenantHeaders);
+subscriptionsClient.interceptors.request.use((config) => {
+  const auth = apiClient.defaults.headers.common.Authorization;
+  if (typeof auth === "string" && !config.headers.Authorization) config.headers.Authorization = auth;
+  for (const [k, v] of Object.entries(tenantHeaders())) {
+    if (k !== "X-Outlet-ID") config.headers[k] = v;
+  }
+  return config;
+});
 
 // Outlet ID getter — set by outlet-filter component
 let outletIdGetter: () => string | null = () => null;
@@ -130,3 +152,4 @@ const handle401 = async (error: AxiosError & { config?: InternalAxiosRequestConf
 
 apiClient.interceptors.response.use((r) => r, handle401);
 aiClient.interceptors.response.use((r) => r, handle401);
+subscriptionsClient.interceptors.response.use((r) => r, handle401);
