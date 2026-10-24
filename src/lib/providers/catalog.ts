@@ -394,7 +394,7 @@ const adProviders: ProviderDef[] = [
         key: "graph_version",
         label: "Graph API version",
         type: "text",
-        default: "v21.0",
+        default: "v26.0",
       },
     ],
   },
@@ -426,7 +426,7 @@ const adProviders: ProviderDef[] = [
         type: "text",
         help: "From the dataset's Test events tab (for example TEST12345). Leave empty in production.",
       },
-      { key: "graph_version", label: "Graph API version", type: "text", default: "v21.0" },
+      { key: "graph_version", label: "Graph API version", type: "text", default: "v26.0" },
     ],
   },
   {
