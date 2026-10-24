@@ -268,17 +268,51 @@ Plan: `.claude/plans/marketflow-ui-glass-revamp-2026-10-23.md`. Design rules: `d
 - `d669328` team members: any signed-in member, a viewer included, could invite, change roles (including their own to admin) or remove people. These now need `marketflow_admin` (or a platform owner or service key), and nobody can change or remove themselves. The caller came from a client `X-User-ID` header; it now comes from the token. Invites went to an auth-api path that doesn't exist; they now use `/api/v1/s2s/tenants/{id}/members` with a body built server-side, because that route acts with platform rights. Role changes and removals are audited.
 - `94a548f` testimonials: PATCH reset `display_order` to 0 on every publish toggle; role and photo could never be cleared; raw database errors reached the client. Now partial updates, input checks and audit events.
 
-### Open (Phase 5, remaining pages)
+### Done (2026-10-24, third round)
 
-| Page | Still to do |
+**Billing: AI credits only.** The owner confirmed that the 5% fee on ad budgets is legacy. The 2026-10-22 ads decision stands: ad money goes to the client's own ad account at cost, and MarketFlow charges only AI credits (monthly plan or prepaid bundles).
+
+| Area | What changed | Commits |
+|---|---|---|
+| settings/billing | Plan, this period's usage, and AI credit, WhatsApp and SMS balances from subscriptions-api; bundles bought through the shared `TreasuryPaymentModal`. Hard-coded limits, the 5% fee card and the wallet top-up removed. Money already in a Treasury wallet shows read-only (the old page called a wallet path that never existed) | `12c7851` |
+| platform/billing | AI credits per business (search, status filter, paging) and a grant dialog with a reason and an idempotency key. The service-charge editor and a plan override that called a route which doesn't exist are gone; plans link to the pricing console | `12c7851` |
+| `lib/api/client.ts` | `subscriptionsClient`: same token and 401 refresh, tenant identity headers only | `12c7851` |
+| `/api/subscription` | Forwards the caller's own token instead of the platform service key, so it can no longer read any tenant's plan by id | `12c7851` |
+| subscriptions-api seed | `SC_MARKETFLOW_ADS` deactivated on the next seed run (kept for history, like `SC_MARKETFLOW_AI_CREDIT`) | subscriptions-api `591c72a` |
+| marketflow-ai (session 80) | `calculate_ad_cost` is a no-fee breakdown (ad budget at cost on the client's own account plus the AI-credit cost); no wallet wording in tools or prompts | marketflow-ai `b875519` |
+
+**Onboarding backend (marketflow-api `821d50f`).**
+- `GET /tenant/onboarding`: checklist of profile, offerings, brand context, channels and lead capture (team optional), each one indexed existence check. `POST /tenant/onboarding/dismiss`.
+- `GET /tenant/marketing-context/draft`: a suggested brand context, never saved by itself. Sources:
+  - the profile and auth-api account details (website, contacts, use case, brand colour);
+  - the top 20 sellers: POS revenue over 90 days matched to the inventory catalogue, or the catalogue when POS has no sales;
+  - published testimonials as proof;
+  - for the platform tenant, codevertex-website's products and courses.
+
+  Fields the owner filled are kept. FLP tenants get the compliance rules as banned claims. Sources run in parallel inside a 4 s budget, and a failed one is skipped.
+- Supporting changes in other services:
+  - pos-api `dcd447a`: sales per SKU are now summed in SQL; before, every order was loaded into memory. The S2S route also takes `order` and `limit`.
+  - inventory-api `c778868`: items can be listed with `?skus=`.
+  - codevertex-website `9ae0989`: `GET /api/catalog`.
+- `tenant.SetMetadataKeys` merges metadata keys in one UPDATE. The profile, brand context and settings writers still rewrite the whole map, so concurrent saves can drop each other's key; session 80 was told about the helper for `marketingos`.
+
+### Open (Phase 5 and the owner's 2026-10-24 asks)
+
+| Item | Still to do |
 |---|---|
-| settings/integrations | Google business hours editor (`PUT /integrations/google/business-hours`) |
-| settings/billing | A separate client for subscriptions and treasury, so MarketFlow tenant headers stop going to other services |
+| Onboarding UI | `/{org}/onboarding` flow (profile with auth defaults, link top offerings, brand context review, channels, first lead capture), a dashboard prompt from the checklist, and the brand context page redesign: chip lists, "Fill from my business data", offerings picked from the draft. Session 80 agreed this session owns `settings/marketing-context` |
+| Shared components | Most tables and pickers are hand-rolled: move them to shared-ui-lib's DataTable and SearchableCombobox, wire missing edit and delete actions, and merge duplicated components |
+| Profile PATCH | Switch to `tenant.SetMetadataKeys` with only the changed keys |
+| settings/integrations | Restyle and the Google business hours editor. Asked session fc first (Sprint 14 owner); no answer yet |
 | settings/custom-fields, settings hub | Restyle on the ui-kit; the hub still describes the profile as "FBO profile" for every tenant |
-| platform/billing | Plans query filters `service=marketflow`, which matches no plan; per-tenant plan lookup; errors are swallowed |
-| studio (Sprint 15) | Owner confirmed on 2026-10-24 that this session builds `[orgSlug]/studio` after the pages above. API from f2: briefs, versions (202 then poll), revise (free), extend, approve/discard, review links, `/os/creative/quote`, `daily_render_limit`, `restricted_categories` notice, assets kind `image` only |
+| studio (Sprint 15) | `[orgSlug]/studio` after the pages above. API: briefs, versions (202 then poll), revise (free), extend, approve/discard (Approve only for `marketflow_admin` or `fbo_owner`, api `7e6c943`), review links, `/os/creative/quote`, `daily_render_limit`, `restricted_categories` notice, assets kind `image` only |
 
 ### Flagged, not yet fixed
+
+- **Subscription proxy, fleet-wide.** Ten other UI repos have the same `/api/subscription` route that looks up any tenant with the platform service key and no caller check. pos-ui's `/api/subscription/overage` also accepts an unauthenticated POST that turns overage billing on or off for any tenant. Fixed only in marketflow-ui; the others need the same token-forwarding change, and the owner has to decide whether this session rolls it out.
+- **auth-api public tenant lookup leaks metadata.** `GET /api/v1/tenants/by-slug/{slug}` needs no sign-in and returns the whole tenant `metadata`, including backup object keys and the list of services. It should allow-list fields as MarketFlow's public profile does.
+- **Campaign payment.** MarketFlow never debited a wallet, and that flow is retired. Launching a paid ad (fund the client's own ad account, then launch) is Sprint 18 work.
+- **Dependabot.** GitHub reports 17 alerts on inventory-api (11 high) and 1 on marketflow-api.
 
 - **Team invites need a live check.** The s2s route and service key match what other services use, but no invite has been sent against production yet. A member's role inside MarketFlow comes from the JIT sync on first sign-in (auth `admin` maps to Admin, `member` to Member, anything else to Viewer); someone already synced keeps their MarketFlow role until an admin changes it here.
 - **Tenant audit events.** Done in api `1630db5` for profile, funnels, campaigns and leads (plus lead export), and now team changes and testimonials. Still open:
