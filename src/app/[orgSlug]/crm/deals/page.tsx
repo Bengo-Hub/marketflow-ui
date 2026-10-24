@@ -1,296 +1,192 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { useSearchParams } from "next/navigation";
+import { Briefcase, Plus, ThumbsDown, Trophy } from "lucide-react";
+import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { STALE_TIMES } from "@/app/providers";
-import { dealsApi } from "@/lib/api/deals";
-import { pipelinesApi } from "@/lib/api/pipelines";
-import { Trophy, X } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ActivityTimeline } from "@/components/crm/activity-timeline";
+import { CustomFieldsPanel } from "@/components/crm/custom-fields-panel";
+import { RecordPicker, type RecordRef } from "@/components/crm/record-picker";
+import { CapsuleTabs, EmptyState, ErrorState, Field, PageHeader, StatusBadge } from "@/components/ui-kit";
+import { useBoard, useCreateDeal, useDeal, useDealAction, usePipelines, useSetupPipeline } from "@/hooks/use-deals";
+import { formatMoney } from "@/lib/api/campaigns";
+import type { Deal } from "@/lib/api/deals";
+import { sortedStages, type PipelineStage } from "@/lib/api/pipelines";
 
-const statusColors: Record<string, string> = {
-  open: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  won: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  lost: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-};
+const dateFmt = new Intl.DateTimeFormat("en-KE", { day: "numeric", month: "short" });
 
-type Deal = {
-  id: string;
-  title: string;
-  contact_name?: string;
-  value?: number;
-  stage_name?: string;
-  probability?: number;
-  close_date?: string;
-  status: string;
-  pipeline_id?: string;
-};
+function NewDeal({ pipelineId, stages, onDone }: { pipelineId: string; stages: PipelineStage[]; onDone: () => void }) {
+  const create = useCreateDeal();
+  const [title, setTitle] = useState("");
+  const [stageId, setStageId] = useState(stages[0]?.id ?? "");
+  const [value, setValue] = useState("");
+  const [currency, setCurrency] = useState("KES");
+  const [close, setClose] = useState("");
+  const [record, setRecord] = useState<RecordRef | null>(null);
+  return (
+    <>
+      <div className="space-y-4">
+        <Field label="Deal" required htmlFor="dl-t" hint="What is being sold, e.g. Wedding package for Achieng."><Input id="dl-t" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+        <Field label="With"><RecordPicker value={record} onChange={setRecord} /></Field>
+        <div>
+          <p className="mb-1.5 text-sm font-medium">Stage</p>
+          <CapsuleTabs label="Stage" value={stageId} onChange={setStageId} options={stages.map((s) => ({ value: s.id, label: s.name }))} />
+        </div>
+        <div className="grid grid-cols-[1fr_6rem] gap-3 sm:grid-cols-[1fr_6rem_1fr]">
+          <Field label="Value" htmlFor="dl-v"><Input id="dl-v" type="number" inputMode="decimal" min={0} value={value} onChange={(e) => setValue(e.target.value)} /></Field>
+          <Field label="Currency" htmlFor="dl-c"><Input id="dl-c" maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} /></Field>
+          <Field label="Expected close" className="col-span-2 sm:col-span-1" htmlFor="dl-d"><Input id="dl-d" type="date" value={close} onChange={(e) => setClose(e.target.value)} /></Field>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onDone}>Cancel</Button>
+        <Button
+          disabled={!title.trim() || !stageId || currency.length !== 3 || create.isPending}
+          onClick={() =>
+            create.mutate(
+              {
+                title: title.trim(),
+                pipeline_id: pipelineId,
+                stage_id: stageId,
+                value: value ? Number(value) : undefined,
+                currency,
+                expected_close_date: close || undefined,
+                ...(record?.type === "contact" ? { contact_id: record.id } : record?.type === "lead" ? { lead_id: record.id } : {}),
+              },
+              { onSuccess: onDone },
+            )
+          }
+        >
+          {create.isPending ? "Adding..." : "Add deal"}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
 
-type Pipeline = {
-  id: string;
-  name: string;
-};
+function DealSheet({ id, stages, onClose }: { id: string; stages: PipelineStage[]; onClose: () => void }) {
+  const deal = useDeal(id);
+  const act = useDealAction();
+  const [reason, setReason] = useState("");
+  const d = deal.data;
+  const open = stages.filter((s) => !s.is_won_stage && !s.is_lost_stage);
+  return (
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+        <SheetHeader><SheetTitle>{d?.title ?? "Deal"}</SheetTitle></SheetHeader>
+        {deal.isError && <ErrorState onRetry={() => void deal.refetch()} />}
+        {d && (
+          <div className="space-y-5 px-4 pb-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={d.status} />
+              <span className="font-display text-2xl font-semibold tabular">{formatMoney(d.value, d.currency)}</span>
+              {d.expected_close_date && <span className="text-sm text-muted-foreground">Expected {dateFmt.format(new Date(d.expected_close_date))}</span>}
+            </div>
+            {d.status === "open" && (
+              <>
+                <div>
+                  <p className="mb-1.5 text-sm font-medium">Stage</p>
+                  <CapsuleTabs label="Move to stage" value={d.stage_id} onChange={(s) => s !== d.stage_id && act.mutate({ id, kind: "move", stageId: s })} options={open.map((s) => ({ value: s.id, label: s.name }))} />
+                </div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <Button onClick={() => act.mutate({ id, kind: "won" })}><Trophy /> Won</Button>
+                  <Input aria-label="Why it was lost" placeholder="Why it was lost (optional)" className="w-56" value={reason} onChange={(e) => setReason(e.target.value)} />
+                  <Button variant="outline" onClick={() => act.mutate({ id, kind: "lost", reason: reason.trim() || undefined })}><ThumbsDown /> Lost</Button>
+                </div>
+              </>
+            )}
+            {d.status === "lost" && d.lost_reason && <p className="text-sm text-muted-foreground">Lost because: {d.lost_reason}</p>}
+            <CustomFieldsPanel entity="deal" id={id} />
+            <ActivityTimeline entity="deal" id={id} />
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function Column({ stage, deals, loading, onOpen }: { stage: PipelineStage; deals: Deal[]; loading: boolean; onOpen: (id: string) => void }) {
+  const total = deals.reduce((s, d) => s + (d.value ?? 0), 0);
+  const currency = deals[0]?.currency ?? "KES";
+  return (
+    <section className="glass flex w-72 shrink-0 snap-start flex-col rounded-[1.25rem] p-3 sm:w-80" aria-label={stage.name}>
+      <header className="mb-3 px-1">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-display text-sm font-semibold">{stage.name}</h2>
+          <span className="rounded-full bg-foreground/10 px-2 text-xs font-semibold tabular">{deals.length}</span>
+        </div>
+        <p className="text-xs text-muted-foreground tabular">{formatMoney(total, currency)}{stage.win_probability != null ? `, ${stage.win_probability}% likely` : ""}</p>
+      </header>
+      <div className="space-y-2">
+        {loading && Array.from({ length: 2 }).map((_, i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-muted" />)}
+        {!loading && deals.length === 0 && <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">No deals here</p>}
+        {deals.map((d) => (
+          <button key={d.id} type="button" onClick={() => onOpen(d.id)} className="w-full rounded-xl border border-border bg-card/80 p-3 text-left shadow-soft transition-colors hover:border-primary/50">
+            <p className="line-clamp-2 text-sm font-medium">{d.title}</p>
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground tabular">{formatMoney(d.value, d.currency)}</span>
+              {d.expected_close_date && <span>{dateFmt.format(new Date(d.expected_close_date))}</span>}
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function DealsPage() {
-  const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [pipelineFilter, setPipelineFilter] = useState("all");
-  const [showCreate, setShowCreate] = useState(false);
-  const [lostDialog, setLostDialog] = useState<{ id: string } | null>(null);
-  const [lostReason, setLostReason] = useState("");
+  const has = useFeature("deal_pipeline");
+  const search = useSearchParams();
+  const pipelines = usePipelines();
+  const setup = useSetupPipeline();
+  const [pipelineId, setPipelineId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(search.get("deal"));
+  const list = pipelines.data ?? [];
+  const active = list.find((p) => p.id === pipelineId) ?? list.find((p) => p.is_default) ?? list[0] ?? null;
+  const stages = sortedStages(active);
+  const boardStages = stages.filter((s) => !s.is_won_stage && !s.is_lost_stage);
+  const board = useBoard(active?.id ?? null, boardStages);
 
-  const [form, setForm] = useState({ title: "", value: "", pipeline_id: "" });
-
-  const params: Record<string, string> = {};
-  if (statusFilter !== "all") params.status = statusFilter;
-  if (pipelineFilter !== "all") params.pipeline_id = pipelineFilter;
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["deals", statusFilter, pipelineFilter],
-    queryFn: () => dealsApi.list(params).then((r) => r.data),
-    staleTime: STALE_TIMES.OPERATIONAL,
-  });
-
-  const { data: pipelinesData } = useQuery({
-    queryKey: ["pipelines"],
-    queryFn: () => pipelinesApi.list().then((r) => r.data),
-    staleTime: STALE_TIMES.STATIC,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (d: Record<string, unknown>) => dealsApi.create(d),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deals"] });
-      setShowCreate(false);
-      setForm({ title: "", value: "", pipeline_id: "" });
-    },
-  });
-
-  const wonMutation = useMutation({
-    mutationFn: (id: string) => dealsApi.markWon(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["deals"] }),
-  });
-
-  const lostMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => dealsApi.markLost(id, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deals"] });
-      setLostDialog(null);
-      setLostReason("");
-    },
-  });
-
-  const pipelines: Pipeline[] = pipelinesData?.data ?? pipelinesData ?? [];
+  const addBtn = <Button disabled={!active || boardStages.length === 0} onClick={() => setAdding(true)}><Plus /> Add deal</Button>;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Deals</h1>
-          <p className="text-muted-foreground">{data?.total ?? 0} total deals</p>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>New Deal</Button>
-      </div>
+      <PageHeader icon={<Briefcase />} title="Deals" description="What you are selling and where each sale stands." actions={has ? addBtn : <FeatureLock feature="deal_pipeline" mode="block">{addBtn}</FeatureLock>} />
+      {list.length > 1 && <CapsuleTabs label="Pipeline" value={active?.id ?? ""} onChange={setPipelineId} options={list.map((p) => ({ value: p.id, label: p.name }))} />}
 
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Failed to load deals: {(error as Error).message}
+      {pipelines.isError && <ErrorState message="Could not load your pipelines." onRetry={() => void pipelines.refetch()} />}
+      {pipelines.isLoading && <div className="flex gap-4 overflow-hidden">{[0, 1, 2].map((i) => <div key={i} className="glass h-64 w-80 shrink-0 animate-pulse rounded-[1.25rem]" />)}</div>}
+      {!pipelines.isLoading && !pipelines.isError && list.length === 0 && (
+        <div className="glass rounded-[1.25rem]">
+          <EmptyState
+            icon={<Briefcase />}
+            title="Set up your sales pipeline"
+            description="We will create the stages New, Talking, Offer sent, Won and Lost. You can rename them later."
+            action={<Button disabled={setup.isPending} onClick={() => setup.mutate()}>{setup.isPending ? "Setting up..." : "Set up pipeline"}</Button>}
+          />
         </div>
       )}
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Status</span>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "all")}>
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="open">Open</SelectItem>
-              <SelectItem value="won">Won</SelectItem>
-              <SelectItem value="lost">Lost</SelectItem>
-            </SelectContent>
-          </Select>
+      {active && (
+        <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+          {boardStages.map((s, i) => (
+            <Column key={s.id} stage={s} deals={board[i]?.data?.data ?? []} loading={!!board[i]?.isLoading} onOpen={setOpenId} />
+          ))}
         </div>
-        <div>
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Pipeline</span>
-          <Select value={pipelineFilter} onValueChange={(v) => setPipelineFilter(v ?? "all")}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="All pipelines" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All pipelines</SelectItem>
-              {pipelines.map((p: Pipeline) => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      )}
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Stage</TableHead>
-                <TableHead>Probability</TableHead>
-                <TableHead>Close Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-24"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 8 }).map((_, j) => (
-                      <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (data?.data ?? []).length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                    No deals yet. Create your first deal to get started.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                (data?.data ?? []).map((deal: Deal) => (
-                  <TableRow key={deal.id}>
-                    <TableCell className="font-medium">{deal.title}</TableCell>
-                    <TableCell>{deal.contact_name ?? "--"}</TableCell>
-                    <TableCell>{deal.value != null ? `$${deal.value.toLocaleString()}` : "--"}</TableCell>
-                    <TableCell>{deal.stage_name ?? "--"}</TableCell>
-                    <TableCell>{deal.probability != null ? `${deal.probability}%` : "--"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {deal.close_date ? new Date(deal.close_date).toLocaleDateString() : "--"}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[deal.status] ?? ""}`}>
-                        {deal.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {deal.status === "open" && (
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-1.5 text-xs text-green-600"
-                            onClick={() => wonMutation.mutate(deal.id)}
-                            disabled={wonMutation.isPending}
-                          >
-                            <Trophy className="mr-1 h-3 w-3" />Won
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-1.5 text-xs text-red-600"
-                            onClick={() => setLostDialog({ id: deal.id })}
-                          >
-                            <X className="mr-1 h-3 w-3" />Lost
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Create Deal Dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>New Deal</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Title</label>
-              <Input
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder="Deal title"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Value ($)</label>
-              <Input
-                type="number"
-                value={form.value}
-                onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))}
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Pipeline</label>
-              <Select value={form.pipeline_id} onValueChange={(v) => setForm((f) => ({ ...f, pipeline_id: v ?? "" }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select pipeline" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pipelines.map((p: Pipeline) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button
-                onClick={() => createMutation.mutate({ title: form.title, value: Number(form.value), pipeline_id: form.pipeline_id })}
-                disabled={!form.title || createMutation.isPending}
-              >
-                Create
-              </Button>
-            </div>
-          </div>
+      <Dialog open={adding} onOpenChange={setAdding}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle>New deal</DialogTitle></DialogHeader>
+          {adding && active && <NewDeal pipelineId={active.id} stages={boardStages} onDone={() => setAdding(false)} />}
         </DialogContent>
       </Dialog>
-
-      {/* Mark Lost Dialog */}
-      <Dialog open={!!lostDialog} onOpenChange={(o) => { if (!o) { setLostDialog(null); setLostReason(""); } }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Mark as Lost</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Reason (optional)</label>
-              <Input
-                value={lostReason}
-                onChange={(e) => setLostReason(e.target.value)}
-                placeholder="Why was this deal lost?"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setLostDialog(null); setLostReason(""); }}>Cancel</Button>
-              <Button
-                variant="destructive"
-                onClick={() => lostDialog && lostMutation.mutate({ id: lostDialog.id, reason: lostReason })}
-                disabled={lostMutation.isPending}
-              >
-                Confirm Lost
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {openId && <DealSheet id={openId} stages={stages} onClose={() => setOpenId(null)} />}
     </div>
   );
 }
