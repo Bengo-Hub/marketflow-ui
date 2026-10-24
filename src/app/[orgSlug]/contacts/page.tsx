@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Combine, FileUp, Search, UserCheck } from "lucide-react";
+import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ImportContactsDialog } from "@/components/contacts/import-dialog";
-import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Pager, PageHeader, ToneBadge, humanize } from "@/components/ui-kit";
+import { CapsuleTabs, ConfirmDialog, EmptyState, ListTable, PageHeader, ToneBadge, humanize } from "@/components/ui-kit";
 import { useContacts, useMergeContacts } from "@/hooks/use-contacts";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { CONTACT_TYPES, contactName, type Contact } from "@/lib/api/contacts";
@@ -17,6 +17,7 @@ const dateFmt = new Intl.DateTimeFormat("en-KE", { day: "numeric", month: "short
 
 export default function ContactsPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
+  const router = useRouter();
   const [type, setType] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -28,14 +29,36 @@ export default function ContactsPage() {
   const merge = useMergeContacts();
 
   const rows = list.data?.data ?? [];
+  // The selection keeps whole contacts, so a merge can span pages.
   const picked = Object.values(selected);
-  const toggle = (c: Contact) =>
-    setSelected((s) => {
-      const next = { ...s };
-      if (next[c.id]) delete next[c.id];
-      else next[c.id] = c;
+  const selectedKeys = new Set(Object.keys(selected));
+  const onSelectedChange = (keys: Set<string>) =>
+    setSelected((prev) => {
+      const next: Record<string, Contact> = {};
+      for (const k of keys) {
+        const c = prev[k] ?? rows.find((r) => r.id === k);
+        if (c) next[k] = c;
+      }
       return next;
     });
+
+  const columns: DataTableColumn<Contact>[] = [
+    {
+      key: "name",
+      header: "Contact",
+      primary: true,
+      accessor: (c) => contactName(c),
+      render: (c) => (
+        <Link href={`/${orgSlug}/contacts/${c.id}`} className="font-medium hover:text-primary" onClick={(e) => e.stopPropagation()}>
+          {contactName(c)}
+          <span className="block text-xs font-normal text-muted-foreground">{[c.email, c.phone].filter(Boolean).join("  ") || "No contact details"}</span>
+        </Link>
+      ),
+    },
+    { key: "contact_type", header: "Type", accessor: (c) => c.contact_type, render: (c) => <ToneBadge>{humanize(c.contact_type)}</ToneBadge> },
+    { key: "total_orders", header: "Orders", align: "right", accessor: (c) => c.total_orders ?? 0, render: (c) => <span className="tabular">{c.total_orders ?? 0}</span> },
+    { key: "created_at", header: "Added", accessor: (c) => c.created_at, render: (c) => <span className="text-muted-foreground tabular">{dateFmt.format(new Date(c.created_at))}</span> },
+  ];
 
   return (
     <div className="space-y-6">
@@ -45,12 +68,6 @@ export default function ContactsPage() {
         description="Customers and prospects across MarketFlow, POS and Books."
         actions={
           <>
-            {picked.length >= 2 && (
-              <Button variant="outline" onClick={() => setSurvivor(picked[0].id)}>
-                <Combine />
-                Merge {picked.length}
-              </Button>
-            )}
             <Button onClick={() => setImporting(true)}>
               <FileUp />
               Import CSV
@@ -84,77 +101,37 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      <div className="glass overflow-hidden rounded-[1.25rem]">
-        {list.isError && <ErrorState message="Could not load contacts." onRetry={() => void list.refetch()} />}
-        {list.isLoading && (
-          <div className="space-y-2 p-4" aria-busy>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-14 animate-pulse rounded-xl bg-muted" />
-            ))}
-          </div>
-        )}
-        {!list.isLoading && !list.isError && rows.length === 0 && (
+      <ListTable<Contact>
+        columns={columns}
+        rows={rows}
+        rowKey={(c) => c.id}
+        loading={list.isLoading}
+        error={list.isError}
+        onRetry={() => void list.refetch()}
+        storageKey="mf-contacts-columns"
+        onRowClick={(c) => router.push(`/${orgSlug}/contacts/${c.id}`)}
+        selectable
+        selected={selectedKeys}
+        onSelectedChange={onSelectedChange}
+        bulkActions={[
+          {
+            key: "merge",
+            label: picked.length >= 2 ? `Merge ${picked.length} into one` : "Pick 2 or more to merge",
+            icon: <Combine className="size-4" />,
+            disabled: picked.length < 2,
+            onClick: () => setSurvivor(picked[0].id),
+          },
+        ]}
+        paging={{ page, limit: list.data?.limit || 20, total: list.data?.total ?? 0, onPage: setPage }}
+        emptyState={
           <EmptyState
             icon={<UserCheck />}
             title={q || type !== "all" ? "No contacts match" : "No contacts yet"}
             description="Contacts are created from converted leads, POS and online sales, or a CSV import."
             action={<Button variant="outline" onClick={() => setImporting(true)}>Import a CSV</Button>}
           />
-        )}
-        {rows.length > 0 && (
-          <ul className="divide-y divide-border md:hidden">
-            {rows.map((c) => (
-              <li key={c.id} className="flex items-start gap-3 p-4">
-                <Checkbox className="mt-1" aria-label={`Select ${contactName(c)}`} checked={!!selected[c.id]} onCheckedChange={() => toggle(c)} />
-                <Link href={`/${orgSlug}/contacts/${c.id}`} className="min-w-0 flex-1 active:opacity-70">
-                  <p className="truncate font-medium">{contactName(c)}</p>
-                  <p className="truncate text-xs text-muted-foreground">{[c.email, c.phone].filter(Boolean).join("  ") || "No contact details"}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <ToneBadge>{humanize(c.contact_type)}</ToneBadge>
-                    <span className="text-xs text-muted-foreground tabular">{c.total_orders ?? 0} orders</span>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        {rows.length > 0 && (
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[680px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs font-semibold text-muted-foreground">
-                  <th className="w-12 px-4 py-3"><span className="sr-only">Select</span></th>
-                  <th className="px-4 py-3">Contact</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3 text-right">Orders</th>
-                  <th className="px-4 py-3">Added</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((c) => (
-                  <tr key={c.id} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
-                    <td className="px-4 py-3">
-                      <Checkbox aria-label={`Select ${contactName(c)}`} checked={!!selected[c.id]} onCheckedChange={() => toggle(c)} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link href={`/${orgSlug}/contacts/${c.id}`} className="font-medium hover:text-primary">{contactName(c)}</Link>
-                      <p className="text-xs text-muted-foreground">{[c.email, c.phone].filter(Boolean).join("  ") || "No contact details"}</p>
-                    </td>
-                    <td className="px-4 py-3"><ToneBadge>{humanize(c.contact_type)}</ToneBadge></td>
-                    <td className="px-4 py-3 text-right tabular">{c.total_orders ?? 0}</td>
-                    <td className="px-4 py-3 text-muted-foreground tabular">{dateFmt.format(new Date(c.created_at))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {list.data && (
-          <div className="px-4 pb-4">
-            <Pager page={page} limit={list.data.limit || 20} total={list.data.total} onPage={setPage} />
-          </div>
-        )}
-      </div>
+        }
+      />
 
       <ImportContactsDialog open={importing} onOpenChange={setImporting} />
 

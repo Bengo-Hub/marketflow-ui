@@ -2,24 +2,26 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Download, Loader2, Search, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { SearchableCombobox } from "@bengo-hub/shared-ui-lib/combobox";
+import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CapsuleTabs, EmptyState, ErrorState, Pager, PageHeader, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
+import { CapsuleTabs, EmptyState, ListTable, PageHeader, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
 import { useDashboard } from "@/hooks/use-analytics";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLeads } from "@/hooks/use-leads";
 import { apiErrorMessage } from "@/lib/api/errors";
-import { LEAD_STATUSES, leadName, leadsApi, type LeadFilters } from "@/lib/api/leads";
+import { LEAD_STATUSES, leadName, leadsApi, type Lead, type LeadFilters } from "@/lib/api/leads";
 import { datedFilename, saveBlob } from "@/lib/download";
 
 const dateFmt = new Intl.DateTimeFormat("en-KE", { day: "numeric", month: "short", year: "numeric" });
 
 export default function LeadsPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
+  const router = useRouter();
   const [status, setStatus] = useState<string>("all");
   const [source, setSource] = useState("");
   const [search, setSearch] = useState("");
@@ -50,6 +52,46 @@ export default function LeadsPage() {
     fn(v);
     setPage(1);
   };
+
+  // Filters run on the server (search, status, source and dates), so columns only render.
+  const columns: DataTableColumn<Lead>[] = [
+    {
+      key: "name",
+      header: "Lead",
+      primary: true,
+      accessor: (l) => leadName(l),
+      render: (l) => (
+        <Link href={`/${orgSlug}/leads/${l.id}`} className="font-medium text-foreground hover:text-primary" onClick={(e) => e.stopPropagation()}>
+          {leadName(l)}
+          <span className="block text-xs font-normal text-muted-foreground">{[l.email, l.phone].filter(Boolean).join("  ") || "No contact details"}</span>
+        </Link>
+      ),
+    },
+    {
+      key: "source",
+      header: "Source",
+      accessor: (l) => l.source,
+      render: (l) => (
+        <span>
+          <ToneBadge>{humanize(l.source)}</ToneBadge>
+          {l.utm_campaign && <span className="mt-1 block truncate text-xs text-muted-foreground">Campaign: {l.utm_campaign}</span>}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      accessor: (l) => l.status,
+      render: (l) => (
+        <span className="inline-flex flex-wrap gap-1.5">
+          <StatusBadge status={l.status} />
+          {l.lead_type === "recruit" && <ToneBadge tone="primary">Recruit</ToneBadge>}
+        </span>
+      ),
+    },
+    { key: "score", header: "Score", align: "right", mobileAction: true, accessor: (l) => l.score, render: (l) => <span className="font-semibold tabular">{l.score}</span> },
+    { key: "created_at", header: "Received", accessor: (l) => l.created_at, render: (l) => <span className="text-muted-foreground tabular">{dateFmt.format(new Date(l.created_at))}</span> },
+  ];
 
   async function exportCsv() {
     setExporting(true);
@@ -116,88 +158,25 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      <div className="glass overflow-hidden rounded-[1.25rem]">
-        {leads.isError && <ErrorState message="Could not load leads." onRetry={() => void leads.refetch()} />}
-        {leads.isLoading && (
-          <div className="space-y-2 p-4" aria-busy>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-14 animate-pulse rounded-xl bg-muted" />
-            ))}
-          </div>
-        )}
-        {!leads.isLoading && !leads.isError && rows.length === 0 && (
+      <ListTable<Lead>
+        columns={columns}
+        rows={rows}
+        rowKey={(l) => l.id}
+        loading={leads.isLoading}
+        error={leads.isError}
+        onRetry={() => void leads.refetch()}
+        storageKey="mf-leads-columns"
+        onRowClick={(l) => router.push(`/${orgSlug}/leads/${l.id}`)}
+        paging={{ page, limit: leads.data?.limit || 20, total, onPage: setPage }}
+        emptyState={
           <EmptyState
             icon={<Users />}
             title={hasFilters ? "No leads match these filters" : "No leads yet"}
             description={hasFilters ? "Change or clear the filters." : "Leads from your public page, funnels, chat and lead forms show up here."}
             action={hasFilters ? <Button variant="outline" onClick={reset}>Clear filters</Button> : undefined}
           />
-        )}
-        {rows.length > 0 && (
-          <ul className="divide-y divide-border md:hidden">
-            {rows.map((l) => (
-              <li key={l.id}>
-                <Link href={`/${orgSlug}/leads/${l.id}`} className="flex items-start justify-between gap-3 p-4 active:bg-accent/60">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{leadName(l)}</p>
-                    <p className="truncate text-xs text-muted-foreground">{[l.email, l.phone].filter(Boolean).join("  ") || "No contact details"}</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      <StatusBadge status={l.status} />
-                      <ToneBadge>{humanize(l.source)}</ToneBadge>
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="font-display text-lg font-semibold tabular">{l.score}</p>
-                    <p className="text-xs text-muted-foreground tabular">{dateFmt.format(new Date(l.created_at))}</p>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        {rows.length > 0 && (
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs font-semibold text-muted-foreground">
-                  <th className="px-4 py-3">Lead</th>
-                  <th className="px-4 py-3">Source</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Score</th>
-                  <th className="px-4 py-3">Received</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((l) => (
-                  <tr key={l.id} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
-                    <td className="px-4 py-3">
-                      <Link href={`/${orgSlug}/leads/${l.id}`} className="font-medium text-foreground hover:text-primary">
-                        {leadName(l)}
-                      </Link>
-                      <p className="text-xs text-muted-foreground">{[l.email, l.phone].filter(Boolean).join("  ") || "No contact details"}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <ToneBadge>{humanize(l.source)}</ToneBadge>
-                      {l.utm_campaign && <p className="mt-1 truncate text-xs text-muted-foreground">Campaign: {l.utm_campaign}</p>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={l.status} />
-                      {l.lead_type === "recruit" && <ToneBadge tone="primary" className="ml-1.5">Recruit</ToneBadge>}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold tabular">{l.score}</td>
-                    <td className="px-4 py-3 text-muted-foreground tabular">{dateFmt.format(new Date(l.created_at))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {leads.data && (
-          <div className="px-4 pb-4">
-            <Pager page={page} limit={leads.data.limit || 20} total={total} onPage={setPage} />
-          </div>
-        )}
-      </div>
+        }
+      />
     </div>
   );
 }

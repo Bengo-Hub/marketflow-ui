@@ -6,3 +6,4 @@ export { Field } from "./field";
 export { Pager } from "./pager";
 export { ConfirmDialog } from "./confirm-dialog";
 export { ListEditor } from "./list-editor";
+export { ListTable, type ListPaging } from "./list-table";

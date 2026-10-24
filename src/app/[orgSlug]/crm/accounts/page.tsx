@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ConfirmDialog, EmptyState, ErrorState, Field, Pager, PageHeader, ToneBadge } from "@/components/ui-kit";
+import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
+import { ConfirmDialog, EmptyState, ErrorState, Field, ListTable, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { useAccountContacts, useAccounts, useRemoveAccount, useSaveAccount } from "@/hooks/use-accounts-segments";
 import type { Account, AccountInput } from "@/lib/api/accounts";
 import { contactName } from "@/lib/api/contacts";
@@ -91,12 +92,57 @@ export default function AccountsPage() {
   const [viewing, setViewing] = useState<Account | null>(null);
   const rows = list.data?.data ?? [];
 
-  const actions = (a: Account) => (
-    <div className="flex justify-end gap-1">
-      <Button variant="ghost" size="icon-sm" aria-label={`Edit ${a.name}`} onClick={() => setEditing({ account: a })}><Pencil /></Button>
-      <Button variant="ghost" size="icon-sm" aria-label={`Delete ${a.name}`} onClick={() => setDeleting(a)}><Trash2 className="text-destructive" /></Button>
-    </div>
-  );
+  const columns: DataTableColumn<Account>[] = [
+    {
+      key: "name",
+      header: "Account",
+      primary: true,
+      sortable: true,
+      accessor: (a) => a.name,
+      render: (a) => (
+        <button type="button" className="text-left font-medium hover:text-primary" onClick={() => setViewing(a)}>
+          {a.name}
+          {a.phone && <span className="block text-xs font-normal text-muted-foreground">{a.phone}</span>}
+        </button>
+      ),
+    },
+    {
+      key: "industry",
+      header: "Industry",
+      sortable: true,
+      filterable: true,
+      accessor: (a) => a.industry ?? "",
+      render: (a) => (a.industry ? <ToneBadge>{a.industry}</ToneBadge> : <span className="text-muted-foreground">Not set</span>),
+    },
+    {
+      key: "website",
+      header: "Website",
+      hideBelow: "lg",
+      accessor: (a) => a.website ?? "",
+      render: (a) =>
+        a.website ? (
+          <a href={a.website.startsWith("http") ? a.website : `https://${a.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+            {hostOf(a.website)} <ExternalLink className="size-3" />
+          </a>
+        ) : (
+          <span className="text-muted-foreground">Not set</span>
+        ),
+    },
+    { key: "employee_count", header: "Employees", align: "right", sortable: true, accessor: (a) => a.employee_count ?? 0, render: (a) => <span className="tabular">{a.employee_count ? a.employee_count.toLocaleString() : ""}</span> },
+    { key: "created_at", header: "Added", sortable: true, accessor: (a) => a.created_at, render: (a) => <span className="text-muted-foreground tabular">{dateFmt.format(new Date(a.created_at))}</span> },
+    {
+      key: "actions",
+      header: <span className="sr-only">Actions</span>,
+      mobileAction: true,
+      exportable: false,
+      render: (a) => (
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="icon-sm" aria-label={`Edit ${a.name}`} onClick={() => setEditing({ account: a })}><Pencil /></Button>
+          <Button variant="ghost" size="icon-sm" aria-label={`Delete ${a.name}`} onClick={() => setDeleting(a)}><Trash2 className="text-destructive" /></Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -107,76 +153,26 @@ export default function AccountsPage() {
         actions={<Button onClick={() => setEditing({})}><Plus /> New account</Button>}
       />
 
-      <div className="glass overflow-hidden rounded-[1.25rem]">
-        {list.isError && <div className="p-4"><ErrorState message="Could not load accounts." onRetry={() => void list.refetch()} /></div>}
-        {list.isLoading && <div className="space-y-2 p-4">{[0, 1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-muted" />)}</div>}
-        {!list.isLoading && !list.isError && rows.length === 0 && (
+      <ListTable<Account>
+        columns={columns}
+        rows={rows}
+        rowKey={(a) => a.id}
+        loading={list.isLoading}
+        error={list.isError}
+        onRetry={() => void list.refetch()}
+        storageKey="mf-accounts-columns"
+        showExportCsv
+        exportFileName="accounts"
+        paging={{ page, limit: list.data?.limit || 25, total: list.data?.total ?? 0, onPage: setPage }}
+        emptyState={
           <EmptyState
             icon={<Building2 />}
             title="No accounts yet"
             description="Add the businesses you sell to, then see every contact who works there in one place."
             action={<Button onClick={() => setEditing({})}><Plus /> Add an account</Button>}
           />
-        )}
-
-        {rows.length > 0 && (
-          <ul className="divide-y divide-border md:hidden">
-            {rows.map((a) => (
-              <li key={a.id} className="flex items-start gap-3 p-4">
-                <button type="button" className="min-w-0 flex-1 text-left active:opacity-70" onClick={() => setViewing(a)}>
-                  <p className="truncate font-medium">{a.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{[a.industry, hostOf(a.website)].filter(Boolean).join("  ") || "No details yet"}</p>
-                </button>
-                {actions(a)}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {rows.length > 0 && (
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[680px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs font-semibold text-muted-foreground">
-                  <th className="px-4 py-3">Account</th>
-                  <th className="px-4 py-3">Industry</th>
-                  <th className="px-4 py-3">Website</th>
-                  <th className="px-4 py-3 text-right">Employees</th>
-                  <th className="px-4 py-3">Added</th>
-                  <th className="px-4 py-3"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((a) => (
-                  <tr key={a.id} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
-                    <td className="px-4 py-3">
-                      <button type="button" className="font-medium hover:text-primary" onClick={() => setViewing(a)}>{a.name}</button>
-                      {a.phone && <p className="text-xs text-muted-foreground">{a.phone}</p>}
-                    </td>
-                    <td className="px-4 py-3">{a.industry ? <ToneBadge>{a.industry}</ToneBadge> : <span className="text-muted-foreground">Not set</span>}</td>
-                    <td className="px-4 py-3">
-                      {a.website ? (
-                        <a href={a.website.startsWith("http") ? a.website : `https://${a.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                          {hostOf(a.website)} <ExternalLink className="size-3" />
-                        </a>
-                      ) : <span className="text-muted-foreground">Not set</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular">{a.employee_count ? a.employee_count.toLocaleString() : ""}</td>
-                    <td className="px-4 py-3 text-muted-foreground tabular">{dateFmt.format(new Date(a.created_at))}</td>
-                    <td className="px-4 py-3">{actions(a)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {list.data && (
-          <div className="px-4 pb-4">
-            <Pager page={page} limit={list.data.limit || 25} total={list.data.total} onPage={setPage} />
-          </div>
-        )}
-      </div>
+        }
+      />
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-lg">
