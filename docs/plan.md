@@ -312,13 +312,27 @@ Plan: `.claude/plans/marketflow-ui-glass-revamp-2026-10-23.md`. Design rules: `d
   - a sticky bar saves or undoes changes.
 - The settings hub is regrouped and includes the setup guide with its progress.
 
+**Shared components (2026-10-24, owner request).** Every list now uses ui-kit `ListTable`, a thin wrapper over shared-ui-lib's `DataTable` (the fleet's list surface: desktop table, phone cards, sorting, filters, selection with bulk actions, column chooser, CSV, server paging from `{page, limit, total}`).
+
+| Page | Change | Commits |
+|---|---|---|
+| crm/accounts, leads, contacts | Hand-written desktop table, phone list and pager replaced; contacts' merge moves to the bulk-action bar and survives paging; rows open their detail page | `73aeca5` |
+| platform/tenants, usage, security, audit | Typed hooks instead of `useEffect` fetches; `StatCard` replaces a local metric card; the security page reuses the shared `AuditLog` (now a ListTable); tone badges and `apiErrorMessage` replace fixed colours and a local error helper; confirm before generating a new encryption key | `83416fe` |
+| settings/custom-fields | Was broken end to end (read `data.data.items`, sent `name`/`label`/`required`, so it was always empty and every create was a 400). Rebuilt on typed calls, ListTable, a key suggested from the name, a chip editor for choices, and the record panels' cache key | `2615f2c` |
+| campaigns/[id] daily results, platform/billing | ListTable with CSV | `2990811` |
+
+Backend fixes found on the way:
+- marketflow-api `3707506` custom fields: deleting a field that had values always failed (FK `ON DELETE NO ACTION`); now one transaction removes the values too. Input is validated, and a taken key is a 409.
+- marketflow-api `7f66f25`: the platform usage aggregate is cached for a minute.
+
+Only `components/contacts/import-dialog.tsx` still renders a plain table: per-row import results, not a list.
+
 ### Open (Phase 5 and the owner's 2026-10-24 asks)
 
 | Item | Still to do |
 |---|---|
-| Shared components | Most tables and pickers are hand-rolled: move them to shared-ui-lib's DataTable and SearchableCombobox, wire missing edit and delete actions, and merge duplicated components |
+| Shared components | Tables done (above). Still to sweep: the remaining `components/ui/select` uses (agents, team-roster, provider-card are session 80's), and card grids that could share one card component |
 | settings/integrations | Restyle and the Google business hours editor. Asked session fc first (Sprint 14 owner); no answer yet |
-| settings/custom-fields | Restyle on the ui-kit (the settings hub is done) |
 | studio (Sprint 15) | `[orgSlug]/studio` after the pages above. API: briefs, versions (202 then poll), revise (free), extend, approve/discard (Approve only for `marketflow_admin` or `fbo_owner`, api `7e6c943`), review links, `/os/creative/quote`, `daily_render_limit`, `restricted_categories` notice, assets kind `image` only |
 
 ### Flagged, not yet fixed
