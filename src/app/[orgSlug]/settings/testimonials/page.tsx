@@ -1,307 +1,156 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowDown, ArrowUp, MessageSquareQuote, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import { MediaImage } from "@/components/media-image";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Star, Trash2, Edit2, Plus, Eye, EyeOff } from "lucide-react";
+import { ConfirmDialog, EmptyState, ErrorState, Field, PageHeader, ToneBadge } from "@/components/ui-kit";
+import { useMoveTestimonial, useRemoveTestimonial, useSaveTestimonial, useTestimonials } from "@/hooks/use-testimonials";
+import type { Testimonial } from "@/lib/api/testimonials";
+import { cn } from "@/lib/utils";
 
-type Testimonial = {
-  id: string;
-  author_name: string;
-  author_role?: string;
-  body: string;
-  avatar_url?: string;
-  rating: number;
-  display_order: number;
-  is_published: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-/**
- * Testimonials settings — tenant-scoped CRUD that feeds the public /p/{slug}
- * testimonials section. Rating is a 1-5 integer; display_order sorts the
- * grid ascending so tenants can pin a strong quote to the top.
- */
-export default function TestimonialsSettingsPage() {
-  const qc = useQueryClient();
-  const [editing, setEditing] = useState<Testimonial | null>(null);
-  const [creating, setCreating] = useState(false);
-
-  const { data, isLoading, error } = useQuery<{ data: Testimonial[] }>({
-    queryKey: ["testimonials"],
-    queryFn: async () => {
-      const r = await apiClient.get<{ data: Testimonial[] }>("/api/v1/testimonials");
-      return r.data;
-    },
-  });
-
-  const rows = data?.data ?? [];
-
-  const del = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(`/api/v1/testimonials/${id}`);
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["testimonials"] }),
-  });
-
-  const togglePublish = useMutation({
-    mutationFn: async (t: Testimonial) => {
-      await apiClient.patch(`/api/v1/testimonials/${t.id}`, {
-        is_published: !t.is_published,
-      });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["testimonials"] }),
-  });
-
+function Stars({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Testimonials</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Shown on your public profile page under &ldquo;What people are saying&rdquo;.
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="mr-1.5 h-4 w-4" /> Add testimonial
-        </Button>
-      </div>
-
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Failed to load testimonials: {(error as Error).message}
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {[1, 2].map((i) => (
-            <Skeleton key={i} className="h-40 rounded-xl" />
-          ))}
-        </div>
-      ) : rows.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            No testimonials yet. Add your first success story to build trust with visitors.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {rows.map((t) => (
-            <Card key={t.id}>
-              <CardHeader className="flex flex-row items-start justify-between pb-2">
-                <div>
-                  <CardTitle className="text-base">{t.author_name}</CardTitle>
-                  {t.author_role && (
-                    <p className="text-xs text-muted-foreground">{t.author_role}</p>
-                  )}
-                </div>
-                <div
-                  className="text-amber-500"
-                  aria-label={`${t.rating} out of 5 stars`}
-                >
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`inline h-3 w-3 ${i < t.rating ? "fill-amber-400" : "stroke-slate-300"}`}
-                    />
-                  ))}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm leading-relaxed">&ldquo;{t.body}&rdquo;</p>
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="rounded-full border px-2 py-0.5 text-muted-foreground">
-                    order: {t.display_order}
-                  </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 ${t.is_published ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}`}
-                  >
-                    {t.is_published ? "published" : "hidden"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setEditing(t)}>
-                    <Edit2 className="mr-1 h-3 w-3" /> Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => togglePublish.mutate(t)}
-                    disabled={togglePublish.isPending}
-                  >
-                    {t.is_published ? (
-                      <>
-                        <EyeOff className="mr-1 h-3 w-3" /> Hide
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="mr-1 h-3 w-3" /> Publish
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      if (confirm(`Delete testimonial from ${t.author_name}?`)) {
-                        del.mutate(t.id);
-                      }
-                    }}
-                    className="text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="mr-1 h-3 w-3" /> Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {(creating || editing) && (
-        <TestimonialDialog
-          testimonial={editing}
-          onClose={() => {
-            setCreating(false);
-            setEditing(null);
-          }}
-        />
-      )}
+    <div className="flex gap-0.5" role={onChange ? "radiogroup" : "img"} aria-label={`${value} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const star = <Star className={cn("size-4", n <= value ? "fill-warning text-warning" : "text-muted-foreground/40")} />;
+        return onChange ? (
+          <button key={n} type="button" role="radio" aria-checked={n === value} aria-label={`${n} star${n > 1 ? "s" : ""}`} className="grid size-9 place-items-center rounded-lg hover:bg-accent" onClick={() => onChange(n)}>
+            {star}
+          </button>
+        ) : (
+          <span key={n}>{star}</span>
+        );
+      })}
     </div>
   );
 }
 
-function TestimonialDialog({
-  testimonial,
-  onClose,
-}: {
-  testimonial: Testimonial | null;
-  onClose: () => void;
-}) {
-  const qc = useQueryClient();
+function TestimonialForm({ item, nextOrder, onDone }: { item?: Testimonial; nextOrder: number; onDone: () => void }) {
+  const save = useSaveTestimonial();
   const [form, setForm] = useState({
-    author_name: testimonial?.author_name ?? "",
-    author_role: testimonial?.author_role ?? "",
-    body: testimonial?.body ?? "",
-    avatar_url: testimonial?.avatar_url ?? "",
-    rating: testimonial?.rating ?? 5,
-    display_order: testimonial?.display_order ?? 0,
-    is_published: testimonial?.is_published ?? true,
+    author_name: item?.author_name ?? "",
+    author_role: item?.author_role ?? "",
+    body: item?.body ?? "",
+    avatar_url: item?.avatar_url ?? "",
+    rating: item?.rating ?? 5,
+    is_published: item?.is_published ?? true,
   });
-  const [error, setError] = useState<string | null>(null);
+  const avatarBad = !!form.avatar_url.trim() && !/^https?:\/\/\S+$/i.test(form.avatar_url.trim());
+  const submit = () =>
+    save.mutate(
+      { id: item?.id, data: { ...form, author_name: form.author_name.trim(), body: form.body.trim(), ...(item ? {} : { display_order: nextOrder }) } },
+      { onSuccess: onDone },
+    );
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Name" required htmlFor="t-n"><Input id="t-n" maxLength={120} value={form.author_name} onChange={(e) => setForm({ ...form, author_name: e.target.value })} /></Field>
+        <Field label="Who they are" htmlFor="t-r" hint="For example: customer since 2023"><Input id="t-r" maxLength={120} value={form.author_role} onChange={(e) => setForm({ ...form, author_role: e.target.value })} /></Field>
+        <Field label="What they said" required htmlFor="t-b" className="sm:col-span-2">
+          <Textarea id="t-b" rows={4} maxLength={2000} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+        </Field>
+        <Field label="Photo link" htmlFor="t-a" error={avatarBad ? "Use a link that starts with https://" : undefined} className="sm:col-span-2">
+          <Input id="t-a" type="url" inputMode="url" placeholder="https://" value={form.avatar_url} onChange={(e) => setForm({ ...form, avatar_url: e.target.value })} />
+        </Field>
+        <Field label="Rating"><Stars value={form.rating} onChange={(rating) => setForm({ ...form, rating })} /></Field>
+        <label className="flex items-center gap-3 self-end pb-2 text-sm">
+          <Switch checked={form.is_published} onCheckedChange={(v: boolean) => setForm({ ...form, is_published: v })} />
+          Show on my public page
+        </label>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onDone}>Cancel</Button>
+        <Button disabled={!form.author_name.trim() || !form.body.trim() || avatarBad || save.isPending} onClick={submit}>
+          {save.isPending ? "Saving..." : item ? "Save testimonial" : "Add testimonial"}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
 
-  const save = useMutation({
-    mutationFn: async () => {
-      if (testimonial) {
-        await apiClient.patch(`/api/v1/testimonials/${testimonial.id}`, form);
-      } else {
-        await apiClient.post("/api/v1/testimonials", form);
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["testimonials"] });
-      onClose();
-    },
-    onError: (e) => setError((e as Error).message),
-  });
+export default function TestimonialsSettingsPage() {
+  const list = useTestimonials();
+  const save = useSaveTestimonial();
+  const move = useMoveTestimonial();
+  const remove = useRemoveTestimonial();
+  const [editing, setEditing] = useState<{ item?: Testimonial } | null>(null);
+  const [deleting, setDeleting] = useState<Testimonial | null>(null);
+  const rows = list.data?.data ?? [];
+  const shown = rows.filter((t) => t.is_published).length;
+  const nextOrder = (rows.reduce((m, t) => Math.max(m, t.display_order), 0) || 0) + 10;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-xl rounded-xl bg-card p-6 shadow-xl">
-        <h2 className="text-lg font-semibold">
-          {testimonial ? "Edit testimonial" : "Add testimonial"}
-        </h2>
-        <div className="mt-4 grid gap-3">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">
-              Author name *
-            </span>
-            <Input
-              value={form.author_name}
-              onChange={(e) => setForm({ ...form, author_name: e.target.value })}
-              required
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">
-              Role / title
-            </span>
-            <Input
-              value={form.author_role}
-              onChange={(e) => setForm({ ...form, author_role: e.target.value })}
-              placeholder="e.g. Customer, Team member"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Body *</span>
-            <Textarea
-              value={form.body}
-              onChange={(e) => setForm({ ...form, body: e.target.value })}
-              rows={4}
-              required
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">
-              Avatar URL (optional)
-            </span>
-            <Input
-              value={form.avatar_url}
-              onChange={(e) => setForm({ ...form, avatar_url: e.target.value })}
-              placeholder="https://…"
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Rating</span>
-              <Input
-                type="number"
-                min={1}
-                max={5}
-                value={form.rating}
-                onChange={(e) => setForm({ ...form, rating: Number(e.target.value) })}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">
-                Display order
-              </span>
-              <Input
-                type="number"
-                value={form.display_order}
-                onChange={(e) => setForm({ ...form, display_order: Number(e.target.value) })}
-              />
-            </label>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.is_published}
-              onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
-            />
-            Publish immediately
-          </label>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+    <div className="space-y-6">
+      <PageHeader
+        icon={<MessageSquareQuote />}
+        title="Testimonials"
+        description={rows.length ? `${shown} of ${rows.length} shown on your public page, in this order.` : "Customer stories shown on your public page."}
+        actions={<Button onClick={() => setEditing({})}><Plus /> Add testimonial</Button>}
+      />
+      {list.isError && <ErrorState message="Could not load testimonials." onRetry={() => void list.refetch()} />}
+      {list.isLoading && <div className="space-y-3">{[0, 1].map((i) => <div key={i} className="glass h-32 animate-pulse rounded-[1.25rem]" />)}</div>}
+      {!list.isLoading && !list.isError && rows.length === 0 && (
+        <div className="glass rounded-[1.25rem]">
+          <EmptyState icon={<MessageSquareQuote />} title="No testimonials yet" description="A few words from a happy customer help visitors trust you. Ask for permission before you add one." action={<Button onClick={() => setEditing({})}><Plus /> Add the first one</Button>} />
         </div>
-        <div className="mt-6 flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => save.mutate()}
-            disabled={save.isPending || !form.author_name.trim() || !form.body.trim()}
-          >
-            {save.isPending ? "Saving…" : testimonial ? "Update" : "Create"}
-          </Button>
-        </div>
-      </div>
+      )}
+
+      <ol className="space-y-3">
+        {rows.map((t, i) => (
+          <li key={t.id} className={cn("glass flex gap-4 rounded-[1.25rem] p-4 sm:p-5", !t.is_published && "opacity-70")}>
+            <div className="flex flex-col gap-1">
+              <Button variant="ghost" size="icon-sm" aria-label={`Move ${t.author_name} up`} disabled={i === 0 || move.isPending} onClick={() => move.mutate({ list: rows, index: i, dir: -1 })}><ArrowUp /></Button>
+              <Button variant="ghost" size="icon-sm" aria-label={`Move ${t.author_name} down`} disabled={i === rows.length - 1 || move.isPending} onClick={() => move.mutate({ list: rows, index: i, dir: 1 })}><ArrowDown /></Button>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  {t.avatar_url ? (
+                    <MediaImage src={t.avatar_url} alt="" className="size-10 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 font-display text-sm font-semibold text-primary">{t.author_name.slice(0, 1).toUpperCase()}</div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{t.author_name}</p>
+                    {t.author_role && <p className="truncate text-xs text-muted-foreground">{t.author_role}</p>}
+                  </div>
+                </div>
+                <Stars value={t.rating} />
+              </div>
+              <blockquote className="mt-3 line-clamp-4 text-sm leading-relaxed text-foreground/90">{t.body}</blockquote>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <label className="mr-auto flex items-center gap-2 text-sm">
+                  <Switch checked={t.is_published} disabled={save.isPending} onCheckedChange={(v: boolean) => save.mutate({ id: t.id, data: { is_published: v } })} aria-label={`Show ${t.author_name} on the public page`} />
+                  {t.is_published ? <ToneBadge tone="success">Shown</ToneBadge> : <ToneBadge>Hidden</ToneBadge>}
+                </label>
+                <Button variant="ghost" size="sm" onClick={() => setEditing({ item: t })}><Pencil /> Edit</Button>
+                <Button variant="ghost" size="icon-sm" aria-label={`Delete ${t.author_name}`} onClick={() => setDeleting(t)}><Trash2 className="text-destructive" /></Button>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle>{editing?.item ? "Edit testimonial" : "Add a testimonial"}</DialogTitle></DialogHeader>
+          {editing && <TestimonialForm key={editing.item?.id ?? "new"} item={editing.item} nextOrder={nextOrder} onDone={() => setEditing(null)} />}
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title={`Delete the testimonial from ${deleting?.author_name}?`}
+        description="It comes off your public page straight away. To keep it but stop showing it, switch it off instead."
+        confirmLabel="Delete testimonial"
+        pending={remove.isPending}
+        onConfirm={() => deleting && remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
+      />
     </div>
   );
 }
