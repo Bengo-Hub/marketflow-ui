@@ -79,9 +79,10 @@
   var authUserName  = (script && script.dataset.userName)  || '';
   var authUserRole  = (script && script.dataset.userRole)  || '';
 
-  // OTP endpoints — only accepted when they share the same origin as the host
-  // page. A cross-origin OTP endpoint would let an attacker route verification
-  // codes through their server.
+  // OTP endpoints for a signed-in host page (the SSO dashboard passes its session
+  // endpoints) — only accepted when they share the same origin as the host page. A
+  // cross-origin OTP endpoint would let an attacker route verification codes through
+  // their server. Without them, visitors verify through the API host's public codes.
   var otpSendEndpoint   = '';
   var otpVerifyEndpoint = '';
   (function () {
@@ -780,7 +781,10 @@
   }
 
   // ── Dynamic in-chat form builder ─────────────────────────────────
-  function buildForm(config, onSuccess) {
+  // onSubmit(data, ctl) receives the trimmed values. ctl.done() removes the form; ctl.fail(msg)
+  // keeps it open with the visitor's input, shows msg and re-enables the button, so a failed
+  // submit can be retried instead of being reported as sent.
+  function buildForm(config, onSubmit) {
     var wrap = document.createElement('div');
     wrap.className = 'vera-form';
 
@@ -818,11 +822,14 @@
         el.placeholder = f.placeholder || f.label + (f.required ? ' *' : '');
       }
       el.id = 'vf-' + f.name;
-      // Pre-fill with default value when provided (e.g. authenticated user data)
+      el.setAttribute('aria-label', f.label);
+      if (f.maxLength) el.maxLength = f.maxLength;
+      // Pre-fill with default value when provided (signed-in user data, or details the
+      // visitor already typed in the chat)
       if (f.defaultValue) {
         el.value = f.defaultValue;
         // Lock pre-filled auth fields to prevent accidental override
-        if (f.name === 'email' && authUserEmail) {
+        if (f.name === 'email' && authUserEmail && f.defaultValue === authUserEmail) {
           el.readOnly = true;
           el.style.opacity = '0.7';
           el.title = 'Verified email from your account';
@@ -832,9 +839,25 @@
       fields[f.name] = el;
     });
 
+    var errorEl = document.createElement('p');
+    errorEl.setAttribute('role', 'alert');
+    errorEl.style.cssText = 'font-size:12px;color:#b91c1c;margin:0 0 6px;display:none;line-height:1.4';
+    wrap.appendChild(errorEl);
+
+    var label = config.submitLabel || 'Submit →';
     var submitBtn = document.createElement('button');
     submitBtn.className = 'vf-submit';
-    submitBtn.textContent = config.submitLabel || 'Submit →';
+    submitBtn.textContent = label;
+    var ctl = {
+      done: function () { wrap.remove(); },
+      fail: function (msg) {
+        errorEl.textContent = msg || 'That did not go through. Please try again.';
+        errorEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = label;
+        scrollBottom();
+      },
+    };
     submitBtn.addEventListener('click', function () {
       var data = {};
       var missing = [];
@@ -844,12 +867,17 @@
         data[f.name] = val;
       });
       if (missing.length) {
-        appendMsg('bot', md('Please fill in: **' + missing.join(', ') + '**'));
+        ctl.fail('Please fill in: ' + missing.join(', '));
         return;
       }
+      if (data.email !== undefined && data.email && !EMAIL_RE.test(data.email)) {
+        ctl.fail('Please check the email address.');
+        return;
+      }
+      errorEl.style.display = 'none';
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting…';
-      onSuccess(data, wrap);
+      onSubmit(data, ctl);
     });
     wrap.appendChild(submitBtn);
 
@@ -858,10 +886,75 @@
     return wrap;
   }
 
-  // ── OTP email verification ───────────────────────────────────────
-  // Shows an inline OTP entry form. Calls otpSendEndpoint to dispatch the
-  // code, then otpVerifyEndpoint to confirm. Invokes onSuccess() when verified.
-  function showOTPVerification(email, name, onSuccess) {
+  var EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]{2,}$/;
+
+  // postForm sends a form to this widget's API host, which forwards it to the service that
+  // owns the record (auth-api, ticketing-api or marketflow-api). It resolves to
+  // {ok, status, data}; a network error resolves with status 0, never throws.
+  function postForm(path, payload, extraHeaders) {
+    var headers = { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug };
+    if (extraHeaders) Object.keys(extraHeaders).forEach(function (k) { headers[k] = extraHeaders[k]; });
+    return fetch(apiURL + '/api/v1/public' + path, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(payload),
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        return { ok: r.ok, status: r.status, data: d || {} };
+      });
+    }).catch(function () { return { ok: false, status: 0, data: {} }; });
+  }
+
+  // formFailure turns a failed postForm result into words for the visitor.
+  function formFailure(res) {
+    if (res.status === 429) return 'Too many requests just now. Please wait a minute and try again.';
+    if (res.status === 0) return 'We could not reach our team. Check your connection and try again.';
+    var msg = res.data && (res.data.error && res.data.error.message || res.data.message || res.data.error);
+    if (res.status >= 400 && res.status < 500 && typeof msg === 'string' && msg.length < 160) return msg;
+    return 'That did not go through on our side. Please try again, or reach us on WhatsApp.';
+  }
+
+  function contactChips() {
+    var chips = [];
+    if (waHref) chips.push({ label: '💬 WhatsApp us', href: waHref });
+    if (emailHref) chips.push({ label: '✉️ Email us', href: emailHref });
+    return chips;
+  }
+
+  // splitName gives marketflow-api's lead fields from one "full name" box.
+  function splitName(full) {
+    var parts = (full || '').trim().split(/\s+/);
+    return { first: parts.shift() || '', last: parts.join(' ') };
+  }
+
+  // sendLead posts a lead, call request or message to marketflow-api's lead capture for this
+  // tenant. Extra answers travel in `answers`, which the lead keeps as qualification answers.
+  function sendLead(data, source, opts, ctl, onDone) {
+    var name = splitName(data.name);
+    var payload = {
+      email: data.email || '',
+      phone: data.phone || '',
+      first_name: name.first,
+      last_name: name.last,
+      source: source,
+      lead_type: (opts && opts.leadType) || 'customer',
+      answers: (opts && opts.answers) || {},
+    };
+    if (opts && opts.interest) payload.interest = opts.interest;
+    postForm('/leads', payload).then(function (res) {
+      if (!res.ok) { ctl.fail(formFailure(res)); return; }
+      ctl.done();
+      formSubmitCount++;
+      onDone();
+    });
+  }
+
+  // ── Email verification before a support ticket ───────────────────
+  // ticketing-api opens a public ticket only for a verified email: the code goes to the
+  // address, and the verified code comes back as an otp_token that the ticket carries.
+  // A signed-in dashboard passes its own same-origin endpoints (data-otp-*-endpoint);
+  // everyone else verifies through this widget's API host (auth-api's public codes).
+  function showOTPVerification(email, onVerified) {
     var wrap = document.createElement('div');
     wrap.className = 'vera-form';
 
@@ -870,7 +963,7 @@
 
     var titleEl = document.createElement('div');
     titleEl.className = 'vf-title';
-    titleEl.innerHTML = '🔐 Verify your email<button class="vf-close" aria-label="Close">&#x2715;</button>';
+    titleEl.innerHTML = 'Verify your email<button class="vf-close" aria-label="Close">&#x2715;</button>';
     titleEl.querySelector('.vf-close').addEventListener('click', function () {
       wrap.remove();
       appendMsg('bot', md('Verification cancelled. Let me know if you\'d like to try again.'));
@@ -884,7 +977,10 @@
 
     var otpInput = document.createElement('input');
     otpInput.type = 'text';
+    otpInput.inputMode = 'numeric';
+    otpInput.autocomplete = 'one-time-code';
     otpInput.placeholder = 'Enter 6-digit code';
+    otpInput.setAttribute('aria-label', 'Verification code');
     otpInput.maxLength = 6;
     otpInput.style.letterSpacing = '4px';
     otpInput.style.textAlign = 'center';
@@ -893,7 +989,8 @@
     wrap.appendChild(otpInput);
 
     var errorEl = document.createElement('p');
-    errorEl.style.cssText = 'font-size:11px;color:#ef4444;margin-bottom:4px;display:none';
+    errorEl.setAttribute('role', 'alert');
+    errorEl.style.cssText = 'font-size:11px;color:#b91c1c;margin-bottom:4px;display:none';
     wrap.appendChild(errorEl);
 
     var sendBtn = document.createElement('button');
@@ -909,65 +1006,69 @@
       errorEl.style.display = 'block';
     }
 
-    sendBtn.addEventListener('click', function () {
-      if (sending) return;
-
-      if (!sent) {
-        // Send OTP
-        sending = true;
-        sendBtn.disabled = true;
-        sendBtn.textContent = 'Sending…';
-
-        var sendURL = otpBaseURL + otpSendEndpoint;
-        fetch(sendURL, {
+    // Signed-in hosts use their own session endpoints; the rest use the public codes.
+    function call(step, payload) {
+      if (otpSendEndpoint) {
+        var url = otpBaseURL + (step === 'send' ? otpSendEndpoint : otpVerifyEndpoint);
+        return fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ email: email }),
+          body: JSON.stringify(payload),
         }).then(function (r) {
-          if (!r.ok) throw new Error('send failed');
-          sent = true;
+          return r.json().catch(function () { return {}; }).then(function (d) {
+            return { ok: r.ok, status: r.status, data: d || {} };
+          });
+        }).catch(function () { return { ok: false, status: 0, data: {} }; });
+      }
+      if (step === 'send') payload.tenant_slug = tenantSlug;
+      return postForm('/otp/' + step, payload);
+    }
+
+    sendBtn.addEventListener('click', function () {
+      if (sending) return;
+      errorEl.style.display = 'none';
+
+      if (!sent) {
+        sending = true;
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending…';
+        call('send', { email: email }).then(function (res) {
           sending = false;
+          sendBtn.disabled = false;
+          if (!res.ok) {
+            sendBtn.textContent = 'Retry sending code';
+            showError(formFailure(res));
+            return;
+          }
+          sent = true;
           otpInput.style.display = 'block';
           otpInput.focus();
           sendBtn.textContent = 'Verify code →';
-          sendBtn.disabled = false;
-          infoEl.textContent = 'Code sent to ' + email + '. It expires in 5 minutes.';
-        }).catch(function () {
-          sending = false;
-          sendBtn.disabled = false;
-          sendBtn.textContent = 'Retry sending code';
-          showError('Failed to send code. Please try again.');
+          infoEl.textContent = 'Code sent to ' + email + '. It expires in 10 minutes.';
         });
         return;
       }
 
-      // Verify OTP
       var code = otpInput.value.trim();
-      if (code.length < 4) {
-        showError('Please enter the full verification code.');
+      if (!/^\d{6}$/.test(code)) {
+        showError('Please enter the 6-digit code from the email.');
         return;
       }
       sending = true;
       sendBtn.disabled = true;
       sendBtn.textContent = 'Verifying…';
-      errorEl.style.display = 'none';
-
-      var verifyURL = otpBaseURL + otpVerifyEndpoint;
-      fetch(verifyURL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: email, otp: code }),
-      }).then(function (r) {
-        if (!r.ok) throw new Error('invalid');
-        wrap.remove();
-        onSuccess();
-      }).catch(function () {
+      call('verify', { email: email, otp: code }).then(function (res) {
         sending = false;
         sendBtn.disabled = false;
-        sendBtn.textContent = 'Verify code →';
-        showError('Invalid or expired code. Please try again.');
+        var token = res.data && res.data.otp_token;
+        if (!res.ok || !token) {
+          sendBtn.textContent = 'Verify code →';
+          showError(res.ok ? 'We could not verify the code. Please request a new one.' : formFailure(res));
+          return;
+        }
+        wrap.remove();
+        onVerified(token);
       });
     });
 
@@ -977,115 +1078,133 @@
     });
   }
 
+  // Integration request types and modes, as auth-api stores them.
+  var INTEGRATION_TYPES = [
+    ['etims_integration', 'eTIMS / KRA tax fiscalization'],
+    ['truload_weighing', 'TruLoad weighing hardware/software'],
+    ['camera_systems', 'Camera systems'],
+    ['plc_automation', 'PLC automation'],
+    ['arduino_iot', 'Arduino / IoT automation'],
+    ['other_integration', 'Other'],
+  ];
+  var INTEGRATION_MODES = [
+    ['self_serve', 'My own developers (no fee)'],
+    ['assisted', 'Codevertex’s team (one-time fee applies)'],
+  ];
+  function labelFor(pairs, value) {
+    for (var i = 0; i < pairs.length; i++) if (pairs[i][0] === value) return pairs[i][1];
+    return '';
+  }
+  function valueFor(pairs, label) {
+    for (var i = 0; i < pairs.length; i++) if (pairs[i][1] === label) return pairs[i][0];
+    return '';
+  }
+  // Set once an integration request is saved, so the form does not open again this session.
+  var integrationSent = false;
+
   // ── Intent → form mapping ────────────────────────────────────────
   function maybeShowForm(text, meta) {
     var t = text.toLowerCase();
     var intent = (meta && meta.intent) || '';
+    var serverForm = (meta && meta.form) || null;
     if (shadow.querySelector('.vera-form')) return; // only one form at a time
     // Enforce per-session form submission limit to prevent lead/ticket spam.
     if (formSubmitCount >= FORM_SUBMIT_LIMIT) return;
 
-    // Support / escalate — all niches
-    if (intent === 'escalate' || intent === 'support_request' ||
-        t.includes('ticket') || t.includes('report') || t.includes('not working')) {
-      var ticketFields = [
-        { name: 'name',  type: 'text',     label: 'Your name',          required: true,
-          defaultValue: authUserName || '' },
-        { name: 'email', type: 'email',    label: 'Email',               required: true,
-          defaultValue: authUserEmail || '' },
-        { name: 'issue', type: 'textarea', label: 'Describe your issue', required: true },
-        { name: 'priority', type: 'select', label: 'Priority', options: ['Low', 'Medium', 'High — urgent'] },
-      ];
+    // Integration interest: eTIMS, TruLoad weighing, cameras, PLCs, Arduino/IoT. These are
+    // Codevertex integrations, so the form belongs to the Codevertex assistant only. The
+    // server sends `form` with the details the visitor already typed; the visitor checks
+    // them and submits, and auth-api saves the request and alerts the team.
+    var codevertexWidget = mode === 'platform' || businessType === 'codevertex';
+    var integrationAsked = (serverForm && serverForm.kind === 'integration') ||
+      intent === 'integration_interest' ||
+      t.includes('etims') || t.includes('kra pin') || t.includes('fiscal') ||
+      t.includes('truload') || t.includes('weighbridge') || t.includes('weighing') ||
+      t.includes('plc') || t.includes('arduino') || t.includes('camera integration') ||
+      t.includes('iot integration') || t.includes('iot automation');
+    if (codevertexWidget && integrationAsked && !integrationSent) {
+      var pre = (serverForm && serverForm.prefill) || {};
       buildForm({
-        title: '🎫 Create Support Ticket',
-        submitLabel: 'Submit Ticket →',
-        fields: ticketFields,
-      }, function (data, wrap) {
-        var doSubmit = function (verifiedEmail) {
-          wrap.remove();
-          // Route platform tickets to codevertex tenant; tenant tickets stay on tenant slug
-          var ticketTenant = (mode === 'platform') ? 'codevertex' : tenantSlug;
-          fetch(apiURL + '/api/v1/public/tickets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': ticketTenant },
-            body: JSON.stringify({
-              name: data.name,
-              email: verifiedEmail || data.email,
-              description: data.issue,
-              priority: (data.priority || 'medium').toLowerCase().replace(' — urgent', '').trim(),
-              session_id: sessionID,
-              source: mode === 'platform' ? 'vera_platform' : 'vera_widget',
-              requester_user_id: authUserID || undefined,
-            }),
-          }).then(function (r) { return r.json(); }).then(function (d) {
-            formSubmitCount++;
-            appendMsg('bot', md('Ticket **#' + (d.ticket_number || d.ticket_ref || d.id || 'REF-???') + '** created. Our team will respond to **' + (verifiedEmail || data.email) + '** within 2–4 hours.'));
-            if (waHref) renderActionChips([{ label: '💬 WhatsApp for urgent help', href: waHref }]);
-          }).catch(function () {
-            formSubmitCount++;
-            appendMsg('bot', md('Ticket submitted! We\'ll respond to **' + (verifiedEmail || data.email) + '** within 4 hours.'));
-          });
-        };
-
-        // If OTP endpoints are configured AND the user is not already authenticated
-        // via the SSO dashboard (authUserEmail present = already verified), require
-        // email verification before submitting the ticket.
-        var emailToVerify = data.email;
-        var alreadyVerified = authUserEmail && authUserEmail.toLowerCase() === emailToVerify.toLowerCase();
-        if (otpSendEndpoint && !alreadyVerified) {
-          wrap.remove();
-          showOTPVerification(emailToVerify, data.name, function () { doSubmit(emailToVerify); });
-        } else {
-          doSubmit(emailToVerify);
-        }
+        title: 'Request an Integration',
+        submitLabel: 'Submit request →',
+        fields: [
+          { name: 'request_type', type: 'select', label: 'What do you want to integrate?',
+            options: INTEGRATION_TYPES.map(function (p) { return p[1]; }), required: true,
+            defaultValue: labelFor(INTEGRATION_TYPES, pre.request_type) },
+          { name: 'name',  type: 'text',  label: 'Your name', required: true, maxLength: 120,
+            defaultValue: pre.requester_name || authUserName || '' },
+          { name: 'email', type: 'email', label: 'Email', required: true, maxLength: 254,
+            defaultValue: pre.requester_email || authUserEmail || '' },
+          { name: 'phone', type: 'text',  label: 'Phone (optional)', maxLength: 32,
+            defaultValue: pre.requester_phone || '' },
+          { name: 'company', type: 'text', label: 'Company name (optional)', maxLength: 160,
+            defaultValue: pre.company_name || '' },
+          { name: 'mode', type: 'select', label: 'Who will do the integration?',
+            options: INTEGRATION_MODES.map(function (p) { return p[1]; }),
+            defaultValue: labelFor(INTEGRATION_MODES, pre.integration_mode) },
+          { name: 'notes', type: 'textarea', label: 'Anything else we should know?', maxLength: 2000,
+            defaultValue: pre.notes || '' },
+        ],
+      }, function (data, ctl) {
+        postForm('/integration-requests', {
+          request_type: valueFor(INTEGRATION_TYPES, data.request_type) || 'other_integration',
+          integration_mode: valueFor(INTEGRATION_MODES, data.mode) || 'assisted',
+          requester_name: data.name,
+          requester_email: data.email,
+          requester_phone: data.phone,
+          company_name: data.company,
+          notes: data.notes,
+        }).then(function (res) {
+          if (!res.ok) { ctl.fail(formFailure(res)); return; }
+          ctl.done();
+          formSubmitCount++;
+          integrationSent = true;
+          appendMsg('bot', md('Thanks, **' + (data.name) + '**. Your **' + (data.request_type) +
+            '** request is in. Our team will follow up at **' + (data.email) + '**.'));
+          if (waHref) renderActionChips([{ label: '💬 WhatsApp us', href: waHref }]);
+        });
       });
       return;
     }
 
-    // Integration interest — eTIMS, TruLoad weighing, cameras, PLCs, Arduino/IoT.
-    // Unlike the ticket/lead forms above, this does NOT fetch a REST endpoint directly:
-    // it feeds the confirmed details back into the chat as a user message so the agent
-    // loop's own request_integration tool call fires (keeping this on the same,
-    // already-working chat path rather than a separate submit endpoint).
-    if (intent === 'integration_interest' ||
-        t.includes('etims') || t.includes('kra pin') || t.includes('fiscal') ||
-        t.includes('truload') || t.includes('weighbridge') || t.includes('weighing') ||
-        t.includes('plc') || t.includes('arduino') || t.includes('camera integration') ||
-        t.includes('iot integration') || t.includes('iot automation')) {
-      var integrationFields = [
-        { name: 'request_type', type: 'select', label: 'What do you want to integrate?',
-          options: ['eTIMS / KRA tax fiscalization', 'TruLoad weighing hardware/software', 'Camera systems', 'PLC automation', 'Arduino / IoT automation', 'Other'] },
-        { name: 'name',  type: 'text',  label: 'Your name', required: true, defaultValue: authUserName || '' },
-        { name: 'email', type: 'email', label: 'Email', required: true, defaultValue: authUserEmail || '' },
-        { name: 'phone', type: 'text',  label: 'Phone (optional)' },
-        { name: 'company', type: 'text', label: 'Company name (optional)' },
-        { name: 'mode', type: 'select', label: 'Who will do the integration?', options: ['My own developers (no fee)', 'Codevertex’s team (one-time fee applies)'] },
-        { name: 'notes', type: 'textarea', label: 'Anything else we should know?' },
+    // Support / escalate — all niches. The ticket opens in ticketing-api for a verified email.
+    if (intent === 'escalate' || intent === 'support_request' ||
+        t.includes('ticket') || t.includes('report') || t.includes('not working')) {
+      var ticketFields = [
+        { name: 'name',  type: 'text',     label: 'Your name',          required: true, maxLength: 120,
+          defaultValue: authUserName || '' },
+        { name: 'email', type: 'email',    label: 'Email',               required: true, maxLength: 254,
+          defaultValue: authUserEmail || '' },
+        { name: 'issue', type: 'textarea', label: 'Describe your issue', required: true, maxLength: 4000 },
+        { name: 'priority', type: 'select', label: 'Priority', options: ['Low', 'Medium', 'High (urgent)'] },
       ];
       buildForm({
-        title: '🔌 Request an Integration',
-        submitLabel: 'Submit Request →',
-        fields: integrationFields,
-      }, function (data, wrap) {
-        wrap.remove();
-        formSubmitCount++;
-        var typeMap = {
-          'eTIMS / KRA tax fiscalization': 'etims_integration',
-          'TruLoad weighing hardware/software': 'truload_weighing',
-          'Camera systems': 'camera_systems',
-          'PLC automation': 'plc_automation',
-          'Arduino / IoT automation': 'arduino_iot',
-          'Other': 'other_integration',
-        };
-        var requestType = typeMap[data.request_type] || 'other_integration';
-        var integrationMode = (data.mode || '').indexOf('own developers') >= 0 ? 'self_serve' : 'assisted';
-        var summary = 'Please submit an integration request: type=' + requestType +
-          ', mode=' + integrationMode +
-          ', name=' + data.name + ', email=' + data.email +
-          (data.phone ? ', phone=' + data.phone : '') +
-          (data.company ? ', company=' + data.company : '') +
-          (data.notes ? ', notes=' + data.notes : '');
-        sendMessage(summary);
+        title: 'Create Support Ticket',
+        submitLabel: 'Submit Ticket →',
+        fields: ticketFields,
+      }, function (data, ctl) {
+        ctl.done();
+        showOTPVerification(data.email, function (token) {
+          var firstLine = data.issue.split('\n')[0];
+          var subject = firstLine.length > 90 ? firstLine.slice(0, 87) + '...' : firstLine;
+          postForm('/tickets', {
+            name: data.name,
+            subject: subject,
+            description: data.issue + (data.priority ? '\n\nPriority given by the customer: ' + data.priority : '') +
+              '\n\nSent from the ' + widgetTitle + ' chat on ' + window.location.hostname + '.',
+          }, { 'X-OTP-Token': token }).then(function (res) {
+            if (!res.ok) {
+              appendMsg('bot', md('Your email is verified, but the ticket did not go through: ' + formFailure(res) +
+                ' You can also reach us directly:'));
+              renderActionChips(contactChips());
+              return;
+            }
+            formSubmitCount++;
+            appendMsg('bot', md('Ticket **' + (res.data.ticket_number || '') + '** created. Our team will reply to **' +
+              (data.email) + '**.'));
+            if (waHref) renderActionChips([{ label: '💬 WhatsApp for urgent help', href: waHref }]);
+          });
+        });
       });
       return;
     }
@@ -1095,56 +1214,52 @@
         t.includes('join') || t.includes('fbo') || t.includes('sign up') || t.includes('start a business') ||
         t.includes('become') || t.includes('business opportunity') || t.includes('earn'))) {
       buildForm({
-        title: '🤝 Join the Business',
+        title: 'Join the Business',
         submitLabel: 'Send Interest →',
         fields: [
-          { name: 'name',  type: 'text',  label: 'Full name',        required: true },
-          { name: 'email', type: 'email', label: 'Email',             required: true },
-          { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',  required: true },
-          { name: 'country', type: 'text', label: 'Country', placeholder: 'e.g. Kenya' },
+          { name: 'name',  type: 'text',  label: 'Full name',        required: true, maxLength: 120 },
+          { name: 'email', type: 'email', label: 'Email',             required: true, maxLength: 254 },
+          { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',  required: true, maxLength: 32 },
+          { name: 'country', type: 'text', label: 'Country', placeholder: 'e.g. Kenya', maxLength: 60 },
           { name: 'goal', type: 'select', label: 'Main goal', options: ['Extra income', 'Full-time business', 'Personal use & discounts', 'Just exploring'] },
         ],
-      }, function (data, wrap) {
-        wrap.remove();
-        fetch(apiURL + '/api/v1/public/leads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
-          body: JSON.stringify({ ...data, source: 'vera_widget_flp', session_id: sessionID }),
-        }).catch(function () {});
-        formSubmitCount++;
-        appendMsg('bot', md('Interest received! 🎉 Your FBO will reach out to **' + data.phone + '** to walk you through getting started.\n\nYou can also connect directly:'));
-        var chips = [];
-        if (waHref) chips.push({ label: '💬 WhatsApp your FBO', href: waHref });
-        renderActionChips(chips);
+      }, function (data, ctl) {
+        sendLead(data, 'vera_widget_flp', {
+          leadType: 'recruit', interest: 'business_opportunity',
+          answers: { country: data.country, goal: data.goal },
+        }, ctl, function () {
+          appendMsg('bot', md('Interest received! Your FBO will reach out to **' + (data.phone) + '** to walk you through getting started.\n\nYou can also connect directly:'));
+          var chips = [];
+          if (waHref) chips.push({ label: '💬 WhatsApp your FBO', href: waHref });
+          renderActionChips(chips);
+        });
       });
       return;
     }
 
-    // Codevertex: course enrollment
+    // Codevertex: course enrollment interest. A lead for the Digitika team, who confirm the
+    // cohort and payment; the enrollment itself is made on the website.
     if ((businessType === 'codevertex' || businessType === '') &&
         (intent === 'course_inquiry' || t.includes('enroll') || t.includes('register') || t.includes('apply for') || t.includes('sign up for'))) {
       buildForm({
-        title: '🎓 Course Enrollment',
+        title: 'Course Enrollment',
         submitLabel: 'Submit Enrollment →',
         fields: [
-          { name: 'name',  type: 'text',  label: 'Full name',        required: true },
-          { name: 'email', type: 'email', label: 'Email',             required: true },
-          { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',  required: true },
+          { name: 'name',  type: 'text',  label: 'Full name',        required: true, maxLength: 120 },
+          { name: 'email', type: 'email', label: 'Email',             required: true, maxLength: 254 },
+          { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',  required: true, maxLength: 32 },
           { name: 'experience', type: 'select', label: 'Experience level', options: ['Complete Beginner', 'Some Basics', 'Intermediate', 'Advanced'] },
           { name: 'howHeard', type: 'select', label: 'How did you hear about us?', options: ['Social Media', 'WhatsApp', 'Referral', 'Google Search', 'Other'] },
         ],
-      }, function (data, wrap) {
-        wrap.remove();
-        fetch(apiURL + '/api/v1/public/enrollments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
-          body: JSON.stringify({ ...data, session_id: sessionID }),
-        }).catch(function () {});
-        formSubmitCount++;
-        appendMsg('bot', md('Enrollment received! 🎉 Our team will contact **' + data.email + '** within a few hours with payment and cohort details.'));
-        var chips = [{ label: '🎓 View all courses', href: 'https://codevertexafrica.com/digitika' }];
-        if (waHref) chips.push({ label: '💬 WhatsApp us', href: waHref });
-        renderActionChips(chips);
+      }, function (data, ctl) {
+        sendLead(data, 'vera_widget_enrollment', {
+          answers: { experience: data.experience, how_heard: data.howHeard, wants: 'course_enrollment' },
+        }, ctl, function () {
+          appendMsg('bot', md('Thanks! Our team will contact **' + (data.email) + '** with payment and cohort details.'));
+          var chips = [{ label: '🎓 View all courses', href: 'https://codevertexafrica.com/digitika' }];
+          if (waHref) chips.push({ label: '💬 WhatsApp us', href: waHref });
+          renderActionChips(chips);
+        });
       });
       return;
     }
@@ -1158,27 +1273,25 @@
         : ['Product / service demo', 'Business consultation', 'Partnership enquiry', 'General Inquiry'];
 
       buildForm({
-        title: '📅 Book a Call',
+        title: 'Book a Call',
         submitLabel: 'Book Call →',
         fields: [
-          { name: 'name',  type: 'text',  label: 'Full name',               required: true },
-          { name: 'email', type: 'email', label: 'Email',                    required: true },
-          { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',         required: true },
-          { name: 'time',  type: 'text',  label: 'Preferred date & time', placeholder: 'e.g. Tuesday 2pm EAT' },
+          { name: 'name',  type: 'text',  label: 'Full name',               required: true, maxLength: 120 },
+          { name: 'email', type: 'email', label: 'Email',                    required: true, maxLength: 254 },
+          { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',         required: true, maxLength: 32 },
+          { name: 'time',  type: 'text',  label: 'Preferred date & time', placeholder: 'e.g. Tuesday 2pm EAT', maxLength: 80 },
           { name: 'topic', type: 'select', label: 'Topic', options: topicOptions },
         ],
-      }, function (data, wrap) {
-        wrap.remove();
-        fetch(apiURL + '/api/v1/public/leads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
-          body: JSON.stringify({ ...data, source: 'vera_widget_booking', session_id: sessionID }),
-        }).catch(function () {});
-        appendMsg('bot', md('Call request saved! We\'ll reach out to **' + data.email + '** within 2 hours to confirm.\n\nNeed to talk now?'));
-        var chips = [];
-        if (waHref) chips.push({ label: '💬 WhatsApp now', href: waHref });
-        if (callHref) chips.push({ label: '📞 Call now', href: callHref });
-        renderActionChips(chips);
+      }, function (data, ctl) {
+        sendLead(data, 'vera_widget_booking', {
+          answers: { wants: 'call', preferred_time: data.time, topic: data.topic },
+        }, ctl, function () {
+          appendMsg('bot', md('Call request saved! We\'ll reach out to **' + (data.email) + '** to confirm a time.\n\nNeed to talk now?'));
+          var chips = [];
+          if (waHref) chips.push({ label: '💬 WhatsApp now', href: waHref });
+          if (callHref) chips.push({ label: '📞 Call now', href: callHref });
+          renderActionChips(chips);
+        });
       });
       return;
     }
@@ -1186,23 +1299,20 @@
     // Generic contact / message — all niches
     if (t.includes('contact') || t.includes('message') || t.includes('email') || t.includes('reach') || t.includes('talk')) {
       buildForm({
-        title: '✉️ Send a Message',
+        title: 'Send a Message',
         submitLabel: 'Send Message →',
         fields: [
-          { name: 'name',    type: 'text',     label: 'Your name',    required: true },
-          { name: 'email',   type: 'email',    label: 'Email',         required: true },
-          { name: 'message', type: 'textarea', label: 'Your message',  required: true },
+          { name: 'name',    type: 'text',     label: 'Your name',    required: true, maxLength: 120 },
+          { name: 'email',   type: 'email',    label: 'Email',         required: true, maxLength: 254 },
+          { name: 'message', type: 'textarea', label: 'Your message',  required: true, maxLength: 2000 },
         ],
-      }, function (data, wrap) {
-        wrap.remove();
-        fetch(apiURL + '/api/v1/public/leads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantSlug },
-          body: JSON.stringify({ ...data, source: 'vera_widget_contact', session_id: sessionID }),
-        }).catch(function () {});
-        formSubmitCount++;
-        appendMsg('bot', md('Message received! We\'ll respond to **' + data.email + '** within 24 hours.'));
-        if (waHref) renderActionChips([{ label: '💬 WhatsApp for a faster reply', href: waHref }]);
+      }, function (data, ctl) {
+        sendLead(data, 'vera_widget_contact', {
+          answers: { wants: 'message', message: data.message },
+        }, ctl, function () {
+          appendMsg('bot', md('Message received! We\'ll respond to **' + (data.email) + '**.'));
+          if (waHref) renderActionChips([{ label: '💬 WhatsApp for a faster reply', href: waHref }]);
+        });
       });
     }
   }
@@ -1541,7 +1651,10 @@
           try { sessionStorage.setItem(SESSION_KEY, sessionID); } catch { }
         }
         var answer = (data.result && data.result.response) || data.response || '';
-        var meta   = (data.result && data.result.meta) || data.meta || null;
+        var meta   = (data.result && data.result.meta) || data.meta || {};
+        // The intent and any prefilled form ride beside the result on the JSON path.
+        if (data.result && data.result.intent && !meta.intent) meta.intent = data.result.intent;
+        if (data.form) meta.form = data.form;
         if (answer) {
           remember(renderAnswer(answer, meta), q, answer);
         } else {
