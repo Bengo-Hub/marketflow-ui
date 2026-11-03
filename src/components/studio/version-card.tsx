@@ -20,6 +20,7 @@ const TONE: Record<VersionStatus, Tone> = {
   queued: "warning",
   rendering: "warning",
   ready: "info",
+  script_ready: "info",
   failed: "danger",
   approved: "success",
   rejected: "neutral",

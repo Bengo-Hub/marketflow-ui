@@ -816,6 +816,21 @@
         el = document.createElement('textarea');
         el.placeholder = f.placeholder || f.label;
         el.rows = 3;
+      } else if (f.type === 'checkbox') {
+        // A consent tick: unticked by default, read through .checked (see the submit handler).
+        var row = document.createElement('label');
+        row.style.cssText = 'display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.4;margin:2px 0 8px;cursor:pointer';
+        el = document.createElement('input');
+        el.type = 'checkbox';
+        el.style.cssText = 'width:auto;margin-top:2px';
+        var txt = document.createElement('span');
+        txt.textContent = f.label;
+        row.appendChild(el);
+        row.appendChild(txt);
+        el.id = 'vf-' + f.name;
+        wrap.appendChild(row);
+        fields[f.name] = el;
+        return;
       } else {
         el = document.createElement('input');
         el.type = f.type || 'text';
@@ -862,7 +877,7 @@
       var data = {};
       var missing = [];
       config.fields.forEach(function (f) {
-        var val = (fields[f.name].value || '').trim();
+        var val = f.type === 'checkbox' ? (fields[f.name].checked ? 'yes' : '') : (fields[f.name].value || '').trim();
         if (f.required && !val) { missing.push(f.label); }
         data[f.name] = val;
       });
@@ -939,6 +954,8 @@
       source: source,
       lead_type: (opts && opts.leadType) || 'customer',
       answers: (opts && opts.answers) || {},
+      // The lead's own WhatsApp consent tick; follow-ups use WhatsApp only when it is true.
+      whatsapp_consent: data.whatsapp_consent === 'yes',
     };
     if (opts && opts.interest) payload.interest = opts.interest;
     postForm('/leads', payload).then(function (res) {
@@ -1220,6 +1237,7 @@
           { name: 'name',  type: 'text',  label: 'Full name',        required: true, maxLength: 120 },
           { name: 'email', type: 'email', label: 'Email',             required: true, maxLength: 254 },
           { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',  required: true, maxLength: 32 },
+          { name: 'whatsapp_consent', type: 'checkbox', label: 'OK to contact me on WhatsApp' },
           { name: 'country', type: 'text', label: 'Country', placeholder: 'e.g. Kenya', maxLength: 60 },
           { name: 'goal', type: 'select', label: 'Main goal', options: ['Extra income', 'Full-time business', 'Personal use & discounts', 'Just exploring'] },
         ],
@@ -1248,6 +1266,7 @@
           { name: 'name',  type: 'text',  label: 'Full name',        required: true, maxLength: 120 },
           { name: 'email', type: 'email', label: 'Email',             required: true, maxLength: 254 },
           { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',  required: true, maxLength: 32 },
+          { name: 'whatsapp_consent', type: 'checkbox', label: 'OK to contact me on WhatsApp' },
           { name: 'experience', type: 'select', label: 'Experience level', options: ['Complete Beginner', 'Some Basics', 'Intermediate', 'Advanced'] },
           { name: 'howHeard', type: 'select', label: 'How did you hear about us?', options: ['Social Media', 'WhatsApp', 'Referral', 'Google Search', 'Other'] },
         ],
@@ -1279,6 +1298,7 @@
           { name: 'name',  type: 'text',  label: 'Full name',               required: true, maxLength: 120 },
           { name: 'email', type: 'email', label: 'Email',                    required: true, maxLength: 254 },
           { name: 'phone', type: 'text',  label: 'Phone / WhatsApp',         required: true, maxLength: 32 },
+          { name: 'whatsapp_consent', type: 'checkbox', label: 'OK to contact me on WhatsApp' },
           { name: 'time',  type: 'text',  label: 'Preferred date & time', placeholder: 'e.g. Tuesday 2pm EAT', maxLength: 80 },
           { name: 'topic', type: 'select', label: 'Topic', options: topicOptions },
         ],

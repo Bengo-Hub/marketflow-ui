@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Archive, ArchiveRestore, ArrowLeft, ImageIcon, TriangleAlert } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { EmptyState, ErrorState, GlassPanel, PageHeader, ToneBadge } from "@/components/ui-kit";
+import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { PosterForm } from "@/components/studio/poster-form";
 import { VersionCard } from "@/components/studio/version-card";
+import { VideoAdCard } from "@/components/studio/video-ad-card";
+import { VideoAdForm } from "@/components/studio/video-ad-form";
 import { useBrief, useCanApprove, useUpdateBrief } from "@/hooks/use-creative";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { OBJECTIVES, type CreativeVersion } from "@/lib/api/creative";
@@ -20,6 +22,7 @@ export default function AdPage() {
   const canApprove = useCanApprove();
   // A poster to start from: "Make another like this" fills the form from it.
   const [base, setBase] = useState<CreativeVersion | null>(null);
+  const [make, setMake] = useState<"poster" | "video">("poster");
 
   const back = (
     <Link href={`/${orgSlug}/studio`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
@@ -90,7 +93,22 @@ export default function AdPage() {
               <p className="text-sm text-muted-foreground">Restore this ad to make new posters for it.</p>
             </GlassPanel>
           ) : (
-            <PosterForm key={base?.id ?? "new"} brief={b} base={base} onStarted={() => setBase(null)} />
+            <div className="space-y-3">
+              <CapsuleTabs
+                label="What to make"
+                options={[
+                  { value: "poster" as const, label: "Poster" },
+                  { value: "video" as const, label: "Video ad" },
+                ]}
+                value={make}
+                onChange={setMake}
+              />
+              {make === "poster" ? (
+                <PosterForm key={base?.id ?? "new"} brief={b} base={base} onStarted={() => setBase(null)} />
+              ) : (
+                <VideoAdForm brief={b} />
+              )}
+            </div>
           )}
         </div>
 
@@ -99,15 +117,21 @@ export default function AdPage() {
             <GlassPanel>
               <EmptyState
                 icon={<ImageIcon />}
-                title="No posters yet"
-                description="Describe the picture you want and choose a size. Each poster is a draft you can approve, change or discard."
+                title="Nothing made yet"
+                description="Make a poster or a video ad. Each one is a draft you can approve, change or discard."
               />
             </GlassPanel>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {live.map((v) => (
-                <VersionCard key={v.id} briefId={b.id} version={v} canApprove={canApprove} archived={archived} onRemake={() => setBase(v)} />
-              ))}
+              {live.map((v) =>
+                v.kind === "video_ad" ? (
+                  <div key={v.id} className="sm:col-span-2">
+                    <VideoAdCard briefId={b.id} version={v} canApprove={canApprove} archived={archived} />
+                  </div>
+                ) : (
+                  <VersionCard key={v.id} briefId={b.id} version={v} canApprove={canApprove} archived={archived} onRemake={() => setBase(v)} />
+                ),
+              )}
             </div>
           )}
 
@@ -117,9 +141,15 @@ export default function AdPage() {
                 Discarded and replaced ({old.length})
               </summary>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {old.map((v) => (
-                  <VersionCard key={v.id} briefId={b.id} version={v} canApprove={false} archived onRemake={() => setBase(v)} />
-                ))}
+                {old.map((v) =>
+                  v.kind === "video_ad" ? (
+                    <div key={v.id} className="sm:col-span-2">
+                      <VideoAdCard briefId={b.id} version={v} canApprove={false} archived />
+                    </div>
+                  ) : (
+                    <VersionCard key={v.id} briefId={b.id} version={v} canApprove={false} archived onRemake={() => setBase(v)} />
+                  ),
+                )}
               </div>
             </details>
           )}

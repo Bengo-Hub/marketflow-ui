@@ -10,7 +10,7 @@ import type { Paginated } from "./types";
 export type Objective = "sales" | "leads" | "awareness" | "traffic";
 export type PosterFormat = "1080x1080" | "1080x1350" | "1080x1920";
 export type Tier = "standard" | "premium";
-export type VersionStatus = "queued" | "rendering" | "ready" | "failed" | "approved" | "rejected" | "superseded";
+export type VersionStatus = "queued" | "rendering" | "ready" | "failed" | "approved" | "rejected" | "superseded" | "script_ready";
 
 /** A sellable item from the business's own data (inventory, a POS promotion, or the platform's website). */
 export interface Offering {
@@ -45,10 +45,10 @@ export interface CreativeVersion {
   brief_id: string;
   parent_version_id?: string | null;
   version_no: number;
-  kind: "poster" | "video";
+  kind: "poster" | "video" | "video_ad";
   tier: Tier;
   format: PosterFormat;
-  copy?: { prompt?: string; headline?: string; subline?: string; price?: string; cta?: string };
+  copy?: { prompt?: string; headline?: string; subline?: string; price?: string; cta?: string; script?: unknown; end_card?: unknown };
   status: VersionStatus;
   credits: number;
   error?: string;
@@ -165,7 +165,7 @@ export const creativeApi = {
 /** The file people look at: the clip for a motion poster, else the poster image. */
 export function mainAsset(v: CreativeVersion): CreativeAsset | undefined {
   const assets = v.edges?.assets ?? [];
-  return assets.find((a) => a.kind === (v.kind === "video" ? "video" : "image")) ?? assets.find((a) => a.kind === "image");
+  return assets.find((a) => a.kind === (v.kind === "poster" ? "image" : "video")) ?? assets.find((a) => a.kind === "image");
 }
 
 /** When the draft's files go, if they are not kept forever. */
@@ -183,6 +183,7 @@ export const STATUS_LABEL: Record<VersionStatus, string> = {
   approved: "Approved",
   rejected: "Discarded",
   superseded: "Replaced",
+  script_ready: "Script to review",
 };
 
 export const FORMATS: { value: PosterFormat; label: string; hint: string }[] = [
