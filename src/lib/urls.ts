@@ -10,6 +10,9 @@ export const ACCOUNTS_URL = (
   (process.env.NEXT_PUBLIC_SSO_URL || "https://sso.codevertexafrica.com").replace("://sso.", "://accounts.")
 ).replace(/\/$/, "");
 
+/** The Codevertex ordering storefront; a tenant's store lives at /{slug} unless it has its own domain. */
+export const ORDERING_URL = (process.env.NEXT_PUBLIC_ORDERING_UI_URL || "https://ordering.codevertexafrica.com").replace(/\/$/, "");
+
 /** Plans and billing site. */
 export const PRICING_URL = (process.env.NEXT_PUBLIC_SUBSCRIPTIONS_UI_URL || "https://pricing.codevertexafrica.com").replace(/\/$/, "");
 

@@ -7,7 +7,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Check, ChevronDown, Rocket } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState, Field, PageHeader, ToneBadge } from "@/components/ui-kit";
@@ -16,11 +15,8 @@ import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-pro
 import { apiErrorMessage } from "@/lib/api/errors";
 import { marketingOsApi } from "@/lib/api/marketing-os";
 import { STEP_META, type BrandDraft, type StepKey } from "@/lib/api/onboarding";
-import type { Offering } from "@/lib/api/public";
 import type { TenantProfile } from "@/lib/api/tenant-profile";
 import { cn } from "@/lib/utils";
-
-const MAX_OFFERINGS = 24; // marketflow-api tenant.maxOfferings
 
 function ProfileStep({ profile, draft, onDone }: { profile: TenantProfile; draft?: BrandDraft; onDone: () => void }) {
   const update = useUpdateTenantProfile();
@@ -60,67 +56,6 @@ function ProfileStep({ profile, draft, onDone }: { profile: TenantProfile; draft
       {logo && <p className="text-xs text-muted-foreground">Your account logo will be used on your public page.</p>}
       <Button type="submit" disabled={update.isPending || !form.tagline.trim() || !form.bio.trim()}>{update.isPending ? "Saving..." : "Save profile"}</Button>
     </form>
-  );
-}
-
-function OfferingsStep({ profile, draft, onDone }: { profile: TenantProfile; draft?: BrandDraft; onDone: () => void }) {
-  const update = useUpdateTenantProfile();
-  const existing = (Array.isArray(profile.metadata?.offerings) ? profile.metadata?.offerings : []) as Offering[];
-  const names = new Set(existing.map((o) => o.name));
-  const options = (draft?.offerings ?? []).filter((o) => !names.has(o.name));
-  const room = Math.max(0, MAX_OFFERINGS - existing.length);
-  const [picked, setPicked] = useState<Set<string>>(() => new Set(options.slice(0, Math.min(8, room)).map((o) => o.name)));
-
-  if (!draft) return <div className="h-24 animate-pulse rounded-xl bg-muted" />;
-  if (options.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {existing.length ? "Everything we found is already on your page." : "We found no products yet. Add them in Inventory or POS, or "}
-        {!existing.length && <Link href={`../settings/profile`} className="font-medium text-primary hover:underline">type them in your profile</Link>}
-      </p>
-    );
-  }
-  const toggle = (n: string) =>
-    setPicked((p) => {
-      const next = new Set(p);
-      if (next.has(n)) next.delete(n);
-      else if (next.size < room) next.add(n);
-      return next;
-    });
-  const save = () => {
-    const add: Offering[] = options
-      .filter((o) => picked.has(o.name))
-      .map((o) => ({ name: o.name, description: o.description, image_url: o.image_url, price_label: o.price_label, url: o.url }));
-    update.mutate({ metadata: { offerings: [...existing, ...add] } }, { onSuccess: onDone });
-  };
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">{draft.sources.includes("catalogue") ? "Your best sellers from the last 90 days come first." : "From your catalogue."} Pick what to show.</p>
-      <ul className="grid gap-2 sm:grid-cols-2">
-        {options.map((o) => (
-          <li key={o.name}>
-            <label className={cn("flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors", picked.has(o.name) ? "border-primary/40 bg-primary/5" : "border-border bg-background/60 hover:bg-accent/40")}>
-              <Checkbox checked={picked.has(o.name)} onCheckedChange={() => toggle(o.name)} aria-label={o.name} />
-              {o.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={o.image_url} alt="" loading="lazy" className="size-10 shrink-0 rounded-lg object-cover" />
-              ) : (
-                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-sm font-semibold text-muted-foreground">{o.name.slice(0, 1)}</span>
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{o.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {[o.price_label, o.quantity_sold ? `${Math.round(o.quantity_sold).toLocaleString()} sold` : ""].filter(Boolean).join(", ") || " "}
-                </span>
-              </span>
-            </label>
-          </li>
-        ))}
-      </ul>
-      <Button disabled={picked.size === 0 || update.isPending} onClick={save}>
-        {update.isPending ? "Adding..." : `Add ${picked.size} to my page`}
-      </Button>
-    </div>
   );
 }
 
@@ -169,7 +104,7 @@ export default function OnboardingPage() {
   if (checklist.isError) return <ErrorState message="Could not load your setup steps." onRetry={() => void checklist.refetch()} />;
   const c = checklist.data;
   const pct = c && c.total ? Math.round((c.done / c.total) * 100) : 0;
-  const inline: Partial<Record<StepKey, boolean>> = { profile: true, offerings: true, brand_context: true };
+  const inline: Partial<Record<StepKey, boolean>> = { profile: true, brand_context: true };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -217,7 +152,6 @@ export default function OnboardingPage() {
                     <div className="mt-4 border-t border-border pt-4">
                       {draft.isError && <p className="mb-3 text-sm text-warning">We couldn&apos;t read your other Codevertex apps just now, so fill this in yourself.</p>}
                       {profile.data && st.key === "profile" && <ProfileStep key={draft.data ? "with" : "without"} profile={profile.data} draft={draft.data} onDone={refresh} />}
-                      {profile.data && st.key === "offerings" && <OfferingsStep key={draft.data ? "with" : "without"} profile={profile.data} draft={draft.data} onDone={refresh} />}
                       {st.key === "brand_context" && <BrandStep draft={draft.data} onDone={refresh} />}
                       {profile.isLoading && st.key !== "brand_context" && <div className="h-24 animate-pulse rounded-xl bg-muted" />}
                     </div>

@@ -13,7 +13,8 @@ import { LogOut, User, Globe, Bell, ExternalLink, Settings, Shield, CalendarCloc
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { OutletFilter } from "@/components/layout/outlet-filter";
 import { useAttention, useDismissSuggestion } from "@/hooks/use-attention";
-import { publicProfileUrl } from "@/lib/urls";
+import { usePublicLink } from "@/hooks/use-public-link";
+import { ORDERING_URL } from "@/lib/urls";
 import { useVisibleServices, serviceTagsFromAccessToken, AppSwitcherGrid, AppSwitcherTrigger, type ServiceKey } from "@bengo-hub/shared-ui-lib/app-switcher";
 
 // 'marketflow' itself is omitted (never links to itself, mirrors every other *-ui).
@@ -22,7 +23,7 @@ const SERVICE_URLS: Partial<Record<ServiceKey, string>> = {
   inventory: process.env.NEXT_PUBLIC_INVENTORY_UI_URL ?? "https://inventory.codevertexafrica.com",
   treasury: process.env.NEXT_PUBLIC_TREASURY_UI_URL ?? "https://books.codevertexafrica.com",
   erp: process.env.NEXT_PUBLIC_ERP_UI_URL ?? "https://erp.codevertexafrica.com",
-  ordering: process.env.NEXT_PUBLIC_ORDERING_UI_URL ?? "https://ordering.codevertexafrica.com",
+  ordering: ORDERING_URL,
   subscriptions: process.env.NEXT_PUBLIC_SUBSCRIPTIONS_UI_URL ?? "https://pricing.codevertexafrica.com",
   auth: process.env.NEXT_PUBLIC_AUTH_UI_URL ?? "https://accounts.codevertexafrica.com",
   projects: process.env.NEXT_PUBLIC_PROJECTS_UI_URL ?? "https://projects.codevertexafrica.com",
@@ -131,7 +132,9 @@ export function AppHeader() {
     : user?.email?.slice(0, 2).toUpperCase() || "MF";
 
   const tenantSlug = orgSlug || user?.tenantSlug;
-  const publicUrl = tenantSlug ? publicProfileUrl(tenantSlug) : null;
+  // FLP tenants link to their /p page; everyone else to their website or storefront.
+  const publicLink = usePublicLink(tenantSlug);
+  const publicUrl = publicLink?.href ?? null;
 
   // Every real service is shown; each one enforces its own RBAC and plan on arrival. A service
   // outside the plan stays visible as "Not in your plan" with a link to the plans page.
@@ -174,7 +177,7 @@ export function AppHeader() {
             className="hidden h-10 items-center gap-1.5 rounded-xl border border-border bg-background/60 px-3 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground md:inline-flex"
           >
             <Globe className="h-4 w-4" />
-            Public page
+            {publicLink?.label}
             <ExternalLink className="h-3 w-3" />
           </a>
         )}
@@ -214,7 +217,7 @@ export function AppHeader() {
             {publicUrl && (
               <DropdownMenuItem onClick={() => window.open(publicUrl, "_blank")}>
                 <Globe className="mr-2 h-4 w-4" />
-                View public page
+                {publicLink?.kind === "profile" ? "View public page" : `Open ${publicLink?.label.toLowerCase()}`}
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />

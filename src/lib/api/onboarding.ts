@@ -1,7 +1,8 @@
 import { apiClient } from "./client";
 import type { BrandContext } from "./marketing-os";
 
-export type StepKey = "profile" | "offerings" | "brand_context" | "channels" | "lead_capture" | "team";
+/** forever_shop is the Forever tenant's step only; no tenant has a products step (owner, 2026-11-03). */
+export type StepKey = "profile" | "forever_shop" | "brand_context" | "channels" | "lead_capture" | "team";
 
 /** GET /api/v1/tenant/onboarding (marketflow-api onboarding.Checklist). Done and total count required steps. */
 export interface Checklist {
@@ -62,11 +63,11 @@ export const STEP_META: Record<StepKey, { title: string; blurb: string; href: st
     href: "/settings/profile",
     action: "Edit profile",
   },
-  offerings: {
-    title: "Show what you sell",
-    blurb: "Pick your best sellers to show on your public page.",
+  forever_shop: {
+    title: "Link your Forever shop",
+    blurb: "Add your distributor ID. Every Forever product on your page then opens in your own Forever shop.",
     href: "/settings/profile",
-    action: "Choose products",
+    action: "Add distributor ID",
   },
   brand_context: {
     title: "Brief your marketing team",

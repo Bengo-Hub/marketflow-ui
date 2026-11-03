@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CalendarDays, Mail, ShoppingBag, Star } from "lucide-react";
 import { PoweredByBadge } from "@/components/powered-by";
 import { BookingWidget } from "@/components/booking/booking-widget";
@@ -10,8 +10,9 @@ import { ProfileTracker } from "@/components/public-profile/profile-tracker";
 import { VideoFacade } from "@/components/public-profile/video-facade";
 import { WhatsAppIcon } from "@/components/public-profile/whatsapp-icon";
 import { flpJoinUrl, flpShopUrl, jsonLd, offeringHref, safeUrl, videoEmbed, whatsAppLink } from "@/components/public-profile/links";
-import { getPublicProfile, getPublicTestimonials, getTenantBrandColor, type Offering, type PublicProfile } from "@/lib/api/public";
+import { getAuthTenantPublic, getPublicProfile, getPublicTestimonials, getTenantBrandColor, type Offering, type PublicProfile } from "@/lib/api/public";
 import { brandCss } from "@/lib/brand";
+import { resolvePublicLink } from "@/lib/public-link";
 import { APP_URL, publicProfileUrl } from "@/lib/urls";
 
 const AI_URL = process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.codevertexafrica.com";
@@ -58,6 +59,13 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const { slug } = await params;
   const [profile, testimonials, accountColor] = await Promise.all([getPublicProfile(slug), getPublicTestimonials(slug), getTenantBrandColor(slug)]);
   if (!profile) notFound();
+  // Only Forever tenants have a MarketFlow page (owner, 2026-11-03). Anyone else's old /p link
+  // goes on to the tenant's own website, custom storefront domain or Codevertex storefront.
+  if (profile.business_type !== "flp") {
+    const link = resolvePublicLink({ slug: profile.slug, businessType: profile.business_type, auth: await getAuthTenantPublic(profile.slug) });
+    if (link) redirect(link.href);
+    notFound();
+  }
   const v = view(profile);
   // The page colour set on the profile wins, then the tenant's SSO brand colour, then Codevertex purple.
   const color = v.m.brand_primary_color || accountColor;

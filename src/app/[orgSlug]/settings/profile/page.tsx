@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState, Field, GlassPanel, PageHeader } from "@/components/ui-kit";
-import { OfferingsEditor } from "@/components/public-profile/offerings-editor";
+import { FeaturedProductsCurator } from "@/components/public-profile/offerings-editor";
+import { usePublicLink } from "@/hooks/use-public-link";
 import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import type { Offering, PublicMetadata, Socials } from "@/lib/api/public";
 import type { TenantProfile, TenantProfileUpdate } from "@/lib/api/tenant-profile";
-import { publicProfileUrl } from "@/lib/urls";
 
 /** The public metadata keys this form edits (marketflow-api tenant.PublicMetadataKeys). */
 type Meta = Pick<
@@ -82,8 +82,6 @@ function ProfileForm({ data }: { data: TenantProfile }) {
     if (!form.name.trim()) e.name = "Enter your business name.";
     for (const k of ["video_url", "logo_url", "cover_url"] as const) if (!isHttp(meta[k])) e[k] = "Use a full link starting with https://";
     if (meta.contact_email && !/^\S+@\S+\.\S+$/.test(meta.contact_email)) e.contact_email = "Enter a valid email address.";
-    if (meta.offerings.some((o) => !o.name.trim())) e.offerings = "Every item needs a name, or remove the empty ones.";
-    if (meta.offerings.some((o) => !isHttp(o.image_url) || !isHttp(o.url))) e.offerings = "Item links must start with https://";
     for (const s of SOCIALS) if (!isHttp(meta.socials[s.key])) e[`social_${s.key}`] = "Use a full link starting with https://";
     return e;
   }, [form, meta]);
@@ -92,10 +90,13 @@ function ProfileForm({ data }: { data: TenantProfile }) {
     !form.whatsapp_number && !meta.contact_email ? "WhatsApp number or email" : null,
     !meta.bio ? "Bio" : null,
     !meta.logo_url ? "Logo" : null,
-    meta.offerings.length === 0 ? "Products or services" : null,
-    isFLP && !form.fbo_distrib_id ? "Distributor ID" : null,
+    // No tenant declares products: Forever tenants show the seeded Forever products and need only
+    // a distributor ID to link them to their own shop; others sell from their own catalogue.
+    isFLP && !form.fbo_distrib_id && !/^\d{8,}$/.test(data.slug) ? "Distributor ID" : null,
+    isFLP && meta.offerings.length > 0 && meta.offerings.every((o) => o.hidden) ? "At least one product shown" : null,
   ].filter(Boolean) as string[];
-  const url = publicProfileUrl(data.slug);
+  const publicLink = usePublicLink(data.slug);
+  const url = publicLink?.href ?? null;
   const hasErrors = Object.keys(errors).length > 0;
   const setM = (patch: Partial<Meta>) => setMeta((m) => ({ ...m, ...patch }));
 
@@ -105,11 +106,9 @@ function ProfileForm({ data }: { data: TenantProfile }) {
     const socials = Object.fromEntries(Object.entries(meta.socials).filter(([, v]) => v && v.trim()));
     save.mutate({
       ...form,
-      metadata: {
-        ...meta,
-        socials,
-        offerings: meta.offerings.map((o) => ({ ...o, name: o.name.trim() })),
-      },
+      // Offerings are only the Forever tenant's seeded list (shown, hidden, ordered); nothing
+      // else writes them, so other tenants never send a list.
+      metadata: isFLP ? { ...meta, socials } : { ...withoutOfferings(meta), socials },
     });
   };
 
@@ -119,18 +118,24 @@ function ProfileForm({ data }: { data: TenantProfile }) {
         icon={<UserCircle />}
         title="Public profile"
         description={
-          <>
-            Your page lives at{" "}
-            <a href={url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
-              /p/{data.slug}
-            </a>
-          </>
+          url ? (
+            <>
+              {isFLP ? "Your page lives at " : "Customers who find you through MarketFlow go to "}
+              <a href={url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+                {isFLP ? `/p/${data.slug}` : url.replace(/^https?:\/\//, "")}
+              </a>
+            </>
+          ) : (
+            "Add your website in your Codevertex account, or open your storefront in Ordering, to give customers a link."
+          )
         }
         actions={
-          <a href={url} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background/70 px-4 text-sm font-medium hover:bg-muted">
-            <ExternalLink className="h-4 w-4" />
-            View page
-          </a>
+          url ? (
+            <a href={url} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background/70 px-4 text-sm font-medium hover:bg-muted">
+              <ExternalLink className="h-4 w-4" />
+              {isFLP ? "View page" : `Open ${publicLink?.label.toLowerCase()}`}
+            </a>
+          ) : undefined
         }
       />
 
@@ -169,10 +174,18 @@ function ProfileForm({ data }: { data: TenantProfile }) {
         </div>
       </GlassPanel>
 
-      <GlassPanel title={isFLP ? "Featured products" : "Products and services"} description="What visitors see in the list on your page.">
-        <OfferingsEditor value={meta.offerings} onChange={(offerings) => setM({ offerings })} isFLP={isFLP} />
-        {errors.offerings && <p role="alert" className="mt-3 text-sm text-destructive">{errors.offerings}</p>}
-      </GlassPanel>
+      {isFLP ? (
+        <GlassPanel title="Featured products" description="Your Forever products, each linked to your own Forever shop. Choose which to show and in what order.">
+          <FeaturedProductsCurator value={meta.offerings} onChange={(offerings) => setM({ offerings })} />
+        </GlassPanel>
+      ) : (
+        <GlassPanel title="Products and services" description="Nothing to add here.">
+          <p className="text-sm text-muted-foreground">
+            MarketFlow reads what you sell from your own records: your catalogue in Inventory, your promotions in POS and your
+            storefront. Keep them up to date there and your assistant, posters and ads use them.
+          </p>
+        </GlassPanel>
+      )}
 
       <GlassPanel title="Contact and booking">
         <div className="grid gap-5 md:grid-cols-2">
@@ -243,7 +256,7 @@ function ProfileForm({ data }: { data: TenantProfile }) {
             <Field label="Distributor ID" htmlFor="pf-did">
               <Input id="pf-did" value={form.fbo_distrib_id} onChange={(e) => setForm({ ...form, fbo_distrib_id: e.target.value })} />
             </Field>
-            <Field label="Store code" hint="KEN for Kenya." htmlFor="pf-store">
+            <Field label="Store code" hint="Leave empty to use your country's Forever store (KEN for Kenya)." htmlFor="pf-store">
               <Input id="pf-store" value={form.flp_store_code} onChange={(e) => setForm({ ...form, flp_store_code: e.target.value.toUpperCase() })} placeholder="KEN" />
             </Field>
             <Field label="Language" htmlFor="pf-lang">
@@ -265,4 +278,11 @@ function ProfileForm({ data }: { data: TenantProfile }) {
       </div>
     </form>
   );
+}
+
+/** The profile's metadata without the offerings list, for tenants that have none. */
+function withoutOfferings(meta: Meta): Omit<Meta, "offerings"> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { offerings, ...rest } = meta;
+  return rest;
 }

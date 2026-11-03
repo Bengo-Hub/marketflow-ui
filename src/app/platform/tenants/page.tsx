@@ -54,9 +54,12 @@ export default function PlatformTenantsPage() {
           <Link href={`/${t.slug}/dashboard`} className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={`Open ${t.name}'s workspace`} title="Open workspace">
             <LayoutDashboard />
           </Link>
-          <a href={`/p/${t.slug}`} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={`${t.name}'s public page`} title="Public page">
-            <ExternalLink />
-          </a>
+          {/* Only Forever tenants have a MarketFlow public page; others link to their own site. */}
+          {t.business_type === "flp" && (
+            <a href={`/p/${t.slug}`} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={`${t.name}'s public page`} title="Public page">
+              <ExternalLink />
+            </a>
+          )}
         </div>
       ),
     },

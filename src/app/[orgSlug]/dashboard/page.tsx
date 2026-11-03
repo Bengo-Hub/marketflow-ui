@@ -11,6 +11,7 @@ import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, PageHeader, StatCard }
 import { LeadTrendChart, SourceBars } from "@/components/dashboard/charts";
 import { SetupCard } from "@/components/onboarding/setup-card";
 import { useDashboard, useProfileMetrics } from "@/hooks/use-analytics";
+import { useTenantProfile } from "@/hooks/use-tenant-profile";
 import type { DashboardDays } from "@/lib/api/analytics";
 
 const nf = new Intl.NumberFormat("en-KE");
@@ -30,6 +31,8 @@ export default function DashboardPage() {
   const [days, setDays] = useState<DashboardDays>(30);
   const dash = useDashboard(days);
   const profile = useProfileMetrics(days);
+  const tenantProfile = useTenantProfile();
+  const isFLP = tenantProfile.data?.business_type === "flp";
   const d = dash.data;
   const c = profile.data?.counts ?? {};
   const loading = dash.isLoading;
@@ -96,6 +99,8 @@ export default function DashboardPage() {
         <StatCard label="Leads in follow-up sequences" icon={<Repeat />} loading={loading} value={d ? nf.format(d.nurture.active_enrollments) : "0"} />
       </div>
 
+      {/* Only Forever tenants have a MarketFlow public page; others' public face is their own site. */}
+      {isFLP && (
       <GlassPanel
         title="Your public page"
         description={`Visits and taps on /p/${orgSlug} in the last ${days} days`}
@@ -127,6 +132,7 @@ export default function DashboardPage() {
           </div>
         )}
       </GlassPanel>
+      )}
     </div>
   );
 }

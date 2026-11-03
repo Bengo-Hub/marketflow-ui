@@ -93,6 +93,26 @@ export async function getTenantBrandColor(slug: string): Promise<string | null> 
   }
 }
 
+/** What auth-api (the owner of tenant identity) publishes about a tenant's own web presence. */
+export interface AuthTenantPublic {
+  website?: string | null;
+  /** The tenant's active custom domain for the ordering storefront, e.g. alphachinamarket.co.ke. */
+  storefront_domain?: string | null;
+  country?: string | null;
+}
+
+/** The tenant's public web presence from SSO, cached for ten minutes on the server. */
+export async function getAuthTenantPublic(slug: string): Promise<AuthTenantPublic | null> {
+  try {
+    const r = await fetch(`${AUTH_API_URL}/api/v1/tenants/by-slug/${enc(slug)}`, { next: { revalidate: 600 } });
+    if (!r.ok) return null;
+    const t = (await r.json()) as AuthTenantPublic;
+    return { website: t.website ?? null, storefront_domain: t.storefront_domain ?? null, country: t.country ?? null };
+  } catch {
+    return null;
+  }
+}
+
 export async function getPublicTestimonials(slug: string, limit = 6): Promise<Testimonial[]> {
   try {
     const r = await fetch(`${API_URL}/api/v1/public/profile/${enc(slug)}/testimonials?limit=${limit}`, {
