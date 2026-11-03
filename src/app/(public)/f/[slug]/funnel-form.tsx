@@ -27,6 +27,10 @@ export function FunnelForm({
   fields: FunnelField[];
 }) {
   const [values, setValues] = useState<Record<string, string>>({});
+  // The lead's own "OK to contact me on WhatsApp" tick: follow-ups go by WhatsApp only with it
+  // (Kenya Data Protection Act). Shown only when the form asks for a phone number.
+  const [waConsent, setWaConsent] = useState(false);
+  const asksPhone = fields.some((f) => f.key === "phone");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +60,7 @@ export function FunnelForm({
         ...(Object.keys(answers).length ? { answers } : {}),
         source: "funnel",
         funnel_slug: funnelSlug,
+        whatsapp_consent: asksPhone && waConsent,
       });
       setDone(true);
     } catch (err) {
@@ -114,6 +119,17 @@ export function FunnelForm({
             </label>
           );
         })}
+        {asksPhone && (
+          <label className="flex min-h-11 items-start gap-3 text-sm md:col-span-2">
+            <input
+              type="checkbox"
+              checked={waConsent}
+              onChange={(e) => setWaConsent(e.target.checked)}
+              className="mt-0.5 h-5 w-5 shrink-0 rounded border-input accent-primary"
+            />
+            <span>OK to contact me on WhatsApp about this</span>
+          </label>
+        )}
         {error && (
           <p role="alert" className="text-sm text-destructive md:col-span-2">
             {error}

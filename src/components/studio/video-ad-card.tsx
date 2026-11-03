@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Clapperboard, Film, LoaderCircle, Pencil, Play, Trash2, TriangleAlert } from "lucide-react";
+import { Check, Clapperboard, Film, LoaderCircle, Pencil, Play, Send, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog, Field, GlassPanel, ToneBadge } from "@/components/ui-kit";
+import { PublishDialog } from "@/components/studio/publish-dialog";
 import { useApprove, useDiscard } from "@/hooks/use-creative";
 import {
   useApproveStoryboard,
@@ -266,7 +267,9 @@ function Finished({ briefId, version, canApprove, archived }: { briefId: string;
   const discard = useDiscard(briefId);
   const revise = useReviseVideoAd(briefId);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [posting, setPosting] = useState(false);
   const ready = version.status === "ready";
+  const caption = [version.copy?.headline, version.copy?.subline, version.copy?.cta].filter(Boolean).join("\n");
   return (
     <div className="space-y-3">
       {video ? (
@@ -288,6 +291,11 @@ function Finished({ briefId, version, canApprove, archived }: { briefId: string;
               <Check /> Approve
             </Button>
           )}
+          {version.status === "approved" && video && canApprove && (
+            <Button onClick={() => setPosting(true)}>
+              <Send /> Post
+            </Button>
+          )}
           <Button variant="outline" disabled={revise.isPending} onClick={() => revise.mutate(version.id)}>
             <Pencil /> Change a scene
           </Button>
@@ -298,6 +306,7 @@ function Finished({ briefId, version, canApprove, archived }: { briefId: string;
           )}
         </div>
       )}
+      {video && posting && <PublishDialog open={posting} onOpenChange={setPosting} assetId={video.id} defaultCaption={caption} />}
       <ConfirmDialog
         open={confirmDiscard}
         onOpenChange={setConfirmDiscard}

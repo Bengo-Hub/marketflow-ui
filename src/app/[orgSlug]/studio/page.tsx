@@ -3,9 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ImageIcon, Plus } from "lucide-react";
+import { CalendarDays, ImageIcon, Plus } from "lucide-react";
 import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CapsuleTabs, EmptyState, ErrorState, ListTable, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { NewAdForm } from "@/components/studio/new-ad-form";
@@ -73,9 +73,14 @@ export default function StudioPage() {
         title="Studio"
         description="Make posters for your products and promotions, review them, and keep the ones you approve."
         actions={
-          <Button onClick={() => setCreating(true)}>
-            <Plus /> New ad
-          </Button>
+          <>
+            <Link href={`/${orgSlug}/studio/calendar`} className={buttonVariants({ variant: "outline" })}>
+              <CalendarDays /> Calendar
+            </Link>
+            <Button onClick={() => setCreating(true)}>
+              <Plus /> New ad
+            </Button>
+          </>
         }
       />
 
