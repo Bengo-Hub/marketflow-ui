@@ -263,6 +263,32 @@ export default function MarketingContextPage() {
           />
         </div>
       </GlassPanel>
+      {settingsQ.isSuccess && <CompetitorsPanel key={(settingsQ.data?.competitors ?? []).join("|")} saved={settingsQ.data?.competitors ?? []} orgSlug={orgSlug} />}
     </div>
+  );
+}
+
+/** Competitors the weekly ad scan looks up; their long-running ads teach the Ads Specialist. */
+function CompetitorsPanel({ saved, orgSlug }: { saved: string[]; orgSlug: string }) {
+  const qc = useQueryClient();
+  const [text, setText] = useState(saved.join("\n"));
+  const save = useMutation({
+    mutationFn: () =>
+      marketingOsApi.saveSettings({ competitors: text.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 10) }),
+    onSuccess: (s) => {
+      qc.setQueryData(["os-settings", orgSlug], s);
+      toast.success("Competitors saved. They are scanned once a week.");
+    },
+    onError: (e) => toast.error(apiError(e, "Could not save the competitors")),
+  });
+  return (
+    <GlassPanel title="Competitors" description="Up to 10, one per line: a business name, its website, or its Google advertiser id. Each week we look for their ads that have run longest.">
+      <div className="space-y-3">
+        <Textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={"rival.co.ke\nAnother Shop"} aria-label="Competitors" />
+        <Button size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? "Saving..." : "Save competitors"}
+        </Button>
+      </div>
+    </GlassPanel>
   );
 }

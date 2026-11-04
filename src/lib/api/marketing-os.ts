@@ -50,6 +50,8 @@ export interface OSSettings {
   /** Social inbox auto reply (Sprint 22): answers buyer comments and DMs with inbox_reply_text. */
   inbox_auto_reply?: boolean;
   inbox_reply_text?: string;
+  /** Competitor names, domains or Google advertiser ids for the weekly ad scan (Sprint 24). */
+  competitors?: string[];
 }
 
 export interface TaskSpec {
