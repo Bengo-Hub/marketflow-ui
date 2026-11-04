@@ -47,6 +47,9 @@ export interface BrandContext {
 
 export interface OSSettings {
   daily_brief: boolean;
+  /** Social inbox auto reply (Sprint 22): answers buyer comments and DMs with inbox_reply_text. */
+  inbox_auto_reply?: boolean;
+  inbox_reply_text?: string;
 }
 
 export interface TaskSpec {
@@ -264,5 +267,5 @@ export const marketingOsApi = {
   saveBrandContext: (bc: BrandContext) =>
     apiClient.put<BrandContext>("/api/v1/tenant/marketing-context", bc).then((r) => r.data),
   settings: () => apiClient.get<OSSettings>("/api/v1/tenant/os-settings").then((r) => r.data),
-  saveSettings: (s: OSSettings) => apiClient.put<OSSettings>("/api/v1/tenant/os-settings", s).then((r) => r.data),
+  saveSettings: (s: Partial<OSSettings>) => apiClient.put<OSSettings>("/api/v1/tenant/os-settings", s).then((r) => r.data),
 };

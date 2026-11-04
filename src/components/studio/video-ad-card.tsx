@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Clapperboard, Film, LoaderCircle, Pencil, Play, Send, Trash2, TriangleAlert } from "lucide-react";
+import { Check, Clapperboard, Film, LoaderCircle, Pencil, Play, Rocket, Send, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog, Field, GlassPanel, ToneBadge } from "@/components/ui-kit";
+import { BoostDialog } from "@/components/studio/boost-dialog";
 import { PublishDialog } from "@/components/studio/publish-dialog";
 import { useApprove, useDiscard } from "@/hooks/use-creative";
 import {
@@ -268,6 +269,7 @@ function Finished({ briefId, version, canApprove, archived }: { briefId: string;
   const revise = useReviseVideoAd(briefId);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [boosting, setBoosting] = useState(false);
   const ready = version.status === "ready";
   const caption = [version.copy?.headline, version.copy?.subline, version.copy?.cta].filter(Boolean).join("\n");
   return (
@@ -296,6 +298,11 @@ function Finished({ briefId, version, canApprove, archived }: { briefId: string;
               <Send /> Post
             </Button>
           )}
+          {version.status === "approved" && video && canApprove && (
+            <Button variant="outline" onClick={() => setBoosting(true)}>
+              <Rocket /> Boost
+            </Button>
+          )}
           <Button variant="outline" disabled={revise.isPending} onClick={() => revise.mutate(version.id)}>
             <Pencil /> Change a scene
           </Button>
@@ -307,6 +314,7 @@ function Finished({ briefId, version, canApprove, archived }: { briefId: string;
         </div>
       )}
       {video && posting && <PublishDialog open={posting} onOpenChange={setPosting} assetId={video.id} defaultCaption={caption} />}
+      {video && boosting && <BoostDialog open={boosting} onOpenChange={setBoosting} assetId={video.id} defaultText={caption} />}
       <ConfirmDialog
         open={confirmDiscard}
         onOpenChange={setConfirmDiscard}
