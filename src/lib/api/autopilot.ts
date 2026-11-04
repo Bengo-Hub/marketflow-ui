@@ -49,7 +49,16 @@ export interface AgentTemplate {
   version: number;
 }
 
+export interface AgentRun {
+  id: string;
+  status: string;
+  error_message?: string;
+  trace?: { skip?: string };
+}
+
 export const autopilotApi = {
+  latestRun: (id: string) =>
+    apiClient.get<{ data: AgentRun[] | null }>(`${base}/custom/${id}/runs`, { params: { limit: 1 } }).then((r) => r.data.data?.[0] ?? null),
   /** The tenant's agents that are ad autopilots. */
   list: () =>
     apiClient

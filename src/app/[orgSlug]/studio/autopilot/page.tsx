@@ -107,8 +107,10 @@ export default function AutopilotPage() {
 }
 
 function AgentCard({ agent: a, onEdit, onChange }: { agent: AutopilotAgent; onEdit: () => void; onChange: () => void }) {
+  const { orgSlug } = useParams<{ orgSlug: string }>();
   const cfg = a.metadata?.autopilot;
   const offerings = a.metadata?.autopilot_offerings ?? [];
+  const latest = useQuery({ queryKey: [...KEY, a.id, "latest-run"], queryFn: () => autopilotApi.latestRun(a.id), enabled: !!cfg });
   const versions = a.metadata?.versions ?? [];
   const setActive = useMutation({
     mutationFn: (on: boolean) => autopilotApi.setActive(a.id, on),
@@ -144,13 +146,26 @@ function AgentCard({ agent: a, onEdit, onChange }: { agent: AutopilotAgent; onEd
               </p>
             )}
             {a.last_run_at && <p className="mt-1 text-xs text-muted-foreground">Last run {when.format(new Date(a.last_run_at))}</p>}
+            {latest.data?.status === "skipped" && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                The last draft was skipped.{" "}
+                {latest.data.trace?.skip === "credits" ? (
+                  <>
+                    Your AI credits are low. <Link href={`/${orgSlug}/settings/billing`} className="font-medium text-primary hover:underline">Buy credits</Link> and it runs again on its next schedule.
+                  </>
+                ) : (
+                  "It runs again on its next schedule."
+                )}
+              </p>
+            )}
           </div>
-          <Switch checked={a.is_active} disabled={setActive.isPending} onCheckedChange={(v: boolean) => setActive.mutate(v)} aria-label={`Switch ${a.name} on or off`} />
+          <Switch checked={a.is_active} disabled={setActive.isPending || !cfg} onCheckedChange={(v: boolean) => setActive.mutate(v)} aria-label={`Switch ${a.name} on or off`} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" disabled={run.isPending} onClick={() => run.mutate()}>
+          <Button size="sm" variant="outline" disabled={run.isPending || !cfg} onClick={() => run.mutate()}>
             <Play /> Draft one now
           </Button>
+          {!cfg && <span className="text-xs text-muted-foreground">Open Settings to choose products first.</span>}
           <Button size="sm" variant="ghost" onClick={onEdit}>
             Settings
           </Button>
