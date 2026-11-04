@@ -60,6 +60,9 @@ export interface Boost {
 
 export const adsApi = {
   accounts: () => apiClient.get<{ data: AdAccount[] }>(`${base}/accounts`).then((r) => r.data.data),
+  /** A KES ad account (Nairobi time) in the client's business portfolio, so Meta offers M-Pesa. */
+  createKES: (b: { page_connected_id?: string; business_id?: string; name?: string }) =>
+    apiClient.post<AdAccount>(`${base}/accounts/kes`, b).then((r) => r.data),
   quote: (b: { ad_account_connected_id: string; budget: number; days: number }) => apiClient.post<AdQuote>(`${base}/quote`, b).then((r) => r.data),
   boost: (b: BoostInput) => apiClient.post<Boost>(`${base}/boosts`, b).then((r) => r.data),
   get: (id: string) => apiClient.get<Boost>(`${base}/boosts/${id}`).then((r) => r.data),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -44,6 +45,17 @@ export function BoostDialog({ open, onOpenChange, assetId, defaultText }: { open
   const launch = useLaunchBoost();
   const boost = useBoost(boostID);
   const paid = useBoostAction(adsApi.paid, "Thanks, we will start once Meta confirms", "Could not update the boost");
+  const qc = useQueryClient();
+  const createKES = useMutation({
+    mutationFn: () => adsApi.createKES({ page_connected_id: pg || undefined }),
+    onSuccess: (a) => {
+      setAccount(a.connected_account_id);
+      void qc.invalidateQueries({ queryKey: ["ad-accounts"] });
+    },
+    onError: (e) => setError(apiErrorMessage(e, "Could not create the KES ad account")),
+  });
+  // M-Pesa on Meta is offered only on KES accounts.
+  const hasKES = (accounts.data ?? []).some((a) => a.active && a.currency === "KES");
 
   const q = quote.data;
   const blocked = !q || (q.blockers?.length ?? 0) > 0;
@@ -117,6 +129,14 @@ export function BoostDialog({ open, onOpenChange, assetId, defaultText }: { open
               <Textarea id="boost-text" rows={3} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} />
             </Field>
 
+            {accounts.isSuccess && !hasKES && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3 text-sm">
+                <span className="flex-1">To pay Meta with M-Pesa you need a KES ad account.</span>
+                <Button size="sm" variant="outline" disabled={createKES.isPending} onClick={() => createKES.mutate()}>
+                  {createKES.isPending ? "Creating..." : "Create a KES ad account"}
+                </Button>
+              </div>
+            )}
             {quote.isError && <p className="text-sm text-destructive">{apiErrorMessage(quote.error, "Could not check the ad account")}</p>}
             {q && (
               <div className="space-y-1 rounded-lg border border-border p-3 text-sm">
