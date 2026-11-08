@@ -289,13 +289,28 @@ const PLATFORM_ITEMS: Record<ReferencePlatform, string> = { meta: "Facebook or I
 const NEW_AD: ReferenceAd = { url: "", platform: "meta", notes: "" };
 
 /** Searches public reviews of similar businesses. The owner adds only the themes they agree with. */
-function ComplaintFinder({ added, full, onAdd }: { added: string[]; full: boolean; onAdd: (text: string) => void }) {
+function ComplaintFinder({ added, full, onAdd, orgSlug }: { added: string[]; full: boolean; onAdd: (text: string) => void; orgSlug: string }) {
+  const qc = useQueryClient();
   const [query, setQuery] = useState("");
   const find = useMutation({ mutationFn: () => marketingOsApi.findComplaints(query.trim()) });
   const themes = find.data?.themes ?? [];
+  const places = find.data?.places ?? [];
+  // Similar businesses from the same search, saved straight onto the competitor list. The website
+  // is preferred: the weekly ad scan matches advertisers by domain more reliably than by name.
+  const settingsQ = useQuery({ queryKey: ["os-settings", orgSlug], queryFn: marketingOsApi.settings });
+  const tracked = settingsQ.data?.competitors ?? [];
+  const track = useMutation({
+    mutationFn: (entry: string) => marketingOsApi.saveSettings({ competitors: [...tracked, entry].slice(0, MAX_COMPETITORS) }),
+    onSuccess: (s) => {
+      qc.setQueryData(["os-settings", orgSlug], s);
+      toast.success("Added to your competitors. The weekly scan will look for their ads.");
+    },
+    onError: (e) => toast.error(apiError(e, "Could not add the competitor")),
+  });
+  const entryFor = (p: { name: string; website?: string }) => (p.website ? new URL(p.website).hostname.replace(/^www\./, "") : p.name);
   return (
     <div className="space-y-3 rounded-lg border border-border p-3">
-      <Field label="Find what customers complain about" htmlFor="mf-find-complaints" hint="Describe your kind of business and town. We read public reviews of similar businesses. A new search uses 1 AI credit.">
+      <Field label="Find what customers complain about" htmlFor="mf-find-complaints" hint="Describe your kind of business and town. We read public reviews of similar businesses and list them so you can track your competitors. A new search uses 1 AI credit.">
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input id="mf-find-complaints" className="min-w-0 flex-1" maxLength={120} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Coding classes for kids in Kisumu" />
           <Button size="sm" variant="outline" className="h-10" disabled={find.isPending || !query.trim()} onClick={() => find.mutate()}>
@@ -329,9 +344,42 @@ function ComplaintFinder({ added, full, onAdd }: { added: string[]; full: boolea
           })}
         </ul>
       )}
+      {places.length > 0 && (
+        <div className="space-y-2 border-t border-border pt-3">
+          <p className="text-sm font-medium">Similar businesses nearby</p>
+          <p className="text-xs text-muted-foreground">Track the ones you compete with, and the weekly scan looks for their longest running ads.</p>
+          <ul className="space-y-1">
+            {places.map((p) => {
+              const entry = entryFor(p);
+              const isTracked = tracked.some((t) => t.toLowerCase() === entry.toLowerCase());
+              return (
+                <li key={`${p.name}-${entry}`} className="flex items-center justify-between gap-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{p.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {[p.website ? entry : null, p.rating ? `${p.rating.toFixed(1)} stars` : null, p.reviews ? `${p.reviews} reviews` : null].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0"
+                    disabled={isTracked || track.isPending || tracked.length >= MAX_COMPETITORS}
+                    onClick={() => track.mutate(entry)}
+                  >
+                    {isTracked ? <Check /> : <Plus />} {isTracked ? "Tracked" : "Track"}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
+
+const MAX_COMPETITORS = 10;
 
 /** Find, Flip, Fix inputs: ads that already sell in this market and what customers complain about. */
 function MarketResearchPanel({ savedAds, savedComplaints, orgSlug }: { savedAds: ReferenceAd[]; savedComplaints: string[]; orgSlug: string }) {
@@ -405,6 +453,7 @@ function MarketResearchPanel({ savedAds, savedComplaints, orgSlug }: { savedAds:
           </Button>
         </fieldset>
         <ComplaintFinder
+          orgSlug={orgSlug}
           added={complaints}
           full={complaints.length >= MAX_COMPLAINTS}
           onAdd={(text) => setComplaints((list) => (list.includes(text) ? list : [...list, text]))}
@@ -434,7 +483,7 @@ function CompetitorsPanel({ saved, orgSlug }: { saved: string[]; orgSlug: string
   const [text, setText] = useState(saved.join("\n"));
   const save = useMutation({
     mutationFn: () =>
-      marketingOsApi.saveSettings({ competitors: text.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 10) }),
+      marketingOsApi.saveSettings({ competitors: text.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, MAX_COMPETITORS) }),
     onSuccess: (s) => {
       qc.setQueryData(["os-settings", orgSlug], s);
       toast.success("Competitors saved. They are scanned once a week.");

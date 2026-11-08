@@ -70,6 +70,8 @@ export interface ComplaintReport {
   businesses: number;
   low_reviews: number;
   themes: ComplaintTheme[] | null;
+  /** Similar businesses the search found, offered as competitors. */
+  places?: { name: string; website?: string; rating?: number; reviews?: number }[];
   cached?: boolean;
 }
 

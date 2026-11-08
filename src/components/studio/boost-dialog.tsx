@@ -23,7 +23,20 @@ const money = (n: number, cur: string) => `${cur} ${n.toLocaleString("en-KE")}`;
  * only launch credits. The ad is created paused and goes live after Meta's review and once the
  * budget is in place.
  */
-export function BoostDialog({ open, onOpenChange, assetId, defaultText }: { open: boolean; onOpenChange: (o: boolean) => void; assetId: string; defaultText?: string }) {
+export function BoostDialog({
+  open,
+  onOpenChange,
+  assetId,
+  defaultText,
+  defaultLink,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  assetId: string;
+  defaultText?: string;
+  /** The ad's lead page with UTM tags; the "Visit a link" objective starts with it. */
+  defaultLink?: string;
+}) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const accounts = useAdAccounts(open);
   const pages = usePublishAccounts(open);
@@ -34,7 +47,7 @@ export function BoostDialog({ open, onOpenChange, assetId, defaultText }: { open
   const [days, setDays] = useState(7);
   const [objective, setObjective] = useState<Objective>("whatsapp");
   const [message, setMessage] = useState(defaultText ?? "");
-  const [link, setLink] = useState("");
+  const [link, setLink] = useState(defaultLink ?? "");
   const [error, setError] = useState<string | null>(null);
   const [boostID, setBoostID] = useState<string | null>(null);
 
@@ -113,7 +126,7 @@ export function BoostDialog({ open, onOpenChange, assetId, defaultText }: { open
               ]}
             />
             {objective === "traffic" && (
-              <Field label="Link" htmlFor="boost-link">
+              <Field label="Link" htmlFor="boost-link" hint={defaultLink && link === defaultLink ? "This ad's own lead page, tagged so you can see which leads it brings." : undefined}>
                 <Input id="boost-link" type="url" placeholder="https://" value={link} onChange={(e) => setLink(e.target.value)} />
               </Field>
             )}

@@ -134,7 +134,13 @@ export default function AdPage() {
               {live.map((v) =>
                 v.kind === "video_ad" ? (
                   <div key={v.id} className="sm:col-span-2">
-                    <VideoAdCard briefId={b.id} version={v} canApprove={canApprove} archived={archived} />
+                    <VideoAdCard
+                      briefId={b.id}
+                      version={v}
+                      canApprove={canApprove}
+                      archived={archived}
+                      funnelSlug={typeof b.metadata?.funnel_slug === "string" ? b.metadata.funnel_slug : undefined}
+                    />
                   </div>
                 ) : (
                   <VersionCard key={v.id} briefId={b.id} version={v} canApprove={canApprove} archived={archived} onRemake={() => setBase(v)} />

@@ -20,12 +20,26 @@ import {
 import { kes } from "@/lib/api/billing";
 import { IN_PROGRESS, mainAsset, STATUS_LABEL, type CreativeVersion } from "@/lib/api/creative";
 import { SHOT_LABEL, VIDEO_KINDS, videoParts, type EndCard, type ScriptScene, type Shot, type VideoScript } from "@/lib/api/video-ads";
+import { adLeadUrl } from "@/lib/urls";
 
 const SHOTS: Shot[] = ["presenter", "product_clip", "b_roll", "owner_footage", "end_card"];
 const PRESENTER_LIMIT = 200;
 
 /** One video ad version: its script, storyboard, price, progress and the finished video. */
-export function VideoAdCard({ briefId, version, canApprove, archived }: { briefId: string; version: CreativeVersion; canApprove: boolean; archived: boolean }) {
+export function VideoAdCard({
+  briefId,
+  version,
+  canApprove,
+  archived,
+  funnelSlug,
+}: {
+  briefId: string;
+  version: CreativeVersion;
+  canApprove: boolean;
+  archived: boolean;
+  /** The ad's own lead page; posts and boosts link to it by default. */
+  funnelSlug?: string;
+}) {
   const parts = videoParts(version);
   const kindLabel = VIDEO_KINDS.find((k) => k.value === parts.kind)?.label ?? "Video";
   const busy = IN_PROGRESS.includes(version.status);
@@ -53,7 +67,7 @@ export function VideoAdCard({ briefId, version, canApprove, archived }: { briefI
       {version.error && <p className="mb-3 text-sm text-destructive">{version.error}</p>}
       {version.status === "script_ready" && !archived && <ScriptReview briefId={briefId} version={version} />}
       {(version.status === "ready" || version.status === "approved") && (
-        <Finished briefId={briefId} version={version} canApprove={canApprove} archived={archived} />
+        <Finished briefId={briefId} version={version} canApprove={canApprove} archived={archived} funnelSlug={funnelSlug} />
       )}
     </GlassPanel>
   );
@@ -262,7 +276,19 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
 }
 
 /** The finished video: the player, approve, change scenes, discard. */
-function Finished({ briefId, version, canApprove, archived }: { briefId: string; version: CreativeVersion; canApprove: boolean; archived: boolean }) {
+function Finished({
+  briefId,
+  version,
+  canApprove,
+  archived,
+  funnelSlug,
+}: {
+  briefId: string;
+  version: CreativeVersion;
+  canApprove: boolean;
+  archived: boolean;
+  funnelSlug?: string;
+}) {
   const video = mainAsset(version);
   const approve = useApprove(briefId);
   const discard = useDiscard(briefId);
@@ -272,6 +298,8 @@ function Finished({ briefId, version, canApprove, archived }: { briefId: string;
   const [boosting, setBoosting] = useState(false);
   const ready = version.status === "ready";
   const caption = [version.copy?.headline, version.copy?.subline, version.copy?.cta].filter(Boolean).join("\n");
+  // A post ends with the ad's lead page, tagged so its leads show they came from this ad.
+  const postCaption = funnelSlug ? `${caption}\n\n${adLeadUrl(funnelSlug, briefId, "social", "social")}` : caption;
   return (
     <div className="space-y-3">
       {video ? (
@@ -313,8 +341,16 @@ function Finished({ briefId, version, canApprove, archived }: { briefId: string;
           )}
         </div>
       )}
-      {video && posting && <PublishDialog open={posting} onOpenChange={setPosting} assetId={video.id} defaultCaption={caption} />}
-      {video && boosting && <BoostDialog open={boosting} onOpenChange={setBoosting} assetId={video.id} defaultText={caption} />}
+      {video && posting && <PublishDialog open={posting} onOpenChange={setPosting} assetId={video.id} defaultCaption={postCaption} />}
+      {video && boosting && (
+        <BoostDialog
+          open={boosting}
+          onOpenChange={setBoosting}
+          assetId={video.id}
+          defaultText={caption}
+          defaultLink={funnelSlug ? adLeadUrl(funnelSlug, briefId, "facebook", "paid") : undefined}
+        />
+      )}
       <ConfirmDialog
         open={confirmDiscard}
         onOpenChange={setConfirmDiscard}

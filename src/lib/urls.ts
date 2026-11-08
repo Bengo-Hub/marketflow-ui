@@ -24,6 +24,15 @@ export function funnelUrl(slug: string): string {
   return `${APP_URL}/f/${encodeURIComponent(slug)}`;
 }
 
+/**
+ * An ad's lead page with UTM tags, so each lead shows which ad and channel brought it. The page
+ * forwards utm_* with the lead.
+ */
+export function adLeadUrl(slug: string, briefId: string, source: string, medium: "paid" | "social"): string {
+  const q = new URLSearchParams({ utm_source: source, utm_medium: medium, utm_campaign: `ad-${briefId.slice(0, 8)}` });
+  return `${funnelUrl(slug)}?${q}`;
+}
+
 export function shortLinkUrl(code: string): string {
   return `${APP_URL}/s/${encodeURIComponent(code)}`;
 }
