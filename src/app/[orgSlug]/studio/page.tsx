@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Bot, CalendarDays, ImageIcon, Plus } from "lucide-react";
+import { Bot, CalendarDays, Compass, ImageIcon, Plus } from "lucide-react";
 import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -74,6 +74,9 @@ export default function StudioPage() {
         description="Make posters for your products and promotions, review them, and keep the ones you approve."
         actions={
           <>
+            <Link href={`/${orgSlug}/studio/research`} className={buttonVariants({ variant: "outline" })}>
+              <Compass /> Research
+            </Link>
             <Link href={`/${orgSlug}/studio/autopilot`} className={buttonVariants({ variant: "outline" })}>
               <Bot /> Autopilot
             </Link>

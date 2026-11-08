@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { apiError, marketingOsApi } from "@/lib/api/marketing-os";
@@ -20,7 +20,8 @@ export default function MarketingTeamPage() {
   const params = useParams();
   const orgSlug = params?.orgSlug as string;
   const [tab, setTab] = useState("ask");
-  const [draft, setDraft] = useState("");
+  // The Research page opens this with a brief ready to review. Nothing runs until the owner sends it.
+  const [draft, setDraft] = useState(useSearchParams()?.get("brief") ?? "");
 
   const teamQ = useQuery({ queryKey: ["os-team", orgSlug], queryFn: marketingOsApi.team, staleTime: 60_000 });
   const members = teamQ.data?.members ?? [];
