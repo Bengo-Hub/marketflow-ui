@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, CircleAlert, ExternalLink, Save, UserCircle } from "lucide-react";
+import { useBrandDraft } from "@/hooks/use-onboarding";
+import type { BrandDraft } from "@/lib/api/onboarding";
+import { CheckCircle2, CircleAlert, ExternalLink, Save, Sparkles, UserCircle } from "lucide-react";
 import { PhoneInputField, CountrySelect } from "@bengo-hub/shared-ui-lib/contact";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,8 +34,10 @@ const isHttp = (v?: string) => !v || /^https?:\/\/\S+$/i.test(v.trim());
 
 export default function ProfileSettingsPage() {
   const { data, isLoading, error, refetch, dataUpdatedAt } = useTenantProfile();
+  // A failed or slow draft only means nothing is prefilled; it never blocks the form for long.
+  const draft = useBrandDraft(true);
   if (error) return <ErrorState message="Could not load your profile." onRetry={() => void refetch()} />;
-  if (isLoading || !data) {
+  if (isLoading || !data || draft.isLoading) {
     return (
       <div className="mx-auto max-w-4xl space-y-4" aria-busy>
         {[0, 1, 2].map((i) => (
@@ -43,7 +47,7 @@ export default function ProfileSettingsPage() {
     );
   }
   // Remount the form when fresh data arrives, so its fields start from the saved values.
-  return <ProfileForm key={dataUpdatedAt} data={data} />;
+  return <ProfileForm key={dataUpdatedAt} data={data} draft={draft.data} />;
 }
 
 function initialMeta(data: TenantProfile): Meta {
@@ -64,17 +68,39 @@ function initialMeta(data: TenantProfile): Meta {
   };
 }
 
-function ProfileForm({ data }: { data: TenantProfile }) {
+/**
+ * Fills only the empty fields from what the business already has: the account (auth-api, cached
+ * in marketflow-api), the brand context, catalogue and website. Nothing is saved until the owner
+ * saves, and the page says which fields were filled.
+ */
+function prefillFrom(data: TenantProfile, draft?: BrandDraft) {
+  const meta = initialMeta(data);
+  let whatsapp = data.whatsapp_number ?? "";
+  const filled: string[] = [];
+  const p = draft?.profile ?? {};
+  const positioning = draft?.suggested?.positioning?.trim();
+  if (!meta.bio && positioning) (meta.bio = positioning), filled.push("Bio");
+  if (!meta.logo_url && p.logo_url) (meta.logo_url = p.logo_url), filled.push("Logo");
+  if (!meta.contact_email && p.contact_email) (meta.contact_email = p.contact_email), filled.push("Email");
+  if (!meta.brand_primary_color && p.brand_primary_color) (meta.brand_primary_color = p.brand_primary_color), filled.push("Brand colour");
+  if (!meta.socials.website && p.website) (meta.socials = { ...meta.socials, website: p.website }), filled.push("Website");
+  if (!whatsapp && p.whatsapp_number) (whatsapp = p.whatsapp_number), filled.push("WhatsApp number");
+  return { meta, whatsapp, filled };
+}
+
+function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft }) {
   const save = useUpdateTenantProfile();
+  const [prefill] = useState(() => prefillFrom(data, draft));
+  const filled = prefill.filled;
   const [form, setForm] = useState<Required<Omit<TenantProfileUpdate, "metadata">>>({
     name: data.name ?? "",
-    whatsapp_number: data.whatsapp_number ?? "",
+    whatsapp_number: prefill.whatsapp,
     fbo_distrib_id: data.fbo_distrib_id ?? "",
     flp_store_code: data.flp_store_code ?? "",
     flp_language: data.flp_language ?? "",
     country: data.country ?? "",
   });
-  const [meta, setMeta] = useState<Meta>(() => initialMeta(data));
+  const [meta, setMeta] = useState<Meta>(prefill.meta);
 
   const isFLP = data.business_type === "flp";
   const errors = useMemo(() => {
@@ -139,6 +165,15 @@ function ProfileForm({ data }: { data: TenantProfile }) {
         }
       />
 
+      {filled.length > 0 && (
+        <div className="flex items-start gap-3 rounded-2xl border border-info/25 bg-info/10 p-4 text-sm">
+          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-info" />
+          <p className="text-foreground">
+            We filled {filled.join(", ")} from your account and business data. Check {filled.length > 1 ? "them" : "it"}, then save.
+          </p>
+        </div>
+      )}
+
       {missing.length > 0 ? (
         <div className="flex items-start gap-3 rounded-2xl border border-warning/25 bg-warning/10 p-4 text-sm">
           <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
@@ -160,7 +195,7 @@ function ProfileForm({ data }: { data: TenantProfile }) {
             <Input id="pf-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </Field>
           <Field label="Tagline" hint="A few words under your name." htmlFor="pf-tagline">
-            <Input id="pf-tagline" maxLength={80} value={meta.tagline ?? ""} onChange={(e) => setM({ tagline: e.target.value })} placeholder={isFLP ? "Forever Business Owner" : "Bridal and events makeup in Nairobi"} />
+            <Input id="pf-tagline" maxLength={80} value={meta.tagline ?? ""} onChange={(e) => setM({ tagline: e.target.value })} placeholder={isFLP ? "For example: Forever Business Owner" : "For example: Bridal and events makeup in Nairobi"} />
           </Field>
           <Field label="Bio" hint="Two or three sentences about you and what you offer." className="md:col-span-2" htmlFor="pf-bio">
             <Textarea id="pf-bio" rows={3} value={meta.bio ?? ""} onChange={(e) => setM({ bio: e.target.value })} />

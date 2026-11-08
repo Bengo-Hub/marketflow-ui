@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Archive, ArchiveRestore, ArrowLeft, ImageIcon, TriangleAlert } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, ExternalLink, ImageIcon, TriangleAlert } from "lucide-react";
+import { funnelUrl } from "@/lib/urls";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { PosterForm } from "@/components/studio/poster-form";
@@ -70,9 +71,16 @@ export default function AdPage() {
           </span>
         }
         actions={
-          <Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ status: archived ? "active" : "archived" })}>
-            {archived ? <ArchiveRestore /> : <Archive />} {archived ? "Restore" : "Archive"}
-          </Button>
+          <>
+            {typeof b.metadata?.funnel_slug === "string" && (
+              <a href={funnelUrl(b.metadata.funnel_slug)} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" })}>
+                <ExternalLink /> Lead page
+              </a>
+            )}
+            <Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ status: archived ? "active" : "archived" })}>
+              {archived ? <ArchiveRestore /> : <Archive />} {archived ? "Restore" : "Archive"}
+            </Button>
+          </>
         }
       />
 
