@@ -19,6 +19,14 @@ export interface KbEntry {
   /** True once the assistant has indexed the latest content. */
   embedded: boolean;
   tags?: string[];
+  /** Kept in step with the business's own catalogue when `source` is set. */
+  metadata?: {
+    source?: string;
+    /** The item is gone or no longer offered, so the assistant no longer uses this entry. */
+    stale?: boolean;
+    /** The catalogue changed after the owner wrote this; the owner should check it. */
+    may_be_outdated?: boolean;
+  } | null;
   updated_at?: string;
   created_at: string;
 }

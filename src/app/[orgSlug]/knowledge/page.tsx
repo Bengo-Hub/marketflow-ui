@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { BookOpen, CheckCircle2, FileUp, Loader2, Lock, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Archive, BookOpen, CheckCircle2, FileUp, Loader2, Lock, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useTenantBranding } from "@bengo-hub/shared-ui-lib/tenant";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
 import { Button } from "@/components/ui/button";
@@ -133,14 +133,21 @@ export default function KnowledgePage() {
                     <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{e.content}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       <ToneBadge>{label(e.category)}</ToneBadge>
-                      {e.embedded ? (
+                      {e.metadata?.stale ? (
+                        <ToneBadge><Archive /> No longer offered</ToneBadge>
+                      ) : e.embedded ? (
                         <ToneBadge tone="success"><CheckCircle2 /> The assistant knows this</ToneBadge>
                       ) : (
                         <ToneBadge tone="warning"><Loader2 className="animate-spin" /> Learning</ToneBadge>
                       )}
+                      {e.metadata?.may_be_outdated && <ToneBadge tone="warning"><AlertTriangle /> May be outdated</ToneBadge>}
+                      {e.metadata?.source && !e.metadata.stale && <ToneBadge tone="info"><RefreshCw /> From your catalogue</ToneBadge>}
                       {shared && <ToneBadge tone="info"><Lock /> Shared by Codevertex</ToneBadge>}
                       {(e.tags ?? []).slice(0, 3).map((t) => <span key={t} className="text-xs text-muted-foreground">#{t}</span>)}
                     </div>
+                    {e.metadata?.may_be_outdated && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">Your catalogue changed after this was written. Open it and update the details if needed.</p>
+                    )}
                   </div>
                   {!shared && (
                     <div className="flex shrink-0 gap-1">
