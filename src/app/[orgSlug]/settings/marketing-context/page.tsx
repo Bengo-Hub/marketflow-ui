@@ -288,6 +288,51 @@ const PLATFORM_ITEMS: Record<ReferencePlatform, string> = { meta: "Facebook or I
 
 const NEW_AD: ReferenceAd = { url: "", platform: "meta", notes: "" };
 
+/** Searches public reviews of similar businesses. The owner adds only the themes they agree with. */
+function ComplaintFinder({ added, full, onAdd }: { added: string[]; full: boolean; onAdd: (text: string) => void }) {
+  const [query, setQuery] = useState("");
+  const find = useMutation({ mutationFn: () => marketingOsApi.findComplaints(query.trim()) });
+  const themes = find.data?.themes ?? [];
+  return (
+    <div className="space-y-3 rounded-lg border border-border p-3">
+      <Field label="Find what customers complain about" htmlFor="mf-find-complaints" hint="Describe your kind of business and town. We read public reviews of similar businesses. A new search uses 1 AI credit.">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input id="mf-find-complaints" className="min-w-0 flex-1" maxLength={120} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Coding classes for kids in Kisumu" />
+          <Button size="sm" variant="outline" className="h-10" disabled={find.isPending || !query.trim()} onClick={() => find.mutate()}>
+            {find.isPending ? "Searching..." : "Search reviews"}
+          </Button>
+        </div>
+      </Field>
+      {find.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {apiError(find.error, "The search failed. Try again later.")}
+        </p>
+      )}
+      {find.isSuccess && themes.length === 0 && <p className="text-sm text-muted-foreground">No low reviews found for that search. Try a broader description.</p>}
+      {themes.length > 0 && (
+        <ul className="space-y-2">
+          {themes.map((t) => {
+            const inList = added.includes(t.description);
+            return (
+              <li key={t.key} className="flex items-start justify-between gap-3 text-sm">
+                <div className="min-w-0">
+                  <p className="font-medium">
+                    {t.description} <span className="font-normal text-muted-foreground">({t.count})</span>
+                  </p>
+                  {t.example && <p className="text-xs text-muted-foreground">&ldquo;{t.example}&rdquo;</p>}
+                </div>
+                <Button size="sm" variant="ghost" className="shrink-0" disabled={inList || full} onClick={() => onAdd(t.description)}>
+                  {inList ? <Check /> : <Plus />} {inList ? "Added" : "Add"}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** Find, Flip, Fix inputs: ads that already sell in this market and what customers complain about. */
 function MarketResearchPanel({ savedAds, savedComplaints, orgSlug }: { savedAds: ReferenceAd[]; savedComplaints: string[]; orgSlug: string }) {
   const qc = useQueryClient();
@@ -359,6 +404,11 @@ function MarketResearchPanel({ savedAds, savedComplaints, orgSlug }: { savedAds:
             <Plus /> Add a reference ad
           </Button>
         </fieldset>
+        <ComplaintFinder
+          added={complaints}
+          full={complaints.length >= MAX_COMPLAINTS}
+          onAdd={(text) => setComplaints((list) => (list.includes(text) ? list : [...list, text]))}
+        />
         <Field label="What customers complain about" htmlFor="mf-complaints" hint="One complaint per item, in your customers' words, for example about other shops or the market in general.">
           <ListEditor
             id="mf-complaints"

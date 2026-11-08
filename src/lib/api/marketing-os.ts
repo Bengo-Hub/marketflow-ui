@@ -58,6 +58,21 @@ export interface OSSettings {
   customer_complaints?: string[];
 }
 
+export interface ComplaintTheme {
+  key: string;
+  description: string;
+  count: number;
+  example?: string;
+}
+
+export interface ComplaintReport {
+  query: string;
+  businesses: number;
+  low_reviews: number;
+  themes: ComplaintTheme[] | null;
+  cached?: boolean;
+}
+
 export type ReferencePlatform = "meta" | "tiktok" | "youtube" | "google" | "other";
 
 export interface ReferenceAd {
@@ -280,6 +295,9 @@ export const marketingOsApi = {
   brandContext: () => apiClient.get<BrandContext>("/api/v1/tenant/marketing-context").then((r) => r.data),
   saveBrandContext: (bc: BrandContext) =>
     apiClient.put<BrandContext>("/api/v1/tenant/marketing-context", bc).then((r) => r.data),
+  /** Complaint themes from public reviews of similar businesses. A fresh search costs 1 credit. */
+  findComplaints: (query: string) =>
+    apiClient.post<ComplaintReport>("/api/v1/tenant/market-research/complaints", { query }, { timeout: 60_000 }).then((r) => r.data),
   settings: () => apiClient.get<OSSettings>("/api/v1/tenant/os-settings").then((r) => r.data),
   saveSettings: (s: Partial<OSSettings>) => apiClient.put<OSSettings>("/api/v1/tenant/os-settings", s).then((r) => r.data),
 };
