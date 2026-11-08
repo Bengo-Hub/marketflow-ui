@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SearchableCombobox } from "@bengo-hub/shared-ui-lib/combobox";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, Field, GlassPanel } from "@/components/ui-kit";
@@ -40,8 +41,12 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
   const [actor, setActor] = useState("");
   const [photos, setPhotos] = useState(offerPhotos.join("\n"));
   const [clips, setClips] = useState("");
+  const [music, setMusic] = useState("");
+  const [musicLicensed, setMusicLicensed] = useState(false);
   const photoList = links(photos, MAX_PHOTOS);
   const clipList = links(clips, MAX_CLIPS);
+  const musicURL = music.trim();
+  const musicBlocked = musicURL !== "" && (!musicURL.startsWith("https://") || !musicLicensed);
   const presenter = kind !== "template";
   const hint = VIDEO_KINDS.find((k) => k.value === kind)?.hint;
 
@@ -61,6 +66,8 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
             actor_prompt: presenter && actor.trim() ? actor.trim() : undefined,
             photo_urls: photoList,
             footage_urls: clipList,
+            music_url: musicURL || undefined,
+            music_licensed: musicURL ? musicLicensed : undefined,
           });
         }}
       >
@@ -106,10 +113,24 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
         <Field label="Your clips" htmlFor="va-clips" hint={`Optional. Video links, one per line, up to ${MAX_CLIPS}.`}>
           <Textarea id="va-clips" rows={2} value={clips} onChange={(e) => setClips(e.target.value)} />
         </Field>
+        <Field
+          label="Music"
+          htmlFor="va-music"
+          hint="Optional. A link (https) to a track you have the right to use in ads. It plays quietly under the voice."
+          error={musicURL && !musicURL.startsWith("https://") ? "Use an https link." : null}
+        >
+          <Input id="va-music" type="url" inputMode="url" value={music} placeholder="https://..." onChange={(e) => setMusic(e.target.value)} />
+        </Field>
+        {musicURL !== "" && (
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <Checkbox checked={musicLicensed} onCheckedChange={(on) => setMusicLicensed(on === true)} aria-label="I have the right to use this music in ads" />
+            <span>I have the right to use this music in ads</span>
+          </label>
+        )}
         <p className="text-sm text-muted-foreground">
           The script is written first for 1 credit. You check and change it, see the price, and only then render.
         </p>
-        <Button type="submit" className="w-full" disabled={create.isPending || photoList.length + clipList.length === 0}>
+        <Button type="submit" className="w-full" disabled={create.isPending || photoList.length + clipList.length === 0 || musicBlocked}>
           {create.isPending ? "Starting..." : "Write the script"}
         </Button>
       </form>

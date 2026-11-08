@@ -26,6 +26,9 @@ export interface VideoAdInput {
   photo_urls?: string[];
   footage_urls?: string[];
   cta?: string;
+  /** Optional music bed (https). music_licensed must confirm the right to use it in ads. */
+  music_url?: string;
+  music_licensed?: boolean;
 }
 
 export interface ScriptScene {
