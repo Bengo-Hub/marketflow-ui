@@ -753,6 +753,49 @@ const mediaProviders: ProviderDef[] = [
   },
 ];
 
+// Market research (Find, Flip, Fix): read by marketflow-ai as adintel/serpapi and adintel/serper.
+const researchProviders: ProviderDef[] = [
+  {
+    id: "serpapi",
+    type: "adintel",
+    name: "SerpApi (competitor ads)",
+    description: "Google Ads Transparency Center search for the weekly competitor scan. Free plan: 250 searches a month.",
+    scope: "platform",
+    brandColor: "#1A73E8",
+    docsUrl: "https://serpapi.com/google-ads-transparency-center",
+    fields: [
+      { key: "api_key", label: "API key", type: "password", secret: true, required: true, help: "From serpapi.com, Account, API key. Not the Serper key." },
+      {
+        key: "paid_enabled",
+        label: "Allow paid searches",
+        type: "select",
+        default: "false",
+        options: [
+          { value: "false", label: "No, free plan only" },
+          { value: "true", label: "Yes, up to the paid cap" },
+        ],
+        help: "No keeps the scan inside the free 250 searches a month.",
+      },
+      { key: "paid_monthly_cap", label: "Paid monthly cap", type: "number", default: "250", min: 1, help: "Searches a month when paid searches are on." },
+      { key: "tenant_share", label: "Searches per business a month", type: "number", default: "5", min: 1 },
+    ],
+  },
+  {
+    id: "serper",
+    type: "adintel",
+    name: "Serper (customer complaints)",
+    description: "Google Places and reviews, for the complaint themes owners search on their Brand context page.",
+    scope: "platform",
+    brandColor: "#111827",
+    docsUrl: "https://serper.dev",
+    fields: [
+      { key: "api_key", label: "API key", type: "password", secret: true, required: true, help: "From serper.dev. Without it the server's MF_SERPER_API_KEY is used, if set." },
+      { key: "monthly_cap", label: "Monthly searches", type: "number", default: "300", min: 1, help: "One complaint report uses up to 4 searches." },
+      { key: "tenant_share", label: "Searches per business a month", type: "number", default: "12", min: 4 },
+    ],
+  },
+];
+
 // ── Categorised export for the Platform UI ────────────────────────────────
 
 export const providerCatalog: ProviderCategory[] = [
@@ -773,6 +816,12 @@ export const providerCatalog: ProviderCategory[] = [
     label: "Media generation",
     description: "Creative Studio providers: images, video, voice and assembly. Pay as you go first.",
     providers: mediaProviders,
+  },
+  {
+    id: "research",
+    label: "Market research",
+    description: "Competitor ads and customer complaints for Find, Flip, Fix. Free tiers first.",
+    providers: researchProviders,
   },
   {
     id: "scheduling",
