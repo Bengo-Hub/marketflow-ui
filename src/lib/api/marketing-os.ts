@@ -52,6 +52,18 @@ export interface OSSettings {
   inbox_reply_text?: string;
   /** Competitor names, domains or Google advertiser ids for the weekly ad scan (Sprint 24). */
   competitors?: string[];
+  /** Ads the owner saw working, with notes on why (Find, Flip, Fix). At most 20. */
+  reference_ads?: ReferenceAd[];
+  /** What customers in this market complain about; ads answer them only with true facts. At most 20. */
+  customer_complaints?: string[];
+}
+
+export type ReferencePlatform = "meta" | "tiktok" | "youtube" | "google" | "other";
+
+export interface ReferenceAd {
+  url: string;
+  platform: ReferencePlatform;
+  notes: string;
 }
 
 export interface TaskSpec {

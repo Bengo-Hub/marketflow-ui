@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, Compass, Database, MessageSquareText, Plus } from "lucide-react";
-import { apiError, marketingOsApi, type BrandContext } from "@/lib/api/marketing-os";
+import { Check, Compass, Database, MessageSquareText, Plus, Trash2 } from "lucide-react";
+import { apiError, marketingOsApi, type BrandContext, type ReferenceAd, type ReferencePlatform } from "@/lib/api/marketing-os";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState, Field, GlassPanel, ListEditor, PageHeader, ToneBadge } from "@/components/ui-kit";
@@ -264,7 +266,115 @@ export default function MarketingContextPage() {
         </div>
       </GlassPanel>
       {settingsQ.isSuccess && <CompetitorsPanel key={(settingsQ.data?.competitors ?? []).join("|")} saved={settingsQ.data?.competitors ?? []} orgSlug={orgSlug} />}
+      {settingsQ.isSuccess && (
+        <MarketResearchPanel
+          key={JSON.stringify([settingsQ.data?.reference_ads ?? [], settingsQ.data?.customer_complaints ?? []])}
+          savedAds={settingsQ.data?.reference_ads ?? []}
+          savedComplaints={settingsQ.data?.customer_complaints ?? []}
+          orgSlug={orgSlug}
+        />
+      )}
     </div>
+  );
+}
+
+// Server limits (marketflow-api marketingos/market_signals.go).
+const MAX_REFERENCE_ADS = 20;
+const MAX_REFERENCE_NOTES = 300;
+const MAX_COMPLAINTS = 20;
+const MAX_COMPLAINT = 200;
+
+const PLATFORM_ITEMS: Record<ReferencePlatform, string> = { meta: "Facebook or Instagram", tiktok: "TikTok", youtube: "YouTube", google: "Google", other: "Other" };
+
+const NEW_AD: ReferenceAd = { url: "", platform: "meta", notes: "" };
+
+/** Find, Flip, Fix inputs: ads that already sell in this market and what customers complain about. */
+function MarketResearchPanel({ savedAds, savedComplaints, orgSlug }: { savedAds: ReferenceAd[]; savedComplaints: string[]; orgSlug: string }) {
+  const qc = useQueryClient();
+  const [ads, setAds] = useState<ReferenceAd[]>(savedAds);
+  const [complaints, setComplaints] = useState<string[]>(savedComplaints);
+  const save = useMutation({
+    mutationFn: () =>
+      marketingOsApi.saveSettings({
+        reference_ads: ads.filter((a) => a.url.trim() || a.notes.trim()),
+        customer_complaints: complaints,
+      }),
+    onSuccess: (s) => {
+      qc.setQueryData(["os-settings", orgSlug], s);
+      toast.success("Saved. New ads and scripts will learn from these.");
+    },
+    onError: (e) => toast.error(apiError(e, "Could not save the market research")),
+  });
+  const update = (i: number, patch: Partial<ReferenceAd>) => setAds((list) => list.map((a, j) => (j === i ? { ...a, ...patch } : a)));
+  return (
+    <GlassPanel
+      title="What already sells"
+      description="Ads you have seen working, and what customers in your market complain about. The team keeps what works, changes the angle for your customers, and answers a complaint only with something you really do. It never copies an ad's words or names another business."
+    >
+      <div className="space-y-5">
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium">Reference ads</legend>
+          <p className="text-xs text-muted-foreground">
+            Paste the link from the Meta Ad Library, TikTok Creative Center or anywhere else, and note what makes it work: the hook, who speaks, how it ends.
+          </p>
+          {ads.map((a, i) => (
+            <div key={i} className="space-y-2 rounded-lg border border-border p-3">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  className="min-w-0 flex-1"
+                  type="url"
+                  inputMode="url"
+                  value={a.url}
+                  onChange={(e) => update(i, { url: e.target.value })}
+                  placeholder="https://www.facebook.com/ads/library/?id=..."
+                  aria-label={`Reference ad ${i + 1} link`}
+                />
+                <Select items={PLATFORM_ITEMS} value={a.platform} onValueChange={(v) => v && update(i, { platform: v as ReferencePlatform })}>
+                  <SelectTrigger className="h-10 sm:w-48" aria-label={`Reference ad ${i + 1} platform`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PLATFORM_ITEMS) as ReferencePlatform[]).map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {PLATFORM_ITEMS[p]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Textarea
+                rows={2}
+                maxLength={MAX_REFERENCE_NOTES}
+                value={a.notes}
+                onChange={(e) => update(i, { notes: e.target.value })}
+                placeholder="A mother talks to camera about screen time, then shows her child's project"
+                aria-label={`Reference ad ${i + 1} notes`}
+              />
+              <Button size="sm" variant="ghost" onClick={() => setAds((list) => list.filter((_, j) => j !== i))}>
+                <Trash2 /> Remove
+              </Button>
+            </div>
+          ))}
+          <Button size="sm" variant="outline" disabled={ads.length >= MAX_REFERENCE_ADS} onClick={() => setAds((list) => [...list, { ...NEW_AD }])}>
+            <Plus /> Add a reference ad
+          </Button>
+        </fieldset>
+        <Field label="What customers complain about" htmlFor="mf-complaints" hint="One complaint per item, in your customers' words, for example about other shops or the market in general.">
+          <ListEditor
+            id="mf-complaints"
+            value={complaints}
+            onChange={setComplaints}
+            maxItems={MAX_COMPLAINTS}
+            maxLength={MAX_COMPLAINT}
+            placeholder="Deliveries take days and nobody answers on WhatsApp"
+            label="Complaint"
+          />
+        </Field>
+        <Button size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? "Saving..." : "Save market research"}
+        </Button>
+      </div>
+    </GlassPanel>
   );
 }
 
