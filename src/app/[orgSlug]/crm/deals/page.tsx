@@ -181,7 +181,7 @@ export default function DealsPage() {
       )}
 
       <Dialog open={adding} onOpenChange={setAdding}>
-        <DialogContent className="max-w-xl">
+        <DialogContent>
           <DialogHeader><DialogTitle>New deal</DialogTitle></DialogHeader>
           {adding && active && <NewDeal pipelineId={active.id} stages={boardStages} onDone={() => setAdding(false)} />}
         </DialogContent>

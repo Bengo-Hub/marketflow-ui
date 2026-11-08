@@ -69,7 +69,7 @@ export function BoostDialog({ open, onOpenChange, assetId, defaultText }: { open
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Boost this video</DialogTitle>
           <DialogDescription>Runs on your own Meta ad account. You pay Meta for the ads; MarketFlow never handles that money.</DialogDescription>

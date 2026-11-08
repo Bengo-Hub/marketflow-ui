@@ -158,7 +158,7 @@ export default function PlatformBillingPage() {
       />
 
       <Dialog open={!!granting} onOpenChange={(o) => !o && setGranting(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="sm">
           <DialogHeader><DialogTitle>Add AI credits</DialogTitle></DialogHeader>
           {granting && <GrantDialog key={granting.tenant_id} row={granting} onDone={() => setGranting(null)} />}
         </DialogContent>

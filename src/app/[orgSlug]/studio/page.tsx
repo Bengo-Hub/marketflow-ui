@@ -126,7 +126,7 @@ export default function StudioPage() {
       />
 
       <Dialog open={creating} onOpenChange={setCreating}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>New ad</DialogTitle>
           </DialogHeader>

@@ -175,7 +175,7 @@ export default function AccountsPage() {
       />
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader><DialogTitle>{editing?.account ? "Edit account" : "New account"}</DialogTitle></DialogHeader>
           {editing && <AccountForm key={editing.account?.id ?? "new"} account={editing.account} onDone={() => setEditing(null)} />}
         </DialogContent>

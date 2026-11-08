@@ -206,13 +206,13 @@ export default function SequencesPage() {
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent size="lg">
           <DialogHeader><DialogTitle>{editing?.id ? "Edit sequence" : "New sequence"}</DialogTitle></DialogHeader>
           {editing && <SequenceForm key={editing.id ?? "new"} initial={editing.data} id={editing.id} onDone={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
       <Dialog open={!!stats} onOpenChange={(o) => !o && setStats(null)}>
-        <DialogContent className="max-w-xl">
+        <DialogContent>
           <DialogHeader><DialogTitle>Results: {stats?.name}</DialogTitle></DialogHeader>
           {stats && <Stats s={stats} />}
         </DialogContent>

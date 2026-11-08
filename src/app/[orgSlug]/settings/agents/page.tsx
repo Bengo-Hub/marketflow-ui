@@ -424,7 +424,7 @@ export default function AgentsPage() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? "Edit agent" : "Create agent"}</DialogTitle>
           </DialogHeader>

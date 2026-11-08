@@ -109,7 +109,7 @@ export function ActivityTimeline({ entity, id, title = "Activity" }: { entity: E
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Log activity</DialogTitle>
           </DialogHeader>

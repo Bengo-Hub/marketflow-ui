@@ -93,7 +93,7 @@ export function ImportContactsDialog({ open, onOpenChange }: { open: boolean; on
         onOpenChange(o);
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Import contacts</DialogTitle>
           <DialogDescription>

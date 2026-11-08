@@ -26,7 +26,7 @@ These rules apply to every screen in marketflow-ui. Read them before you add a p
   - Pages add no padding of their own.
   - Pages narrow themselves only when the content is narrow: `max-w-4xl` for settings forms, `max-w-5xl` for logs.
 - **Breakpoints.** Below `lg` the sidebar is a sheet, and shared-ui-lib `MobileBottomNav` shows Home, Leads, Chat, Campaigns and More. `useIsMobile` breaks at 1024px for this reason.
-- **Modal width follows the content.** Use `max-w-md` for a confirm, `max-w-lg` for a short form, and `max-w-2xl` or wider for multi-section forms. Re-check the width whenever a field is added.
+- **Modal width comes from `DialogContent`'s `size`, never a `max-w-*` class.** `sm` (512px) for confirmations and one or two field prompts, `md` (672px, the default) for forms, `lg` (896px) for builders and previews. Phones always get the full width less a 1rem gutter, and every dialog scrolls inside the viewport height. Until 2026-11-08 a `max-w-*` class lost to the component's `sm:max-w-sm`, so every form dialog was 384px wide.
 
 ## Components (`src/components/ui-kit`)
 

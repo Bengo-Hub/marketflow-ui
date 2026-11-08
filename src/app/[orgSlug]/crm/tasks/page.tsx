@@ -135,7 +135,7 @@ export default function TasksPage() {
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader><DialogTitle>{editing?.task ? "Edit task" : "New task"}</DialogTitle></DialogHeader>
           {editing && <TaskForm key={editing.task?.id ?? "new"} task={editing.task} onDone={() => setEditing(null)} />}
         </DialogContent>

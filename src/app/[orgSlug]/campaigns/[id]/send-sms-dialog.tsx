@@ -59,7 +59,7 @@ export function SendSMSDialog({ campaignId, campaignName }: { campaignId: string
         Send SMS
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Send an SMS{campaignName ? `: ${campaignName}` : ""}</DialogTitle>
             <DialogDescription>Opt-outs and quiet hours are respected. The send waits for approval in Notifications, Broadcasts.</DialogDescription>

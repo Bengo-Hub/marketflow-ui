@@ -137,7 +137,7 @@ export default function TestimonialsSettingsPage() {
       </ol>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-xl">
+        <DialogContent>
           <DialogHeader><DialogTitle>{editing?.item ? "Edit testimonial" : "Add a testimonial"}</DialogTitle></DialogHeader>
           {editing && <TestimonialForm key={editing.item?.id ?? "new"} item={editing.item} nextOrder={nextOrder} onDone={() => setEditing(null)} />}
         </DialogContent>

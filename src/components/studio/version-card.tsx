@@ -183,7 +183,7 @@ export function VersionCard({
       />
 
       <Dialog open={open === "revise"} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Change the words</DialogTitle>
           </DialogHeader>
@@ -192,7 +192,7 @@ export function VersionCard({
       </Dialog>
 
       <Dialog open={open === "motion"} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Make it move</DialogTitle>
           </DialogHeader>
@@ -201,7 +201,7 @@ export function VersionCard({
       </Dialog>
 
       <Dialog open={open === "share"} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Share for review</DialogTitle>
           </DialogHeader>

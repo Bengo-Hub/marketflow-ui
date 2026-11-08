@@ -192,7 +192,7 @@ export default function CampaignsPage() {
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing?.id ? "Edit campaign" : "New campaign"}</DialogTitle>
           </DialogHeader>

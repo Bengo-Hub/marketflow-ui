@@ -146,7 +146,7 @@ export default function TeamPage() {
       </div>
 
       <Dialog open={inviting || !!created} onOpenChange={(o) => { if (!o) { setInviting(false); setCreated(null); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader><DialogTitle>{created ? "Account created" : "Invite someone"}</DialogTitle></DialogHeader>
           {created ? (
             <NewAccountNotice result={created} onDone={() => setCreated(null)} />

@@ -135,7 +135,7 @@ export default function SegmentsPage() {
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent>
           <DialogHeader><DialogTitle>{editing?.seg ? "Edit segment" : "New segment"}</DialogTitle></DialogHeader>
           {editing && <SegmentForm key={editing.seg?.id ?? "new"} seg={editing.seg} onDone={() => setEditing(null)} />}
         </DialogContent>

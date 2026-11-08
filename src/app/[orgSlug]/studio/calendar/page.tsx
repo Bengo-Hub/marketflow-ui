@@ -201,7 +201,7 @@ function JobRow({ job: j, account }: { job: PublishJob; account?: string }) {
         onConfirm={() => cancel.mutate(j.id, { onSuccess: () => setConfirm(false) })}
       />
       <Dialog open={moving} onOpenChange={setMoving}>
-        <DialogContent className="max-w-sm">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Move this post</DialogTitle>
           </DialogHeader>

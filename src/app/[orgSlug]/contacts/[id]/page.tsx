@@ -47,7 +47,7 @@ function EditContact({ c, open, onOpenChange }: { c: Contact; open: boolean; onO
   });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit contact</DialogTitle>
         </DialogHeader>

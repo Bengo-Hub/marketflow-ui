@@ -40,21 +40,29 @@ function DialogOverlay({
 }
 
 /**
- * A plain max-w-* on a dialog is its width from the sm breakpoint up. Applied as is, it lost to
- * the default sm:max-w-sm (so every sized dialog was 384px wide) and dropped the phone gutter.
+ * The one width scale for dialogs. Phones always get the full width less a 1rem gutter; these
+ * apply from the sm breakpoint up. Pick by content, never with a max-w-* class:
+ *   sm  512px  confirmations and one or two field prompts
+ *   md  672px  forms (the default)
+ *   lg  896px  builders and previews (funnels, sequences, imports)
  */
-function desktopWidth(className: DialogPrimitive.Popup.Props["className"]) {
-  if (typeof className !== "string") return className
-  return className.replace(/(^|\s)max-w-/g, "$1sm:max-w-")
-}
+const DIALOG_WIDTH = {
+  sm: "sm:max-w-lg",
+  md: "sm:max-w-2xl",
+  lg: "sm:max-w-4xl",
+} as const
+
+export type DialogSize = keyof typeof DIALOG_WIDTH
 
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  size = "md",
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
+  size?: DialogSize
 }) {
   return (
     <DialogPortal>
@@ -62,8 +70,9 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          desktopWidth(className)
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:p-6 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          DIALOG_WIDTH[size],
+          className
         )}
         {...props}
       >
@@ -111,7 +120,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:px-6",
         className
       )}
       {...props}

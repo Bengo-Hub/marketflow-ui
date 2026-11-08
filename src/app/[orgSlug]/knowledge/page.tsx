@@ -179,7 +179,7 @@ export default function KnowledgePage() {
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent>
           <DialogHeader><DialogTitle>{editing?.id ? "Edit entry" : "New entry"}</DialogTitle></DialogHeader>
           {editing && <EntryForm key={editing.id ?? "new"} initial={editing.data} id={editing.id} onDone={() => setEditing(null)} />}
         </DialogContent>

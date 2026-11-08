@@ -31,7 +31,7 @@ function NewLinkDialog({ onClose }: { onClose: () => void }) {
   const valid = /^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(target.trim());
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent>
         <DialogHeader><DialogTitle>{made ? "Your short link" : "New short link"}</DialogTitle></DialogHeader>
         {made ? (
           <div className="space-y-3">

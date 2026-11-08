@@ -162,7 +162,7 @@ export default function CustomFieldsPage() {
       />
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader><DialogTitle>{editing?.def ? "Edit field" : `New field on ${entityLabel}`}</DialogTitle></DialogHeader>
           {editing && <FieldForm key={editing.def?.id ?? `new-${entity}`} entity={entity} def={editing.def} onDone={() => setEditing(null)} />}
         </DialogContent>

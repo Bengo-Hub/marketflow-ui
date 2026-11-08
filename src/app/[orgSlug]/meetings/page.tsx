@@ -34,7 +34,7 @@ function BookDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: b
   const past = when ? when.getTime() < openedAt : false;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent>
         <DialogHeader><DialogTitle>Book a meeting</DialogTitle></DialogHeader>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Date" required htmlFor="mt-d" error={past ? "That time has passed" : null}><Input id="mt-d" type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>

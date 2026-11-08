@@ -133,7 +133,7 @@ export default function ServiceConfigPage() {
       </div>
 
       <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{draft?.isNew ? "Add setting" : `Edit ${draft?.key}`}</DialogTitle>
           </DialogHeader>

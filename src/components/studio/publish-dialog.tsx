@@ -77,7 +77,7 @@ export function PublishDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Post this video</DialogTitle>
           <DialogDescription>It goes to your own pages and channels, labelled as AI-made where the platform asks for it.</DialogDescription>

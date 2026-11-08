@@ -108,7 +108,7 @@ export function TeamRoster({ orgSlug, members }: { orgSlug: string; members: Tea
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit {editing?.role}</DialogTitle>
           </DialogHeader>
