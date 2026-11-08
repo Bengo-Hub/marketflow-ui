@@ -19,6 +19,7 @@ export interface AutopilotConfig {
   platforms: string[];
   connected_account_ids: string[];
   monthly_credit_ceiling: number;
+  new_item_drafts?: boolean;
 }
 
 export interface ConfigVersion {
@@ -56,7 +57,25 @@ export interface AgentRun {
   trace?: { skip?: string };
 }
 
+/** A preview of the next run and a month of runs. Nothing is made or charged. */
+export interface DryRun {
+  offering: string;
+  language: string;
+  tier: string;
+  runs_per_month: number;
+  credits_known: boolean;
+  script_credits: number;
+  render_credits: number;
+  balance: number;
+  monthly_draft_credits: number;
+  monthly_full_credits: number;
+  credit_ceiling: number;
+  drafts_within_ceiling: number;
+  ads_within_ceiling: number;
+}
+
 export const autopilotApi = {
+  dryRun: (id: string) => apiClient.get<DryRun>(`${base}/custom/${id}/autopilot/dry-run`).then((r) => r.data),
   latestRun: (id: string) =>
     apiClient.get<{ data: AgentRun[] | null }>(`${base}/custom/${id}/runs`, { params: { limit: 1 } }).then((r) => r.data.data?.[0] ?? null),
   /** The tenant's agents that are ad autopilots. */

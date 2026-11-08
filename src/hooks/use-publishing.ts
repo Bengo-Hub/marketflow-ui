@@ -51,3 +51,15 @@ export function useSchedulePost() {
 
 export const useCancelPost = () => useJobAction(publishingApi.cancel, "Post cancelled", "Could not cancel the post");
 export const useRetryPost = () => useJobAction(publishingApi.retry, "Trying the post again", "Could not retry the post");
+
+export function useMovePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, scheduledAt }: { id: string; scheduledAt: string }) => publishingApi.move(id, scheduledAt),
+    onSuccess: () => {
+      toast.success("Post moved");
+      void qc.invalidateQueries({ queryKey: ["publish-jobs"] });
+    },
+    // The dialog shows the reason inline, because the post stays open to pick another time.
+  });
+}

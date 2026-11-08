@@ -57,6 +57,7 @@ export const publishingApi = {
     apiClient.get<JobPage>(`${base}/jobs`, { params: { ...params, limit: 50 } }).then((r) => r.data),
   cancel: (id: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/cancel`).then((r) => r.data),
   retry: (id: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/retry`).then((r) => r.data),
+  move: (id: string, scheduledAt: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/move`, { scheduled_at: scheduledAt }).then((r) => r.data),
 };
 
 export const PLATFORM_LABEL: Record<Platform, string> = {

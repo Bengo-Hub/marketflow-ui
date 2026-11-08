@@ -3,10 +3,13 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { CalendarDays, ExternalLink, RotateCcw, X } from "lucide-react";
+import { CalendarClock, CalendarDays, ExternalLink, RotateCcw, X } from "lucide-react";
+import { toLocalInput } from "@/components/studio/publish-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
-import { useCancelPost, usePublishAccounts, usePublishJobs, useRetryPost } from "@/hooks/use-publishing";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
+import { useCancelPost, useMovePost, usePublishAccounts, usePublishJobs, useRetryPost } from "@/hooks/use-publishing";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { JOB_STATUS_LABEL, PLATFORM_LABEL, type JobStatus, type PublishJob } from "@/lib/api/publishing";
 
@@ -112,11 +115,44 @@ export default function PublishingCalendarPage() {
   );
 }
 
+function MoveForm({ job: j, onDone }: { job: PublishJob; onDone: () => void }) {
+  const move = useMovePost();
+  const [when, setWhen] = useState(() => toLocalInput(new Date(j.planned_at)));
+  const [openedAt] = useState(() => Date.now());
+  const picked = new Date(when).getTime();
+  return (
+    <div className="space-y-4">
+      <Field label="New date and time" htmlFor="move-when">
+        <Input id="move-when" type="datetime-local" value={when} min={toLocalInput(new Date(openedAt))} onChange={(e) => setWhen(e.target.value)} />
+      </Field>
+      {move.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {apiErrorMessage(move.error, "Could not move the post.")}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          disabled={move.isPending || !(picked > openedAt)}
+          onClick={() => move.mutate({ id: j.id, scheduledAt: new Date(when).toISOString() }, { onSuccess: onDone })}
+        >
+          {move.isPending ? "Moving..." : "Move post"}
+        </Button>
+        <Button variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function JobRow({ job: j, account }: { job: PublishJob; account?: string }) {
   const cancel = useCancelPost();
   const retry = useRetryPost();
   const [confirm, setConfirm] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [openedAt] = useState(() => Date.now());
   const canCancel = j.status === "pending" || j.status === "uploading";
+  const canMove = j.status === "pending" && new Date(j.planned_at).getTime() > openedAt;
   return (
     <div className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center">
       <div className="min-w-0 flex-1 space-y-1">
@@ -144,6 +180,11 @@ function JobRow({ job: j, account }: { job: PublishJob; account?: string }) {
             <RotateCcw /> Try again
           </Button>
         )}
+        {canMove && (
+          <Button variant="ghost" size="sm" onClick={() => setMoving(true)}>
+            <CalendarClock /> Move
+          </Button>
+        )}
         {canCancel && (
           <Button variant="ghost" size="sm" onClick={() => setConfirm(true)}>
             <X /> Cancel
@@ -159,6 +200,14 @@ function JobRow({ job: j, account }: { job: PublishJob; account?: string }) {
         pending={cancel.isPending}
         onConfirm={() => cancel.mutate(j.id, { onSuccess: () => setConfirm(false) })}
       />
+      <Dialog open={moving} onOpenChange={setMoving}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Move this post</DialogTitle>
+          </DialogHeader>
+          {moving && <MoveForm job={j} onDone={() => setMoving(false)} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

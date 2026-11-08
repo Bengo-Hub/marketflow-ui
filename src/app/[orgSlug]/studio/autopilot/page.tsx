@@ -106,6 +106,35 @@ export default function AutopilotPage() {
   );
 }
 
+/** What the next run would make and what a month can cost. It makes and charges nothing. */
+function DryRunPreview({ agentId }: { agentId: string }) {
+  const preview = useQuery({ queryKey: [...KEY, agentId, "dry-run"], queryFn: () => autopilotApi.dryRun(agentId), staleTime: 60_000 });
+  if (preview.isLoading) return <p className="text-sm text-muted-foreground">Working out the next run.</p>;
+  if (preview.isError) return <ErrorState message={apiErrorMessage(preview.error, "Could not preview this agent.")} onRetry={() => void preview.refetch()} />;
+  const d = preview.data;
+  if (!d) return null;
+  return (
+    <div className="space-y-1 rounded-lg border border-border p-3 text-sm">
+      <p>
+        Next draft: <span className="font-medium">{d.offering}</span>, in {d.language === "sw" ? "Swahili" : "English"}.
+      </p>
+      {d.credits_known ? (
+        <>
+          <p className="text-muted-foreground">
+            Each draft costs {d.script_credits} credit{d.script_credits === 1 ? "" : "s"}. Rendering one into a video costs about {d.render_credits} more, and only when you choose to.
+          </p>
+          <p className="text-muted-foreground">
+            In a month of up to {d.runs_per_month} runs: {d.monthly_draft_credits} credits for drafts, or {d.monthly_full_credits} if you render them all. Your ceiling of {d.credit_ceiling} covers {d.drafts_within_ceiling} draft{d.drafts_within_ceiling === 1 ? "" : "s"}, or {d.ads_within_ceiling} rendered ad{d.ads_within_ceiling === 1 ? "" : "s"}.
+          </p>
+          {d.balance >= 0 && <p className="text-muted-foreground">Your balance is {d.balance} credits.</p>}
+        </>
+      ) : (
+        <p className="text-muted-foreground">Credit prices are not available right now. Your ceiling of {d.credit_ceiling} credits a month still applies.</p>
+      )}
+    </div>
+  );
+}
+
 function AgentCard({ agent: a, onEdit, onChange }: { agent: AutopilotAgent; onEdit: () => void; onChange: () => void }) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const cfg = a.metadata?.autopilot;
@@ -133,6 +162,7 @@ function AgentCard({ agent: a, onEdit, onChange }: { agent: AutopilotAgent; onEd
     },
     onError: (e) => toast.error(apiErrorMessage(e, "Could not restore the settings")),
   });
+  const [previewing, setPreviewing] = useState(false);
   const previous = versions.slice(0, -1).slice(-3).reverse();
   return (
     <GlassPanel>
@@ -169,8 +199,14 @@ function AgentCard({ agent: a, onEdit, onChange }: { agent: AutopilotAgent; onEd
           <Button size="sm" variant="ghost" onClick={onEdit}>
             Settings
           </Button>
+          {cfg && (
+            <Button size="sm" variant="ghost" aria-expanded={previewing} onClick={() => setPreviewing((v) => !v)}>
+              {previewing ? "Hide preview" : "Preview next run"}
+            </Button>
+          )}
           {a.is_active && <ToneBadge tone="success">On</ToneBadge>}
         </div>
+        {previewing && <DryRunPreview agentId={a.id} />}
         {previous.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>Earlier settings:</span>
@@ -196,6 +232,7 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const [time, setTime] = useState(cfg?.time ?? "09:00");
   const [objective, setObjective] = useState<AutopilotConfig["objective"]>(cfg?.objective ?? "whatsapp");
   const [credits, setCredits] = useState(cfg?.monthly_credit_ceiling ?? 100);
+  const [newItems, setNewItems] = useState(cfg?.new_item_drafts ?? false);
   const [acctIDs, setAcctIDs] = useState<string[]>(cfg?.connected_account_ids ?? []);
   const [error, setError] = useState<string | null>(null);
   const list = accounts.data ?? [];
@@ -208,6 +245,7 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
         {
           offering_ids: picked.map((o) => String(o.source_id)),
           objective,
+          new_item_drafts: newItems,
           languages: cfg?.languages ?? ["en"],
           video_tiers: cfg?.video_tiers ?? ["template"],
           cadence,
@@ -286,6 +324,14 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
             <Input id="ap-credits" type="number" min={1} max={5000} value={credits} onChange={(e) => setCredits(Number(e.target.value))} />
           </Field>
         </div>
+
+        <label className="flex min-h-11 items-center gap-3 text-sm">
+          <Checkbox checked={newItems} onCheckedChange={(on) => setNewItems(on === true)} aria-label="Draft an ad when a new product is added" />
+          <span>
+            Draft an ad when a new product is added
+            <span className="block text-xs text-muted-foreground">At most one extra draft a day, only for products with a photo. Each draft uses credits and counts toward your monthly limit.</span>
+          </span>
+        </label>
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">Where approved ads will go</legend>
