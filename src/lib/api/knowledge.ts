@@ -26,6 +26,10 @@ export interface KbEntry {
     stale?: boolean;
     /** The catalogue changed after the owner wrote this; the owner should check it. */
     may_be_outdated?: boolean;
+    /** A chat answer someone rated helpful, waiting for the owner to approve it. */
+    suggested?: boolean;
+    /** How many times the answer was rated helpful. */
+    helpful_count?: number;
   } | null;
   updated_at?: string;
   created_at: string;
@@ -58,6 +62,12 @@ export const knowledgeApi = {
   create: (data: KbInput) => apiClient.post<KbEntry>("/api/v1/knowledge/entries", data).then((r) => r.data),
   update: (id: string, data: Partial<KbInput>) => apiClient.put<KbEntry>(`/api/v1/knowledge/entries/${id}`, data).then((r) => r.data),
   remove: (id: string) => apiClient.delete(`/api/v1/knowledge/entries/${id}`).then(() => undefined),
+  /** FAQ suggestions from chat answers rated helpful, most recent first. */
+  suggestions: (page: number, limit = 10) =>
+    apiClient.get<Paginated<KbEntry>>("/api/v1/knowledge/entries", { params: { suggested: "true", page, limit } }).then((r) => r.data),
+  approve: (id: string) => apiClient.post<KbEntry>(`/api/v1/knowledge/entries/${id}/approve`).then((r) => r.data),
+  /** Turns a suggestion down for good; the same question is not suggested again. */
+  reject: (id: string) => apiClient.post(`/api/v1/knowledge/entries/${id}/reject`).then(() => undefined),
   /** CSV with a header row: title and content required; category, product_*, tags optional. */
   importCsv: (file: File) => {
     const form = new FormData();

@@ -3,15 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Check, Copy, Eraser, MessageSquare, RotateCcw, Send, Square, Trash2 } from "lucide-react";
+import { Check, Copy, Eraser, MessageSquare, RotateCcw, Send, Square, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BrandMark } from "@/components/landing/brand-mark";
 import { ConfirmDialog, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { useTenantProfile } from "@/hooks/use-tenant-profile";
-import { ChatError, INTENT_LABEL, MAX_QUESTION, clearSession, deleteTurn, phaseFor, streamChat, type ChatMeta } from "@/lib/api/chat";
+import { ChatError, INTENT_LABEL, MAX_QUESTION, clearSession, deleteTurn, phaseFor, rateTurn, streamChat, type ChatMeta } from "@/lib/api/chat";
 
 interface Message {
   id: number;
@@ -22,6 +23,8 @@ interface Message {
   error?: { text: string; credits?: boolean };
   /** Position of this answer in the stored conversation (0-based); unset when the server never stored it. */
   turn?: number;
+  /** The rating given to this answer, if any. */
+  rating?: "up" | "down";
 }
 
 const FLP_PROMPTS = [
@@ -37,7 +40,7 @@ const GENERIC_PROMPTS = [
   "Write a follow-up message for a customer who went quiet",
 ];
 
-function Answer({ m, onRetry, onDelete }: { m: Message; onRetry: () => void; onDelete: () => void }) {
+function Answer({ m, onRetry, onDelete, onRate }: { m: Message; onRetry: () => void; onDelete: () => void; onRate: (helpful: boolean) => void }) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -74,7 +77,25 @@ function Answer({ m, onRetry, onDelete }: { m: Message; onRetry: () => void; onD
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 px-1">
             {m.meta?.intent && INTENT_LABEL[m.meta.intent] && <ToneBadge>{INTENT_LABEL[m.meta.intent]}</ToneBadge>}
             {(m.meta?.sources ?? 0) > 0 && <ToneBadge tone="info">From {m.meta!.sources} knowledge base {m.meta!.sources === 1 ? "entry" : "entries"}</ToneBadge>}
-            <Button variant="ghost" size="icon-sm" className="ml-auto" aria-label="Copy answer" onClick={copy}>{copied ? <Check /> : <Copy />}</Button>
+            {m.turn !== undefined && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="ml-auto"
+                  aria-label="Helpful answer"
+                  aria-pressed={m.rating === "up"}
+                  title="Helpful. It is suggested as an FAQ on your knowledge base page."
+                  onClick={() => onRate(true)}
+                >
+                  <ThumbsUp className={m.rating === "up" ? "fill-current text-primary" : undefined} />
+                </Button>
+                <Button variant="ghost" size="icon-sm" aria-label="Not helpful" aria-pressed={m.rating === "down"} onClick={() => onRate(false)}>
+                  <ThumbsDown className={m.rating === "down" ? "fill-current text-destructive" : undefined} />
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" size="icon-sm" className={m.turn === undefined ? "ml-auto" : undefined} aria-label="Copy answer" onClick={copy}>{copied ? <Check /> : <Copy />}</Button>
             <Button variant="ghost" size="icon-sm" aria-label="Delete this question and answer" onClick={onDelete}><Trash2 /></Button>
           </div>
         )}
@@ -170,6 +191,23 @@ export default function ChatPage() {
     );
   };
 
+  /** Rates a stored answer. The mark shows at once and is taken back if saving fails. */
+  const rate = (aid: number, helpful: boolean) => {
+    const answer = messages.find((m) => m.id === aid);
+    if (!answer || answer.turn === undefined || !sessionRef.current) return;
+    const before = answer.rating;
+    patch(aid, { rating: helpful ? "up" : "down" });
+    rateTurn(orgSlug, sessionRef.current, answer.turn, helpful).then(
+      () => {
+        if (helpful && before !== "up") toast.success("Thanks. It is suggested as an FAQ on your knowledge base page.");
+      },
+      () => {
+        patch(aid, { rating: before });
+        toast.error("The rating could not be saved. Try again.");
+      },
+    );
+  };
+
   /** Erases the whole conversation and starts a new one. */
   const clearChat = () => {
     abortRef.current?.abort();
@@ -217,7 +255,7 @@ export default function ChatPage() {
                   <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-md bg-primary px-4 py-2.5 text-sm text-primary-foreground">{m.content}</p>
                 </div>
               ) : (
-                <Answer key={m.id} m={m} onRetry={() => retry(m.id)} onDelete={() => remove(m.id)} />
+                <Answer key={m.id} m={m} onRetry={() => retry(m.id)} onDelete={() => remove(m.id)} onRate={(helpful) => rate(m.id, helpful)} />
               ),
             )
           )}

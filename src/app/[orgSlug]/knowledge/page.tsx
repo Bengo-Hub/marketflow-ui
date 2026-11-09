@@ -1,16 +1,16 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { AlertTriangle, Archive, BookOpen, CheckCircle2, FileUp, Loader2, Lock, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Archive, BookOpen, Check, CheckCircle2, FileUp, Loader2, Lock, Pencil, Plus, RefreshCw, Search, ThumbsUp, Trash2, X } from "lucide-react";
 import { useTenantBranding } from "@bengo-hub/shared-ui-lib/tenant";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, Pager, PageHeader, ToneBadge, humanize } from "@/components/ui-kit";
+import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, GlassPanel, Pager, PageHeader, ToneBadge, humanize } from "@/components/ui-kit";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useDeleteKnowledge, useImportKnowledge, useKnowledge, useSaveKnowledge } from "@/hooks/use-knowledge";
+import { useDeleteKnowledge, useImportKnowledge, useKbSuggestions, useKnowledge, useReviewSuggestion, useSaveKnowledge } from "@/hooks/use-knowledge";
 import { KB_CATEGORIES, type KbEntry, type KbInput } from "@/lib/api/knowledge";
 
 const label = (c: string) => (c === "faq" ? "Questions" : c === "business_opportunity" ? "Opportunity" : c === "custom" ? "Other" : humanize(c));
@@ -62,6 +62,41 @@ function EntryForm({ initial, id, onDone }: { initial: KbInput; id?: string; onD
   );
 }
 
+/** Answers people rated helpful in chats. Nothing reaches the assistant until the owner approves. */
+function Suggestions({ onEdit }: { onEdit: (e: KbEntry) => void }) {
+  const [page, setPage] = useState(1);
+  const list = useKbSuggestions(page);
+  const review = useReviewSuggestion();
+  const rows = list.data?.data ?? [];
+  if (!list.data || list.data.total === 0) return null;
+  return (
+    <GlassPanel
+      title={`Suggested from chats (${list.data.total})`}
+      description="Answers people rated helpful. Check the words, then add them so the assistant answers the same way next time."
+    >
+      <ul className="divide-y divide-border">
+        {rows.map((e) => (
+          <li key={e.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-start">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{e.title}</p>
+              <p className="mt-0.5 line-clamp-3 text-sm text-muted-foreground">{e.content}</p>
+              {(e.metadata?.helpful_count ?? 0) > 1 && (
+                <ToneBadge tone="info" className="mt-2"><ThumbsUp /> Helpful {e.metadata!.helpful_count} times</ToneBadge>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-1">
+              <Button size="sm" disabled={review.isPending} onClick={() => review.mutate({ id: e.id, approve: true })}><Check /> Add</Button>
+              <Button size="sm" variant="ghost" aria-label={`Edit ${e.title}`} onClick={() => onEdit(e)}><Pencil /></Button>
+              <Button size="sm" variant="ghost" disabled={review.isPending} aria-label={`Dismiss ${e.title}`} onClick={() => review.mutate({ id: e.id, approve: false })}><X /></Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {list.data.total > (list.data.limit || 10) && <Pager page={page} limit={list.data.limit || 10} total={list.data.total} onPage={setPage} />}
+    </GlassPanel>
+  );
+}
+
 export default function KnowledgePage() {
   const has = useFeature("knowledge_base");
   const { tenant } = useTenantBranding();
@@ -100,6 +135,9 @@ export default function KnowledgePage() {
           if (file) imp.mutate(file);
           e.target.value = "";
         }}
+      />
+      <Suggestions
+        onEdit={(e) => setEditing({ id: e.id, data: { category: e.category, title: e.title, content: e.content, tags: e.tags ?? [] } })}
       />
       {imp.data?.errors && imp.data.errors.length > 0 && (
         <div role="alert" className="rounded-2xl border border-warning/25 bg-warning/10 p-4 text-sm">

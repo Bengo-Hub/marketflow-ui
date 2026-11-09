@@ -101,6 +101,16 @@ export function deleteTurn(orgSlug: string, sessionId: string, turn: number): Pr
     .then(() => undefined, () => undefined);
 }
 
+/**
+ * Rates the n-th stored answer (0-based). A first helpful rating offers the question and answer to
+ * the business as a suggested FAQ, which it approves on the knowledge base page.
+ */
+export function rateTurn(orgSlug: string, sessionId: string, turn: number, helpful: boolean): Promise<void> {
+  return aiClient
+    .post(`/api/v1/chat/sessions/${encodeURIComponent(sessionId)}/turns/${turn}/feedback`, { helpful }, { headers: { "X-Tenant-ID": orgSlug } })
+    .then(() => undefined);
+}
+
 /** Sends one question and streams the answer into `h`. Resolves when the answer is complete. */
 export async function streamChat(orgSlug: string, turn: ChatTurn, h: ChatHandlers, signal: AbortSignal): Promise<void> {
   const auth = aiClient.defaults.headers.common.Authorization;
