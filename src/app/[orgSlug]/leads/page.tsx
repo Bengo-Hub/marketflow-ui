@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CapsuleTabs, EmptyState, ListTable, PageHeader, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
 import { useDashboard } from "@/hooks/use-analytics";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useDebouncedSearch } from "@bengo-hub/shared-ui-lib/search";
 import { useLeads } from "@/hooks/use-leads";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { LEAD_STATUSES, leadName, leadsApi, type Lead, type LeadFilters } from "@/lib/api/leads";
@@ -24,12 +24,13 @@ export default function LeadsPage() {
   const router = useRouter();
   const [status, setStatus] = useState<string>("all");
   const [source, setSource] = useState("");
-  const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
-  const q = useDebouncedValue(search.trim(), 300);
+  // Shared debounced search: one request after the pause, Enter searches at once.
+  const search = useDebouncedSearch({ onTermChange: () => setPage(1) });
+  const q = search.term;
 
   const filters: LeadFilters = useMemo(() => ({ q, status, source, from, to }), [q, status, source, from, to]);
   const leads = useLeads(filters, page);
@@ -43,7 +44,7 @@ export default function LeadsPage() {
   const reset = () => {
     setStatus("all");
     setSource("");
-    setSearch("");
+    search.clear();
     setFrom("");
     setTo("");
     setPage(1);
@@ -128,7 +129,7 @@ export default function LeadsPage() {
         <div className="flex flex-wrap items-end gap-3">
           <div className="relative w-full sm:w-72">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input aria-label="Search leads" value={search} onChange={(e) => set(setSearch)(e.target.value)} placeholder="Search name, email or phone" className="pl-9" />
+            <Input aria-label="Search leads" {...search.inputProps} placeholder="Search name, email or phone" className="pl-9" />
           </div>
           <div className="w-full sm:w-48">
             <SearchableCombobox

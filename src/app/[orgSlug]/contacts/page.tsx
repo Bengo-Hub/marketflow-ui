@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { ImportContactsDialog } from "@/components/contacts/import-dialog";
 import { CapsuleTabs, ConfirmDialog, EmptyState, ListTable, PageHeader, ToneBadge, humanize } from "@/components/ui-kit";
 import { useContacts, useMergeContacts } from "@/hooks/use-contacts";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useDebouncedSearch } from "@bengo-hub/shared-ui-lib/search";
 import { CONTACT_TYPES, contactName, type Contact } from "@/lib/api/contacts";
 
 const dateFmt = new Intl.DateTimeFormat("en-KE", { day: "numeric", month: "short", year: "numeric" });
@@ -19,12 +19,13 @@ export default function ContactsPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const router = useRouter();
   const [type, setType] = useState("all");
-  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  // Shared debounced search: one request after the pause, Enter searches at once.
+  const search = useDebouncedSearch({ onTermChange: () => setPage(1) });
   const [importing, setImporting] = useState(false);
   const [selected, setSelected] = useState<Record<string, Contact>>({});
   const [survivor, setSurvivor] = useState<string | null>(null);
-  const q = useDebouncedValue(search.trim(), 300);
+  const q = search.term;
   const list = useContacts({ q, contact_type: type }, page);
   const merge = useMergeContacts();
 
@@ -92,11 +93,7 @@ export default function ContactsPage() {
             aria-label="Search contacts"
             className="pl-9"
             placeholder="Search name, email or phone"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            {...search.inputProps}
           />
         </div>
       </div>

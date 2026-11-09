@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, Field, ToneBadge } from "@/components/ui-kit";
 import { useAdAccounts, useAdQuote, useBoost, useBoostAction, useLaunchBoost } from "@/hooks/use-ads";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useDebouncedValue } from "@bengo-hub/shared-ui-lib/search";
 import { usePublishAccounts } from "@/hooks/use-publishing";
 import { adsApi, metaBillingURL, STAGE_LABEL, type Objective } from "@/lib/api/ads";
 import { apiErrorMessage } from "@/lib/api/errors";

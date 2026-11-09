@@ -6,7 +6,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
 import { Input } from "@/components/ui/input";
 import { EmptyState, ListTable, humanize } from "@/components/ui-kit";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useDebouncedSearch } from "@bengo-hub/shared-ui-lib/search";
 import type { AuditEntry } from "@/lib/api/admin";
 import type { Paginated } from "@/lib/api/types";
 
@@ -47,9 +47,10 @@ export function AuditLog({
   emptyText: string;
   storageKey?: string;
 }) {
-  const [filter, setFilter] = useState("");
   const [page, setPage] = useState(1);
-  const event = useDebouncedValue(filter.trim(), 300);
+  // Shared debounced search: one request after the pause, Enter searches at once.
+  const filter = useDebouncedSearch({ onTermChange: () => setPage(1) });
+  const event = filter.term;
   const q = useEntries(event, page);
 
   return (
@@ -69,11 +70,7 @@ export function AuditLog({
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             aria-label="Filter by event name"
-            value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value);
-              setPage(1);
-            }}
+            {...filter.inputProps}
             placeholder="Exact event name, e.g. lead.created"
             className="pl-9"
           />

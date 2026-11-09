@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
 import { CapsuleTabs, EmptyState, ErrorState, Field, GlassPanel, ListTable, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useDebouncedSearch } from "@bengo-hub/shared-ui-lib/search";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { billingApi, type AdminCreditRow } from "@/lib/api/billing";
 import { PRICING_URL } from "@/lib/urls";
@@ -66,11 +66,12 @@ function GrantDialog({ row, onDone }: { row: AdminCreditRow; onDone: () => void 
 }
 
 export default function PlatformBillingPage() {
-  const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [granting, setGranting] = useState<AdminCreditRow | null>(null);
-  const search = useDebouncedValue(q.trim(), 300);
+  // Shared debounced search: one request after the pause, Enter searches at once.
+  const searchBox = useDebouncedSearch({ onTermChange: () => setPage(1) });
+  const search = searchBox.term;
 
   const list = useQuery({
     queryKey: ["platform-credits", "ai_credits", search, status, page],
@@ -139,7 +140,7 @@ export default function PlatformBillingPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative w-full sm:w-72">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input aria-label="Search businesses" placeholder="Search by name or slug" className="pl-9" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+          <Input aria-label="Search businesses" placeholder="Search by name or slug" className="pl-9" {...searchBox.inputProps} />
         </div>
         <CapsuleTabs label="Status" value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={FILTERS} />
       </div>

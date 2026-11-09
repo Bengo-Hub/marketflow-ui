@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, GlassPanel, Pager, PageHeader, ToneBadge, humanize } from "@/components/ui-kit";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useDebouncedSearch } from "@bengo-hub/shared-ui-lib/search";
 import { useDeleteKnowledge, useImportKnowledge, useKbSuggestions, useKnowledge, useReviewSuggestion, useSaveKnowledge } from "@/hooks/use-knowledge";
 import { KB_CATEGORIES, type KbEntry, type KbInput } from "@/lib/api/knowledge";
 
@@ -101,12 +101,13 @@ export default function KnowledgePage() {
   const has = useFeature("knowledge_base");
   const { tenant } = useTenantBranding();
   const [category, setCategory] = useState("all");
-  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  // Shared debounced search: one request after the pause, Enter searches at once.
+  const search = useDebouncedSearch({ onTermChange: () => setPage(1) });
   const [editing, setEditing] = useState<{ id?: string; data: KbInput } | null>(null);
   const [deleting, setDeleting] = useState<KbEntry | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const q = useDebouncedValue(search.trim(), 300);
+  const q = search.term;
   const list = useKnowledge({ q, category }, page);
   const del = useDeleteKnowledge();
   const imp = useImportKnowledge();
@@ -150,7 +151,7 @@ export default function KnowledgePage() {
         <CapsuleTabs label="Filter by kind" value={category} onChange={(v) => { setCategory(v); setPage(1); }} options={[{ value: "all", label: "All" }, ...KB_CATEGORIES.map((c) => ({ value: c, label: label(c) }))]} />
         <div className="relative sm:ml-auto sm:w-72">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input aria-label="Search the knowledge base" className="pl-9" placeholder="Search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <Input aria-label="Search the knowledge base" className="pl-9" placeholder="Search" {...search.inputProps} />
         </div>
       </div>
 
