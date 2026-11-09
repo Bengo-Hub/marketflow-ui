@@ -55,7 +55,7 @@ export default function ResearchPage() {
   }
 
   const loading = researchQ.isLoading || settingsQ.isLoading;
-  const scanned = researchQ.data ?? [];
+  const scanned = researchQ.data?.competitors ?? [];
   const tracked = settingsQ.data?.competitors ?? [];
   const references = settingsQ.data?.reference_ads ?? [];
   const complaints = settingsQ.data?.customer_complaints ?? [];

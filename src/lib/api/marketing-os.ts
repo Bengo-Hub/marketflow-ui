@@ -89,6 +89,20 @@ export interface ResearchCompetitor {
   winners: ResearchWinner[];
 }
 
+/** The complaint search run once at onboarding (1 credit). Suggestions only, until the owner adds them. */
+export interface MarketSuggestions {
+  query: string;
+  status: "ready" | "no_credits";
+  at: string;
+  themes?: ComplaintTheme[] | null;
+  places?: ComplaintReport["places"];
+}
+
+export interface MarketResearch {
+  competitors: ResearchCompetitor[];
+  suggestions: MarketSuggestions | null;
+}
+
 export type ReferencePlatform = "meta" | "tiktok" | "youtube" | "google" | "other";
 
 export interface ReferenceAd {
@@ -311,9 +325,9 @@ export const marketingOsApi = {
   brandContext: () => apiClient.get<BrandContext>("/api/v1/tenant/marketing-context").then((r) => r.data),
   saveBrandContext: (bc: BrandContext) =>
     apiClient.put<BrandContext>("/api/v1/tenant/marketing-context", bc).then((r) => r.data),
-  /** What the weekly competitor scan found. */
+  /** What the weekly competitor scan found, and the onboarding market search if it ran. */
   research: () =>
-    apiClient.get<{ competitors: ResearchCompetitor[] }>("/api/v1/tenant/market-research").then((r) => r.data.competitors ?? []),
+    apiClient.get<MarketResearch>("/api/v1/tenant/market-research").then((r) => ({ competitors: r.data.competitors ?? [], suggestions: r.data.suggestions ?? null })),
   /** Complaint themes from public reviews of similar businesses. A fresh search costs 1 credit. */
   findComplaints: (query: string) =>
     apiClient.post<ComplaintReport>("/api/v1/tenant/market-research/complaints", { query }, { timeout: 60_000 }).then((r) => r.data),

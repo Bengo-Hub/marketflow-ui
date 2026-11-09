@@ -291,10 +291,16 @@ const NEW_AD: ReferenceAd = { url: "", platform: "meta", notes: "" };
 /** Searches public reviews of similar businesses. The owner adds only the themes they agree with. */
 function ComplaintFinder({ added, full, onAdd, orgSlug }: { added: string[]; full: boolean; onAdd: (text: string) => void; orgSlug: string }) {
   const qc = useQueryClient();
-  const [query, setQuery] = useState("");
+  // The onboarding search (run once, automatically) fills the box and the first results, so the
+  // owner only confirms. A new search replaces them.
+  const researchQ = useQuery({ queryKey: ["market-research", orgSlug], queryFn: marketingOsApi.research });
+  const suggested = researchQ.data?.suggestions;
+  const [typed, setQuery] = useState<string | null>(null);
+  const query = typed ?? suggested?.query ?? "";
   const find = useMutation({ mutationFn: () => marketingOsApi.findComplaints(query.trim()) });
-  const themes = find.data?.themes ?? [];
-  const places = find.data?.places ?? [];
+  const fromOnboarding = !find.data && suggested?.status === "ready";
+  const themes = (find.data?.themes ?? (fromOnboarding ? suggested?.themes : null)) ?? [];
+  const places = (find.data?.places ?? (fromOnboarding ? suggested?.places : null)) ?? [];
   // Similar businesses from the same search, saved straight onto the competitor list. The website
   // is preferred: the weekly ad scan matches advertisers by domain more reliably than by name.
   const settingsQ = useQuery({ queryKey: ["os-settings", orgSlug], queryFn: marketingOsApi.settings });
@@ -322,6 +328,12 @@ function ComplaintFinder({ added, full, onAdd, orgSlug }: { added: string[]; ful
         <p role="alert" className="text-sm text-destructive">
           {apiError(find.error, "The search failed. Try again later.")}
         </p>
+      )}
+      {fromOnboarding && (themes.length > 0 || places.length > 0) && (
+        <p className="text-xs text-muted-foreground">We searched this when you set up your brand. Add what rings true; nothing is used until you do.</p>
+      )}
+      {!find.data && suggested?.status === "no_credits" && (
+        <p className="text-xs text-muted-foreground">We could not search your market at setup because your AI credits were used up. Search here once you have credits.</p>
       )}
       {find.isSuccess && themes.length === 0 && <p className="text-sm text-muted-foreground">No low reviews found for that search. Try a broader description.</p>}
       {themes.length > 0 && (
