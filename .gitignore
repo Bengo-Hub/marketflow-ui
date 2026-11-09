@@ -7,3 +7,7 @@ out/
 .DS_Store
 Thumbs.db
 tsconfig.tsbuildinfo
+
+# Playwright output
+/test-results/
+/playwright-report/
