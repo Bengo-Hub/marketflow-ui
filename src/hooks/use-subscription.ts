@@ -5,6 +5,17 @@ import { useAuthStore } from "@/store/auth-store";
 import { useSubscriptionStore } from "@/store/subscription";
 import { fetchSubscriptionInfo } from "@/lib/auth/subscription";
 
+/** The unverified payload of a JWT, or {} when it cannot be read. */
+function tokenClaims(token?: string | null): { billing_mode?: string; is_demo?: boolean; sub_exempt?: boolean } {
+  const part = token?.split(".")[1];
+  if (!part || typeof atob !== "function") return {};
+  try {
+    return JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=")));
+  } catch {
+    return {};
+  }
+}
+
 export function useSubscription() {
   const user = useAuthStore((s) => s.user);
   const session = useAuthStore((s) => s.session);
@@ -15,10 +26,12 @@ export function useSubscription() {
   const tenantId = user?.tenantId ?? null;
   const tenantSlug = user?.tenantSlug ?? null;
   const isPlatformOwner = user?.isPlatformOwner ?? false;
-  // SSO sends these on some tokens; they are not part of UserProfile's declared fields.
-  const extra = (user ?? {}) as { billing_mode?: string; is_demo?: boolean };
-  const isServiceCharge = extra.billing_mode === "service_charge";
-  const isDemo = !!extra.is_demo || tenantSlug === "codevertex-demo";
+  // The gating exemptions live on the access token (auth-client Claims.IsGatingExempt), not on the
+  // user profile. Read them from its payload for display only; every server checks the signed token.
+  const claims = tokenClaims(session?.accessToken);
+  const isServiceCharge = claims.billing_mode === "service_charge";
+  const isDemo = !!claims.is_demo || tenantSlug === "codevertex-demo";
+  const isSubscriptionExempt = !!claims.sub_exempt;
 
   // Hydrate store from IDB on auth
   useEffect(() => {
@@ -106,15 +119,16 @@ export function useSubscription() {
     status: subStatus,
     plan: store.plan,
     tierOrder: store.tierOrder,
-    isActive: subStatus === "active" || subStatus === "trial" || isServiceCharge || isDemo,
+    isActive: subStatus === "active" || subStatus === "trial" || isServiceCharge || isDemo || isSubscriptionExempt,
     isPastDue: subStatus === "suspended",
     isExpired: store.isExpired,
     isInGracePeriod: store.isInGracePeriod,
-    needsSubscription: subStatus === "none" && !isPlatformOwner && !isServiceCharge && !isDemo,
+    needsSubscription: subStatus === "none" && !isPlatformOwner && !isServiceCharge && !isDemo && !isSubscriptionExempt,
     isLoading: !store.hydrated,
     isPlatformOwner,
     isServiceCharge,
     isDemo,
+    isSubscriptionExempt,
     isCommercialTenant: !isPlatformOwner,
     hasFeature: (code: string) => store.features.includes(code),
     getLimit: (key: string) => (store.limits[key] ?? Infinity) as number,

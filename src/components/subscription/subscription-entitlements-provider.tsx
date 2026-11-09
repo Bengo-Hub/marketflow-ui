@@ -27,7 +27,8 @@ interface CatalogItem {
  * FeatureLock / UpgradeDialog work anywhere below the authenticated shell.
  *
  * isExempt mirrors the backend IsGatingExempt funnel: platform owner OR demo OR
- * service-charge billing — exempt tenants see every feature as enabled.
+ * service-charge billing OR a tenant the platform flagged sub_exempt. Exempt tenants see every
+ * feature as enabled.
  *
  * The feature catalog (minPlanCode/minTierLabel per feature) is fetched once from the
  * /api/features-catalog proxy so FeatureLock can render "Upgrade to <tier>" + pricing
@@ -70,7 +71,7 @@ export function SubscriptionEntitlementsProvider({
     () => ({
       features: sub.store.features,
       limits: sub.store.limits,
-      isExempt: sub.isPlatformOwner || sub.isDemo || sub.isServiceCharge,
+      isExempt: sub.isPlatformOwner || sub.isDemo || sub.isServiceCharge || sub.isSubscriptionExempt,
       status: sub.status,
       isLoading: sub.isLoading,
       planCode: sub.plan,
@@ -84,6 +85,7 @@ export function SubscriptionEntitlementsProvider({
       sub.isPlatformOwner,
       sub.isDemo,
       sub.isServiceCharge,
+      sub.isSubscriptionExempt,
       sub.status,
       sub.isLoading,
       sub.plan,

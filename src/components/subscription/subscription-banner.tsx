@@ -11,6 +11,8 @@ const BILLING_URL = `${SUBSCRIPTIONS_UI_URL}/billing`;
 
 export function SubscriptionBanner() {
   const sub = useSubscription();
+  // A tenant the platform exempted is never asked to pay, so it never sees a renewal warning.
+  if (sub.isSubscriptionExempt) return null;
   return (
     <SharedSubscriptionBanner
       status={sub.status}
