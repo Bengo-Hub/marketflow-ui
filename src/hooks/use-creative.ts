@@ -80,6 +80,18 @@ export function useCreateBrief() {
   });
 }
 
+export function useMakeLeadPage(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => creativeApi.makeLeadPage(id),
+    onSuccess: () => {
+      toast.success("Lead page ready. Posts and boosts for this ad now link to it.");
+      void qc.invalidateQueries({ queryKey: ["creative-brief", id] });
+    },
+    onError: (e) => toast.error(apiErrorMessage(e, "Could not make the lead page")),
+  });
+}
+
 export function useUpdateBrief(id: string) {
   const qc = useQueryClient();
   return useMutation({

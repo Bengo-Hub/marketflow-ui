@@ -142,6 +142,8 @@ export const creativeApi = {
   brief: (id: string) => apiClient.get<CreativeBrief>(`${base}/briefs/${id}`).then((r) => r.data),
   createBrief: (data: BriefInput) => apiClient.post<CreativeBrief>(`${base}/briefs`, data).then((r) => r.data),
   updateBrief: (id: string, data: BriefInput) => apiClient.put<CreativeBrief>(`${base}/briefs/${id}`, data).then((r) => r.data),
+  /** Gives an ad made before lead pages existed its own published page. Safe to repeat. */
+  makeLeadPage: (id: string) => apiClient.post<CreativeBrief>(`${base}/briefs/${id}/lead-page`).then((r) => r.data),
   /** 503 when the catalogue can't be reached; the picker then takes free text. */
   offerings: (q: string) => apiClient.get<{ data: Offering[] }>(`${base}/offerings`, { params: { q } }).then((r) => r.data.data ?? []),
 

@@ -11,7 +11,7 @@ import { PosterForm } from "@/components/studio/poster-form";
 import { VersionCard } from "@/components/studio/version-card";
 import { VideoAdCard } from "@/components/studio/video-ad-card";
 import { VideoAdForm } from "@/components/studio/video-ad-form";
-import { useBrief, useCanApprove, useUpdateBrief } from "@/hooks/use-creative";
+import { useBrief, useCanApprove, useMakeLeadPage, useUpdateBrief } from "@/hooks/use-creative";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { OBJECTIVES, type CreativeVersion } from "@/lib/api/creative";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ export default function AdPage() {
   const { orgSlug, id } = useParams<{ orgSlug: string; id: string }>();
   const brief = useBrief(id);
   const update = useUpdateBrief(id);
+  const makeLeadPage = useMakeLeadPage(id);
   const canApprove = useCanApprove();
   // A poster to start from: "Make another like this" fills the form from it.
   const [base, setBase] = useState<CreativeVersion | null>(null);
@@ -72,10 +73,16 @@ export default function AdPage() {
         }
         actions={
           <>
-            {typeof b.metadata?.funnel_slug === "string" && (
+            {typeof b.metadata?.funnel_slug === "string" ? (
               <a href={funnelUrl(b.metadata.funnel_slug)} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" })}>
                 <ExternalLink /> Lead page
               </a>
+            ) : (
+              !archived && (
+                <Button variant="outline" disabled={makeLeadPage.isPending} onClick={() => makeLeadPage.mutate()}>
+                  <ExternalLink /> {makeLeadPage.isPending ? "Making..." : "Make a lead page"}
+                </Button>
+              )
             )}
             <Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ status: archived ? "active" : "archived" })}>
               {archived ? <ArchiveRestore /> : <Archive />} {archived ? "Restore" : "Archive"}
