@@ -16,6 +16,8 @@ export interface Campaign {
   status: string;
   channel?: string;
   meta_campaign_id?: string | null;
+  /** Set on a paid boost: the client's own ad account it runs on. */
+  connected_account_id?: string | null;
   budget_daily?: number | null;
   budget_total?: number | null;
   currency?: string | null;
@@ -24,6 +26,15 @@ export interface Campaign {
   end_date?: string | null;
   metrics?: Record<string, number> | null;
   created_at: string;
+}
+
+/**
+ * A campaign that runs on an ad platform (a boost on a connected ad account, or one carrying a
+ * Meta id) is paused and resumed through the ads routes, which change it on the platform too; the
+ * plain campaign routes refuse it (409) because a local-only pause would leave it spending.
+ */
+export function runsOnAdPlatform(c: Pick<Campaign, "connected_account_id" | "meta_campaign_id"> | undefined): boolean {
+  return Boolean(c?.connected_account_id || c?.meta_campaign_id);
 }
 
 export interface CampaignInput {

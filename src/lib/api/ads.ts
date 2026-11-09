@@ -68,6 +68,8 @@ export const adsApi = {
   get: (id: string) => apiClient.get<Boost>(`${base}/boosts/${id}`).then((r) => r.data),
   paid: (id: string) => apiClient.post<Boost>(`${base}/boosts/${id}/paid`).then((r) => r.data),
   pause: (id: string) => apiClient.post<Boost>(`${base}/boosts/${id}/pause`).then((r) => r.data),
+  /** Switches a paused boost that went live back on at Meta. */
+  resume: (id: string) => apiClient.post<Boost>(`${base}/boosts/${id}/resume`).then((r) => r.data),
 };
 
 /**

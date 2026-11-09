@@ -127,12 +127,12 @@ export default function CampaignsPage() {
           <Pencil className="mr-2 h-4 w-4" /> Edit
         </DropdownMenuItem>
         {c.status === "active" && (
-          <DropdownMenuItem onClick={() => action.mutate({ id: c.id, action: "pause" })}>
+          <DropdownMenuItem onClick={() => action.mutate({ id: c.id, action: "pause", campaign: c })}>
             <Pause className="mr-2 h-4 w-4" /> Pause
           </DropdownMenuItem>
         )}
         {(c.status === "paused" || c.status === "draft") && (
-          <DropdownMenuItem onClick={() => action.mutate({ id: c.id, action: "resume" })}>
+          <DropdownMenuItem onClick={() => action.mutate({ id: c.id, action: "resume", campaign: c })}>
             <Play className="mr-2 h-4 w-4" /> {c.status === "draft" ? "Start" : "Resume"}
           </DropdownMenuItem>
         )}

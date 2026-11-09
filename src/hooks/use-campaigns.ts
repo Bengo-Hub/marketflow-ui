@@ -3,7 +3,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { campaignsApi, type CampaignInput } from "@/lib/api/campaigns";
+import { adsApi } from "@/lib/api/ads";
+import { campaignsApi, runsOnAdPlatform, type Campaign, type CampaignInput } from "@/lib/api/campaigns";
 import { apiErrorMessage } from "@/lib/api/errors";
 
 export function useCampaigns(status: string, page: number) {
@@ -57,9 +58,11 @@ export function useSaveCampaign() {
 export function useCampaignAction() {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: async ({ id, action }: { id: string; action: "pause" | "resume" | "end" }): Promise<void> => {
-      if (action === "pause") await campaignsApi.pause(id);
-      else if (action === "resume") await campaignsApi.resume(id);
+    mutationFn: async ({ id, action, campaign }: { id: string; action: "pause" | "resume" | "end"; campaign?: Campaign }): Promise<void> => {
+      // A boost is paused and resumed on Meta through the ads routes, never only in our database.
+      const ads = runsOnAdPlatform(campaign);
+      if (action === "pause") await (ads ? adsApi.pause(id) : campaignsApi.pause(id));
+      else if (action === "resume") await (ads ? adsApi.resume(id) : campaignsApi.resume(id));
       else await campaignsApi.remove(id);
     },
     onSuccess: (_r, v) => {

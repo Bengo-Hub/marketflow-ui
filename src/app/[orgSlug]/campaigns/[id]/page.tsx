@@ -62,12 +62,12 @@ export default function CampaignDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {c?.status === "active" && (
-            <Button variant="outline" disabled={action.isPending} onClick={() => action.mutate({ id, action: "pause" })}>
+            <Button variant="outline" disabled={action.isPending} onClick={() => action.mutate({ id, action: "pause", campaign: c })}>
               <Pause /> Pause
             </Button>
           )}
           {(c?.status === "paused" || c?.status === "draft") && (
-            <Button disabled={action.isPending} onClick={() => action.mutate({ id, action: "resume" })}>
+            <Button disabled={action.isPending} onClick={() => action.mutate({ id, action: "resume", campaign: c })}>
               <Play /> {c.status === "draft" ? "Start" : "Resume"}
             </Button>
           )}
