@@ -155,7 +155,9 @@ export async function fetchProfile(accessToken: string): Promise<UserProfile> {
   if (!res.ok) throw new Error(`Profile failed: ${res.status}`);
   const d = await res.json();
   const tenantSlug = d.tenant_slug ?? "";
-  const isPlatformOwner = d.is_platform_owner === true || tenantSlug === "codevertex";
+  // Only auth-api's claim (admin or superuser in the platform tenant) makes a platform owner;
+  // a plain member of the codevertex tenant is an ordinary user of that tenant.
+  const isPlatformOwner = d.is_platform_owner === true;
 
   // For non-platform tenants, enrich with the tenant's fbo_distrib_id from
   // marketflow-api so we can route FBOs to /{distribID}/... URLs. Public
