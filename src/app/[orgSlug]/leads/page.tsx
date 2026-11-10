@@ -16,6 +16,7 @@ import { useLeads } from "@/hooks/use-leads";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { LEAD_STATUSES, leadName, leadsApi, type Lead, type LeadFilters } from "@/lib/api/leads";
 import { datedFilename, saveBlob } from "@/lib/download";
+import { leadAdSource } from "@/lib/leads/ad-source";
 
 const dateFmt = new Intl.DateTimeFormat("en-KE", { day: "numeric", month: "short", year: "numeric" });
 
@@ -76,6 +77,18 @@ export default function LeadsPage() {
         <span>
           <ToneBadge>{humanize(l.source)}</ToneBadge>
           {l.utm_campaign && <span className="mt-1 block truncate text-xs text-muted-foreground">Campaign: {l.utm_campaign}</span>}
+          {leadAdSource(l) &&
+            (l.campaign_id ? (
+              <Link
+                href={`/${orgSlug}/campaigns/${l.campaign_id}`}
+                className="mt-1 block truncate text-xs text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {leadAdSource(l)}
+              </Link>
+            ) : (
+              <span className="mt-1 block truncate text-xs text-muted-foreground">{leadAdSource(l)}</span>
+            ))}
         </span>
       ),
     },
