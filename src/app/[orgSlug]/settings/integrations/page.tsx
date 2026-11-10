@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProviderLogo } from "@/components/providers/provider-logo";
 import { tenantIntegrations } from "@/lib/providers/catalog";
+import { connectErrorText, connectProviders } from "@/lib/integrations/connect-result";
+import { ConnectedAccounts, type ConnectedAccount } from "@/components/providers/connected-accounts";
 import { CheckCircle2, ExternalLink } from "lucide-react";
 
 type Integration = {
@@ -15,6 +17,7 @@ type Integration = {
   name: string;
   connected: boolean;
   fields: Record<string, string>;
+  accounts?: ConnectedAccount[];
 };
 
 export default function IntegrationsPage() {
@@ -91,6 +94,11 @@ export default function IntegrationsPage() {
       {params.get("tiktok") === "connected" && (
         <Banner ok text="TikTok for Business connected. You can now run TikTok campaigns." />
       )}
+      {/* Failure banners: the callback returns ?<provider>=error&reason=<code>. */}
+      {connectProviders.map((p) => {
+        const text = params.get(p) === "error" ? connectErrorText(p, params.get("reason") ?? "") : null;
+        return text ? <Banner key={p} text={text} /> : null;
+      })}
 
       <div className="grid gap-4 md:grid-cols-2">
         {tenantIntegrations.filter((it) => availableTypes.has(it.requiresPlatformConfig)).map((it) => {
@@ -126,7 +134,10 @@ export default function IntegrationsPage() {
                 </div>
               </div>
 
-              {connected && existing?.fields && Object.keys(existing.fields).length > 0 && (
+              {connected && existing?.accounts && existing.accounts.length > 0 && (
+                <ConnectedAccounts accounts={existing.accounts} />
+              )}
+              {connected && !existing?.accounts?.length && existing?.fields && Object.keys(existing.fields).length > 0 && (
                 <dl className="rounded-md bg-muted/40 p-3 text-xs">
                   {Object.entries(existing.fields)
                     .slice(0, 4)
@@ -181,7 +192,7 @@ function Banner({ ok, text }: { ok?: boolean; text: string }) {
           : "border-red-300 bg-red-50 text-red-800"
       }`}
     >
-      ✓ {text}
+      {ok ? "✓ " : ""}{text}
     </div>
   );
 }
