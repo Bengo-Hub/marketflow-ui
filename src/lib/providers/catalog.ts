@@ -617,6 +617,8 @@ export const tenantIntegrations: {
   brandColor: string;
   requiresPlatformConfig: string; // platform provider_type that must be set first
   authorizePath: string;
+  /** No authorize route in marketflow-api yet: shown as coming soon instead of a Connect that 404s. */
+  comingSoon?: boolean;
 }[] = [
   {
     id: "google_calendar",
@@ -647,6 +649,7 @@ export const tenantIntegrations: {
     brandColor: "#4285F4",
     requiresPlatformConfig: "google_ads",
     authorizePath: "/api/v1/integrations/google-ads/authorize",
+    comingSoon: true, // Sprint 19: Google OAuth and the manager-account link are not built
   },
   {
     id: "tiktok_ads",
@@ -667,6 +670,7 @@ export const tenantIntegrations: {
     brandColor: "#0A66C2",
     requiresPlatformConfig: "linkedin_ads",
     authorizePath: "/api/v1/integrations/linkedin/authorize",
+    comingSoon: true, // no LinkedIn integration in marketflow-api yet
   },
 ];
 

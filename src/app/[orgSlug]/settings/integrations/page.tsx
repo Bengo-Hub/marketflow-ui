@@ -148,6 +148,10 @@ export default function IntegrationsPage() {
                   >
                     Disconnect
                   </Button>
+                ) : it.comingSoon ? (
+                  <Button size="sm" variant="outline" disabled>
+                    Coming soon
+                  </Button>
                 ) : (
                   <Button
                     size="sm"
