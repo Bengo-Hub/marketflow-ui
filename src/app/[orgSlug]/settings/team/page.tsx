@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Lock, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { Lock, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -24,7 +24,7 @@ function InviteForm({ onDone, onCreated }: { onDone: () => void; onCreated: (r: 
       onSubmit={(e) => {
         e.preventDefault();
         if (!valid) return;
-        invite.mutate({ email: email.trim(), name: name.trim() || undefined, role }, { onSuccess: (r) => (r.temp_password ? onCreated(r) : onDone()) });
+        invite.mutate({ email: email.trim(), name: name.trim() || undefined, role }, { onSuccess: (r) => (r.new_account ? onCreated(r) : onDone()) });
       }}
     >
       <div className="space-y-4">
@@ -43,26 +43,11 @@ function InviteForm({ onDone, onCreated }: { onDone: () => void; onCreated: (r: 
 }
 
 function NewAccountNotice({ result, onDone }: { result: InviteResult; onDone: () => void }) {
-  const [copied, setCopied] = useState(false);
   return (
     <>
       <div className="space-y-3 text-sm">
-        <p><span className="font-medium">{result.email}</span> did not have a Codevertex account, so one was made. They got an email with the sign-in link.</p>
-        <p>Share this temporary password with them privately. It is shown only once, and they choose their own the first time they sign in.</p>
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 p-3">
-          <code className="min-w-0 flex-1 truncate font-mono text-base tracking-wide">{result.temp_password}</code>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void navigator.clipboard.writeText(result.temp_password ?? "");
-              setCopied(true);
-            }}
-          >
-            {copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy"}
-          </Button>
-        </div>
+        <p><span className="font-medium">{result.email}</span> did not have a Codevertex account, so one was made.</p>
+        <p>They got an email with a link to set their own password (valid for 72 hours). If it does not arrive, ask them to check spam or use "Forgot password" on the sign-in page.</p>
       </div>
       <DialogFooter><Button onClick={onDone}>Done</Button></DialogFooter>
     </>

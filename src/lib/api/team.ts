@@ -2,8 +2,8 @@ import { apiClient } from "./client";
 
 /** MarketFlow roles a tenant admin can give (marketflow-api rbac.AssignableRoles). */
 export const TEAM_ROLES = [
-  { value: "marketflow_admin", label: "Admin", hint: "Everything, including the team and settings" },
-  { value: "fbo_owner", label: "Member", hint: "Leads, contacts, campaigns, funnels and chat" },
+  { value: "marketflow_admin", label: "Admin", hint: "Everything, including the team, settings, integrations, autopilot and lead export" },
+  { value: "fbo_owner", label: "Member", hint: "Day-to-day marketing: create, approve, boost, post, reply and use AI credits" },
   { value: "viewer", label: "Viewer", hint: "Can look, cannot change anything" },
 ] as const;
 
@@ -26,12 +26,10 @@ export interface TeamList {
 }
 
 export interface InviteResult {
-  user_id: string;
   email: string;
   role: TeamRole;
+  /** A brand-new account was made; it sets its password from the emailed link. */
   new_account: boolean;
-  /** Only for a brand-new account, returned once; the person changes it on first sign-in. */
-  temp_password?: string;
 }
 
 export const teamApi = {
