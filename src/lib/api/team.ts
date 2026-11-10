@@ -30,6 +30,8 @@ export interface InviteResult {
   role: TeamRole;
   /** A brand-new account was made; it sets its password from the emailed link. */
   new_account: boolean;
+  /** An existing account was emailed an invitation; it joins once it accepts. */
+  pending_acceptance?: boolean;
 }
 
 export const teamApi = {

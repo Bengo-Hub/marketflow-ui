@@ -24,7 +24,7 @@ function InviteForm({ onDone, onCreated }: { onDone: () => void; onCreated: (r: 
       onSubmit={(e) => {
         e.preventDefault();
         if (!valid) return;
-        invite.mutate({ email: email.trim(), name: name.trim() || undefined, role }, { onSuccess: (r) => (r.new_account ? onCreated(r) : onDone()) });
+        invite.mutate({ email: email.trim(), name: name.trim() || undefined, role }, { onSuccess: (r) => (r.new_account || r.pending_acceptance ? onCreated(r) : onDone()) });
       }}
     >
       <div className="space-y-4">
@@ -45,10 +45,17 @@ function InviteForm({ onDone, onCreated }: { onDone: () => void; onCreated: (r: 
 function NewAccountNotice({ result, onDone }: { result: InviteResult; onDone: () => void }) {
   return (
     <>
-      <div className="space-y-3 text-sm">
-        <p><span className="font-medium">{result.email}</span> did not have a Codevertex account, so one was made.</p>
-        <p>They got an email with a link to set their own password (valid for 72 hours). If it does not arrive, ask them to check spam or use "Forgot password" on the sign-in page.</p>
-      </div>
+      {result.pending_acceptance ? (
+        <div className="space-y-3 text-sm">
+          <p><span className="font-medium">{result.email}</span> already has a Codevertex account, so they were emailed an invitation.</p>
+          <p>They join your team once they accept it. Until then they do not appear here and cannot sign in to MarketFlow for this business.</p>
+        </div>
+      ) : (
+        <div className="space-y-3 text-sm">
+          <p><span className="font-medium">{result.email}</span> did not have a Codevertex account, so one was made.</p>
+          <p>They got an email with a link to set their own password (valid for 72 hours). If it does not arrive, ask them to check spam or use "Forgot password" on the sign-in page.</p>
+        </div>
+      )}
       <DialogFooter><Button onClick={onDone}>Done</Button></DialogFooter>
     </>
   );
