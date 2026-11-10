@@ -19,7 +19,7 @@ import {
   Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
   Briefcase, Activity, CheckSquare, ChevronDown, LogOut, UsersRound, Filter,
   SlidersHorizontal, Workflow, Palette, UserCircle, CreditCard, PlugZap, Quote,
-  ScrollText, Gauge, KeyRound, Cog, Receipt, ImageIcon, Inbox,
+  ScrollText, Gauge, KeyRound, Cog, Receipt, ImageIcon, Inbox, Plug,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
@@ -92,6 +92,7 @@ export const platformItems: NavItem[] = [
   { label: "Billing", icon: Receipt, href: "/platform/billing" },
   { label: "Usage", icon: Gauge, href: "/platform/usage" },
   { label: "Service config", icon: Cog, href: "/platform/service-config" },
+  { label: "Service data", icon: Plug, href: "/platform/endpoints" },
   { label: "Security", icon: Shield, href: "/platform/security" },
 ];
 
