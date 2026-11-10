@@ -152,13 +152,23 @@ export default function IntegrationsPage() {
 
               <div className="mt-auto flex items-center gap-2">
                 {connected ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => disconnect.mutate(it.id)}
-                  >
-                    Disconnect
-                  </Button>
+                  <>
+                    {!it.comingSoon && it.id !== "google_calendar" && (
+                      // Re-runs the connect so the tenant can tick more Pages, an Instagram
+                      // account or ad accounts (Meta: choose "Edit settings" in its dialog).
+                      <Button size="sm" variant="outline" onClick={() => connect.mutate(it.id)}>
+                        Add or change accounts
+                        <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => disconnect.mutate(it.id)}
+                    >
+                      Disconnect
+                    </Button>
+                  </>
                 ) : it.comingSoon ? (
                   <Button size="sm" variant="outline" disabled>
                     Coming soon
