@@ -151,6 +151,8 @@ export const creativeApi = {
   version: (id: string) => apiClient.get<CreativeVersion>(`${base}/versions/${id}`).then((r) => r.data),
   approve: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/approve`).then((r) => r.data),
   discard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/discard`).then((r) => r.data),
+  /** Tells the API an approved video was downloaded (starts its 48-hour removal countdown). */
+  downloaded: (assetId: string) => apiClient.post(`${base}/assets/${assetId}/downloaded`).then(() => undefined),
   revise: (id: string, data: ReviseInput) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/revise`, data).then((r) => r.data),
   extend: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/extend`).then((r) => r.data),
   motion: (id: string, data: MotionInput) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/motion`, data).then((r) => r.data),

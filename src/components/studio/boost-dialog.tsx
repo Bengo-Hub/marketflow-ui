@@ -48,6 +48,7 @@ export function BoostDialog({
   const [objective, setObjective] = useState<Objective>("whatsapp");
   const [message, setMessage] = useState(defaultText ?? "");
   const [link, setLink] = useState(defaultLink ?? "");
+  const [privacy, setPrivacy] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [boostID, setBoostID] = useState<string | null>(null);
 
@@ -75,7 +76,8 @@ export function BoostDialog({
   const submit = () => {
     setError(null);
     launch.mutate(
-      { ad_account_connected_id: acct, budget, days, page_connected_id: pg, asset_id: assetId, objective, message: message.trim(), link: link || undefined },
+      { ad_account_connected_id: acct, budget, days, page_connected_id: pg, asset_id: assetId, objective, message: message.trim(), link: link || undefined,
+        privacy_url: objective === "leads" ? privacy.trim() : undefined },
       { onSuccess: (b) => setBoostID(b.id), onError: (e) => setError(apiErrorMessage(e, "Could not start the boost")) },
     );
   };
@@ -130,6 +132,15 @@ export function BoostDialog({
                 <Input id="boost-link" type="url" placeholder="https://" value={link} onChange={(e) => setLink(e.target.value)} />
               </Field>
             )}
+            {objective === "leads" && (
+              <Field
+                label="Your privacy policy link"
+                htmlFor="boost-privacy"
+                hint="People fill a short Facebook form (name, phone, email). Meta shows this link on it and requires one."
+              >
+                <Input id="boost-privacy" type="url" placeholder="https://" value={privacy} onChange={(e) => setPrivacy(e.target.value)} />
+              </Field>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Total budget" htmlFor="boost-budget" hint={q ? q.currency : undefined}>
                 <Input id="boost-budget" type="number" min={1} value={budget} onChange={(e) => setBudget(Math.max(0, Number(e.target.value)))} />
@@ -176,7 +187,7 @@ export function BoostDialog({
         {!boostID && (
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={launch.isPending}>Cancel</Button>
-            <Button onClick={submit} disabled={launch.isPending || blocked || !pg || !message.trim()}>
+            <Button onClick={submit} disabled={launch.isPending || blocked || !pg || !message.trim() || (objective === "leads" && !privacy.trim().startsWith("https://"))}>
               {launch.isPending ? "Starting..." : "Confirm and launch"}
             </Button>
           </DialogFooter>

@@ -44,6 +44,8 @@ export interface BoostInput {
   message: string;
   headline?: string;
   link?: string;
+  /** Leads only: the business's privacy policy, shown on the Meta instant form. */
+  privacy_url?: string;
   whatsapp_number?: string;
   countries?: string[];
 }

@@ -110,7 +110,13 @@ export function VersionCard({
         )}
 
         <p className="text-xs text-muted-foreground">
-          {v.status === "approved" && v.approved_at ? `Approved ${when.format(new Date(v.approved_at))}. Kept.` : null}
+          {v.status === "approved" && v.approved_at
+            ? `Approved ${when.format(new Date(v.approved_at))}. ${expires ? "" : "Kept."}`
+            : null}
+          {/* An approved video is removed 48 hours after it is posted or downloaded (owner, 2026-11-10). */}
+          {v.status === "approved" && expires ? (
+            <span className="font-medium text-warning">Used, so it will be removed {when.format(new Date(expires))}: download a copy to keep it.</span>
+          ) : null}
           {v.status !== "approved" && expires ? `Files kept until ${when.format(new Date(expires))}.` : null}
           {v.credits > 0 && ` ${v.credits} credits.`}
           {v.metadata?.recompose && " Words changed, no charge."}
@@ -128,7 +134,17 @@ export function VersionCard({
             </Button>
           )}
           {asset && finished && (
-            <a href={asset.url} download target="_blank" rel="noreferrer" className={buttonVariants({ size: "sm", variant: "ghost" })}>
+            <a
+              href={asset.url}
+              download
+              target="_blank"
+              rel="noreferrer"
+              className={buttonVariants({ size: "sm", variant: "ghost" })}
+              // A downloaded approved video starts its 48-hour removal countdown; best effort.
+              onClick={() => {
+                if (v.status === "approved" && v.kind === "video") void creativeApi.downloaded(asset.id).catch(() => undefined);
+              }}
+            >
               <Download /> Download
             </a>
           )}
