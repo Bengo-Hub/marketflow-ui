@@ -10,6 +10,7 @@ import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
 import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, ListTable, StatCard, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
 import { useCampaign, useCampaignAction, useCampaignMetrics } from "@/hooks/use-campaigns";
 import { formatMoney, type CampaignMetrics } from "@/lib/api/campaigns";
+import { metaReviewLabel } from "@/lib/campaigns/review";
 
 type Point = CampaignMetrics["series"][number];
 import { SendSMSDialog } from "./send-sms-dialog";
@@ -24,6 +25,7 @@ export default function CampaignDetailPage() {
   const metrics = useCampaignMetrics(id, Number(days));
   const action = useCampaignAction();
   const c = campaign.data;
+  const review = c ? metaReviewLabel(c) : null;
   const t = metrics.data?.totals;
   const currency = metrics.data?.series[0]?.currency || c?.currency || "KES";
   const series = metrics.data?.series ?? [];
@@ -57,6 +59,8 @@ export default function CampaignDetailPage() {
               <ToneBadge>{humanize(c.platform)}</ToneBadge>
               {c.channel && <ToneBadge tone="info">{c.channel === "sms" ? "SMS" : humanize(c.channel)}</ToneBadge>}
               {c.budget_daily ? <span className="text-sm text-muted-foreground">{formatMoney(c.budget_daily, c.currency)} a day</span> : null}
+              {c.budget_total ? <span className="text-sm text-muted-foreground">{formatMoney(c.budget_total, c.currency)} in total</span> : null}
+              {review && <ToneBadge tone={review.tone}>{review.text}</ToneBadge>}
             </div>
           )}
         </div>
@@ -85,7 +89,13 @@ export default function CampaignDetailPage() {
         <StatCard label="Impressions" icon={<Eye />} loading={metrics.isLoading} value={nf.format(t?.impressions ?? 0)} />
         <StatCard label="Clicks" icon={<MousePointerClick />} loading={metrics.isLoading} value={nf.format(t?.clicks ?? 0)} hint={t ? `${t.avg_ctr.toFixed(2)}% of impressions` : undefined} />
         <StatCard label="Leads" icon={<Target />} loading={metrics.isLoading} value={nf.format(t?.leads ?? 0)} hint={t && t.leads > 0 ? `${formatMoney(t.avg_cpl, currency)} per lead` : undefined} />
-        <StatCard label="Spend" icon={<Coins />} loading={metrics.isLoading} value={formatMoney(t?.spend ?? 0, currency)} />
+        <StatCard
+          label="Spend"
+          icon={<Coins />}
+          loading={metrics.isLoading}
+          value={formatMoney(t?.spend ?? 0, currency)}
+          hint={c?.budget_total ? `of ${formatMoney(c.budget_total, currency)} budget` : undefined}
+        />
       </div>
 
       {!metrics.isLoading && series.length === 0 ? (

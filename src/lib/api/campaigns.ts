@@ -25,6 +25,8 @@ export interface Campaign {
   start_date?: string | null;
   end_date?: string | null;
   metrics?: Record<string, number> | null;
+  /** A boost keeps its Meta launch state under metadata.launch (marketflow-api adsmanager). */
+  metadata?: Record<string, unknown> | null;
   created_at: string;
 }
 
