@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  ChevronRight, CreditCard, Palette, PlugZap, Quote, Rocket, ScrollText, Settings, SlidersHorizontal, UserCircle, UsersRound, Workflow,
+  ChevronRight, CreditCard, Handshake, Palette, PlugZap, Quote, Rocket, ScrollText, Settings, SlidersHorizontal, UserCircle, UsersRound, Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader, ToneBadge } from "@/components/ui-kit";
@@ -26,6 +26,7 @@ const GROUPS: { title: string; tiles: Tile[] }[] = [
     tiles: [
       { href: "/settings/team", title: "Team members", desc: "Who can sign in to MarketFlow and what they can do.", icon: UsersRound },
       { href: "/settings/agents", title: "Agents", desc: "Your marketing team members and their instructions.", icon: Workflow },
+      { href: "/settings/sales-follow-up", title: "Sales follow-up", desc: "How your assistant answers leads on WhatsApp, and when you take over.", icon: Handshake },
       { href: "/settings/integrations", title: "Integrations", desc: "Your Facebook page, ad accounts and calendar.", icon: PlugZap },
       { href: "/settings/custom-fields", title: "Custom fields", desc: "Extra details you keep on leads and contacts.", icon: SlidersHorizontal },
     ],

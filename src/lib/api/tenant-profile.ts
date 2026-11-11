@@ -25,7 +25,11 @@ export interface TenantProfileUpdate {
   flp_language?: string;
   country?: string;
   /** Merged into the stored metadata; reserved keys (brand context, switches) are ignored by the API. */
-  metadata?: Partial<PublicMetadata>;
+  metadata?: Partial<PublicMetadata> & {
+    /** Sprint 23 L45 sales follow-up settings (private). */
+    sales_auto_reply?: boolean;
+    sales_handoff_value?: number | null;
+  };
 }
 
 export const tenantProfileApi = {

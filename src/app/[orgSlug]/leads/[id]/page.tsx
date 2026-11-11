@@ -76,6 +76,15 @@ export default function LeadDetailPage() {
                 )}
               </div>
             </div>
+            {typeof l.metadata?.sales_handoff_at === "string" && (
+              <div className="mt-5 rounded-2xl border border-warning/25 bg-warning/10 p-4 text-sm" role="status">
+                <p className="font-medium text-foreground">This lead is waiting for you to reply personally.</p>
+                <p className="mt-0.5 text-muted-foreground">
+                  {typeof l.metadata?.sales_handoff_reason === "string" ? `Reason: ${l.metadata.sales_handoff_reason}. ` : ""}
+                  The assistant stopped answering them on {when.format(new Date(l.metadata.sales_handoff_at as string))}. Their messages are in the timeline below.
+                </p>
+              </div>
+            )}
             <div className="mt-5">
               <p className="mb-2 text-sm font-medium">Status</p>
               <CapsuleTabs
