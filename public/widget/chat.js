@@ -60,6 +60,10 @@
   var callUrl      = (script && script.dataset.callUrl)      || '';
   var emailAddress = (script && script.dataset.email)        || '';
   var subtitle     = (script && script.dataset.subtitle)     || '';
+  // The business logo (Sprint 7). Only a plain https link is used; it is set as an <img> src
+  // through the DOM, never through innerHTML.
+  var logoUrl      = (script && script.dataset.logoUrl)      || '';
+  if (!/^https:\/\/[^\s"'<>()\\]+$/i.test(logoUrl) || logoUrl.length > 1000) logoUrl = '';
   var themeMode    = (script && script.dataset.theme)        || 'auto';
   var autoOpen     = script && script.dataset.autoopen === 'true';
 
@@ -484,8 +488,20 @@
   var fab = document.createElement('button');
   fab.className = 'fab';
   fab.setAttribute('aria-label', 'Chat with ' + escHTML(widgetTitle));
+  // Puts the logo in an avatar circle; a logo that fails to load falls back to the initial.
+  function showLogo(el) {
+    if (!logoUrl || !el) return;
+    var img = document.createElement('img');
+    img.alt = '';
+    img.src = logoUrl;
+    img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;background:#fff';
+    img.onerror = function () { el.textContent = widgetTitle.charAt(0).toUpperCase(); };
+    el.textContent = '';
+    el.appendChild(img);
+  }
   fab.innerHTML = '<div class="avatar">' + fabInitial + '</div><div class="pulse"></div>';
   shadow.appendChild(fab);
+  showLogo(fab.querySelector('.avatar'));
 
   // ── Greeting bubble ──────────────────────────────────────────────
   var greeting = document.createElement('div');
@@ -578,6 +594,7 @@
     '<div class="powered">Powered by <a href="https://codevertexafrica.com" target="_blank" rel="noreferrer">Codevertex</a></div>',
   ].join('');
   shadow.appendChild(panel);
+  showLogo(panel.querySelector('.hdr-avatar'));
 
   var panelOpen = false;
 
@@ -604,6 +621,7 @@
     panelOpen = false;
     panel.classList.remove('open');
     fab.innerHTML = '<div class="avatar">' + fabInitial + '</div><div class="pulse"></div>';
+    showLogo(fab.querySelector('.avatar'));
   }
 
   fab.addEventListener('click', function () {

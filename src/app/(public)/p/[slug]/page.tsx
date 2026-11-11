@@ -255,6 +255,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         data-business-type={v.isFLP ? "flp" : "marketflow-crm"}
         data-persona={v.isFLP ? "flp-fbo" : "marketflow-crm"}
         data-subtitle={v.name}
+        data-logo-url={v.logo?.startsWith("https://") ? v.logo : undefined}
         data-whatsapp={v.wa ? (profile.whatsapp_number ?? "").replace(/\D/g, "") : undefined}
         data-email={v.email ?? undefined}
       />
