@@ -29,10 +29,13 @@ export function BoostDialog({
   assetId,
   defaultText,
   defaultLink,
+  otherVideos = [],
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   assetId: string;
+  /** Other approved videos of the brief; up to two can run beside this one (budget optimiser). */
+  otherVideos?: { assetId: string; label: string }[];
   defaultText?: string;
   /** The ad's lead page with UTM tags; the "Visit a link" objective starts with it. */
   defaultLink?: string;
@@ -49,6 +52,9 @@ export function BoostDialog({
   const [message, setMessage] = useState(defaultText ?? "");
   const [link, setLink] = useState(defaultLink ?? "");
   const [privacy, setPrivacy] = useState("");
+  const [extras, setExtras] = useState<string[]>([]);
+  const toggleExtra = (id: string) =>
+    setExtras((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length < 2 ? [...cur, id] : cur));
   const [error, setError] = useState<string | null>(null);
   const [boostID, setBoostID] = useState<string | null>(null);
 
@@ -77,7 +83,7 @@ export function BoostDialog({
     setError(null);
     launch.mutate(
       { ad_account_connected_id: acct, budget, days, page_connected_id: pg, asset_id: assetId, objective, message: message.trim(), link: link || undefined,
-        privacy_url: objective === "leads" ? privacy.trim() : undefined },
+        privacy_url: objective === "leads" ? privacy.trim() : undefined, extra_asset_ids: extras.length ? extras : undefined },
       { onSuccess: (b) => setBoostID(b.id), onError: (e) => setError(apiErrorMessage(e, "Could not start the boost")) },
     );
   };
@@ -101,6 +107,20 @@ export function BoostDialog({
           </p>
         ) : (
           <div className="space-y-4">
+            {otherVideos.length > 0 && (
+              <fieldset className="space-y-2 rounded-lg border border-border p-3">
+                <legend className="px-1 text-sm font-medium">Also run (optional, up to 2)</legend>
+                <p className="text-xs text-muted-foreground">
+                  Same budget and dates. After 48 hours MarketFlow pauses any video that costs twice as much per result as the best one.
+                </p>
+                {otherVideos.map((o) => (
+                  <label key={o.assetId} className="flex min-h-10 items-center gap-2 text-sm">
+                    <input type="checkbox" checked={extras.includes(o.assetId)} onChange={() => toggleExtra(o.assetId)} disabled={!extras.includes(o.assetId) && extras.length >= 2} />
+                    {o.label}
+                  </label>
+                ))}
+              </fieldset>
+            )}
             <Field label="Ad account" htmlFor="boost-account">
               <select id="boost-account" className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm" value={acct} onChange={(e) => setAccount(e.target.value)}>
                 {(accounts.data ?? []).map((a) => (

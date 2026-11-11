@@ -32,9 +32,12 @@ export function VideoAdCard({
   canApprove,
   archived,
   funnelSlug,
+  otherVideos,
 }: {
   briefId: string;
   version: CreativeVersion;
+  /** Other approved videos of the brief, offered beside this one when boosting. */
+  otherVideos?: { assetId: string; label: string }[];
   canApprove: boolean;
   archived: boolean;
   /** The ad's own lead page; posts and boosts link to it by default. */
@@ -67,7 +70,7 @@ export function VideoAdCard({
       {version.error && <p className="mb-3 text-sm text-destructive">{version.error}</p>}
       {version.status === "script_ready" && !archived && <ScriptReview briefId={briefId} version={version} />}
       {(version.status === "ready" || version.status === "approved") && (
-        <Finished briefId={briefId} version={version} canApprove={canApprove} archived={archived} funnelSlug={funnelSlug} />
+        <Finished briefId={briefId} version={version} canApprove={canApprove} archived={archived} funnelSlug={funnelSlug} otherVideos={otherVideos} />
       )}
     </GlassPanel>
   );
@@ -282,12 +285,14 @@ function Finished({
   canApprove,
   archived,
   funnelSlug,
+  otherVideos,
 }: {
   briefId: string;
   version: CreativeVersion;
   canApprove: boolean;
   archived: boolean;
   funnelSlug?: string;
+  otherVideos?: { assetId: string; label: string }[];
 }) {
   const video = mainAsset(version);
   const approve = useApprove(briefId);
@@ -348,6 +353,7 @@ function Finished({
           onOpenChange={setBoosting}
           assetId={video.id}
           defaultText={caption}
+          otherVideos={otherVideos}
           defaultLink={funnelSlug ? adLeadUrl(funnelSlug, briefId, "facebook", "paid") : undefined}
         />
       )}

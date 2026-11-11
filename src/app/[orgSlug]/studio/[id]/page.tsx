@@ -15,6 +15,7 @@ import { useBrief, useCanApprove, useMakeLeadPage, useUpdateBrief } from "@/hook
 import { apiErrorMessage } from "@/lib/api/errors";
 import { OBJECTIVES, type CreativeVersion } from "@/lib/api/creative";
 import { cn } from "@/lib/utils";
+import { boostAlternatives } from "@/lib/studio/boost-alternatives";
 
 export default function AdPage() {
   const { orgSlug, id } = useParams<{ orgSlug: string; id: string }>();
@@ -147,6 +148,7 @@ export default function AdPage() {
                       canApprove={canApprove}
                       archived={archived}
                       funnelSlug={typeof b.metadata?.funnel_slug === "string" ? b.metadata.funnel_slug : undefined}
+                      otherVideos={boostAlternatives(live, v.id)}
                     />
                   </div>
                 ) : (

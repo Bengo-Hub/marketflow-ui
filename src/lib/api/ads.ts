@@ -40,6 +40,8 @@ export interface BoostInput {
   days: number;
   page_connected_id: string;
   asset_id: string;
+  /** Up to two more approved videos run as more ads of the same boost (budget optimiser). */
+  extra_asset_ids?: string[];
   objective: Objective;
   message: string;
   headline?: string;
