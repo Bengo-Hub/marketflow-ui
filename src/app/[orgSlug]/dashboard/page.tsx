@@ -12,6 +12,7 @@ import { LeadTrendChart, SourceBars } from "@/components/dashboard/charts";
 import { SetupCard } from "@/components/onboarding/setup-card";
 import { useDashboard, useProfileMetrics } from "@/hooks/use-analytics";
 import { useTenantProfile } from "@/hooks/use-tenant-profile";
+import { useOnboardingRedirect } from "@/hooks/use-onboarding";
 import type { DashboardDays } from "@/lib/api/analytics";
 
 const nf = new Intl.NumberFormat("en-KE");
@@ -28,6 +29,8 @@ function Delta({ pct }: { pct: number }) {
 
 export default function DashboardPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
+  // A new business goes through setup first, once per session.
+  useOnboardingRedirect();
   const [days, setDays] = useState<DashboardDays>(30);
   const dash = useDashboard(days);
   const profile = useProfileMetrics(days);

@@ -18,6 +18,19 @@ export function AuthRedirect() {
   return null;
 }
 
+/**
+ * Starts the SSO flow on the accounts site's sign-up page (prompt=create), so a new business
+ * creates its account and organisation and comes back to MarketFlow's callback, then onboarding.
+ * The old link went to accounts/register, a page that does not exist, with no way back.
+ */
+export function SignUpButton({ className, children = "Create your workspace" }: { className?: string; children?: ReactNode }) {
+  return (
+    <button type="button" onClick={() => useAuthStore.getState().redirectToSSO(undefined, undefined, { signup: true })} className={className}>
+      {children}
+    </button>
+  );
+}
+
 export function SignInButton({ className, children = "Sign in" }: { className?: string; children?: ReactNode }) {
   return (
     <button

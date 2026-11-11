@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { signUpUrl } from "@/lib/urls";
-import { SignInButton } from "./auth-actions";
+import { SignInButton, SignUpButton } from "./auth-actions";
 import { BrandMark } from "./brand-mark";
 
 const LINKS = [
@@ -43,13 +42,12 @@ export function SiteNav() {
         </nav>
         <div className="flex items-center gap-1 sm:gap-2">
           <SignInButton />
-          <a
-            href={signUpUrl()}
+          <SignUpButton
             className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-soft transition-colors hover:bg-primary-dark"
           >
             <span className="sm:hidden">Start</span>
             <span className="hidden sm:inline">Create your workspace</span>
-          </a>
+          </SignUpButton>
         </div>
       </div>
     </header>

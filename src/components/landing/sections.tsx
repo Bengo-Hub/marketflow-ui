@@ -1,6 +1,6 @@
 import { CalendarDays, Globe, KanbanSquare, MessagesSquare, Repeat, UsersRound, Store, Leaf } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { signUpUrl } from "@/lib/urls";
+import { SignUpButton } from "./auth-actions";
 import { BrandMark } from "./brand-mark";
 
 const CAPABILITIES = [
@@ -150,12 +150,11 @@ export function Closing() {
           Your next customer may already be asking
         </h2>
         <p className="mt-3 max-w-xl text-lg text-primary-foreground/85">Set up your page today and see the first leads arrive in your list.</p>
-        <a
-          href={signUpUrl()}
+        <SignUpButton
           className="mt-8 inline-flex min-h-12 items-center rounded-2xl bg-white px-6 text-base font-semibold text-primary transition-colors hover:bg-white/90"
         >
           Create your workspace
-        </a>
+        </SignUpButton>
       </div>
     </section>
   );

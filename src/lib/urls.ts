@@ -37,6 +37,3 @@ export function shortLinkUrl(code: string): string {
   return `${APP_URL}/s/${encodeURIComponent(code)}`;
 }
 
-export function signUpUrl(): string {
-  return `${ACCOUNTS_URL}/register`;
-}

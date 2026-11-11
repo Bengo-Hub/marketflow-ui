@@ -1,6 +1,5 @@
 import { Check, CalendarCheck, MessageCircle, UserPlus, BadgeCheck } from "lucide-react";
-import { signUpUrl } from "@/lib/urls";
-import { SignInButton } from "./auth-actions";
+import { SignInButton, SignUpButton } from "./auth-actions";
 
 const FACTS = [
   "Facebook and TikTok lead forms",
@@ -20,12 +19,11 @@ export function Hero() {
           people who ask about what you sell hear back while they are still interested.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <a
-            href={signUpUrl()}
+          <SignUpButton
             className="inline-flex min-h-12 items-center rounded-2xl bg-primary px-6 text-base font-semibold text-primary-foreground shadow-soft transition-colors hover:bg-primary-dark"
           >
             Create your workspace
-          </a>
+          </SignUpButton>
           <SignInButton className="min-h-12 rounded-2xl border border-border bg-background/60 px-6 text-base">
             Sign in
           </SignInButton>

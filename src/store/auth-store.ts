@@ -33,7 +33,7 @@ interface AuthState {
   error: string | null;
 
   initialize: () => Promise<void>;
-  redirectToSSO: (returnTo?: string, tenant?: string) => Promise<void>;
+  redirectToSSO: (returnTo?: string, tenant?: string, opts?: { signup?: boolean }) => Promise<void>;
   handleSSOCallback: (code: string, callbackUrl: string) => Promise<void>;
   logout: () => Promise<void>;
   syncTenantToStorage: (user: UserProfile | null) => void;
@@ -89,7 +89,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      redirectToSSO: async (returnTo, tenant) => {
+      redirectToSSO: async (returnTo, tenant, opts) => {
         const verifier = generateCodeVerifier();
         const challenge = await generateCodeChallenge(verifier);
         const state = generateState();
@@ -103,7 +103,7 @@ export const useAuthStore = create<AuthState>()(
           ? `${window.location.origin}/${tenant}/auth/callback`
           : `${window.location.origin}/auth/callback`;
 
-        const url = buildAuthorizeUrl({ codeChallenge: challenge, state, redirectUri: callbackUrl, tenant });
+        const url = buildAuthorizeUrl({ codeChallenge: challenge, state, redirectUri: callbackUrl, tenant, signup: opts?.signup });
         window.location.href = url;
       },
 

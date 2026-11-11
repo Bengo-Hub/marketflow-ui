@@ -10,7 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState, Field, PageHeader, ToneBadge } from "@/components/ui-kit";
-import { useBrandDraft, useChecklist, useDismissChecklist } from "@/hooks/use-onboarding";
+import { useBrandDraft, useChecklist, useCompletionRedirect, useDismissChecklist } from "@/hooks/use-onboarding";
 import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { marketingOsApi } from "@/lib/api/marketing-os";
@@ -100,6 +100,9 @@ export default function OnboardingPage() {
     setOpen(null);
     void qc.invalidateQueries({ queryKey: ["onboarding"] });
   };
+
+  // Finishing the last step here goes on to the dashboard (called before any early return).
+  useCompletionRedirect(checklist.data?.complete);
 
   if (checklist.isError) return <ErrorState message="Could not load your setup steps." onRetry={() => void checklist.refetch()} />;
   const c = checklist.data;

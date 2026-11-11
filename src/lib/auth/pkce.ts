@@ -52,6 +52,8 @@ export function buildAuthorizeUrl(opts: {
   state: string;
   redirectUri: string;
   tenant?: string;
+  /** Opens the accounts site on sign-up instead of sign-in (auth-api reads prompt=create). */
+  signup?: boolean;
 }): string {
   const params = new URLSearchParams({
     response_type: "code",
@@ -63,6 +65,7 @@ export function buildAuthorizeUrl(opts: {
     code_challenge_method: "S256",
   });
   if (opts.tenant) params.set("tenant", opts.tenant);
+  if (opts.signup) params.set("prompt", "create");
   return `${SSO_BASE_URL}/api/v1/authorize?${params.toString()}`;
 }
 
