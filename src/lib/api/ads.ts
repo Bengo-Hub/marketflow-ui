@@ -50,6 +50,8 @@ export interface BoostInput {
   privacy_url?: string;
   whatsapp_number?: string;
   countries?: string[];
+  age_min?: number;
+  age_max?: number;
 }
 
 export interface Boost {

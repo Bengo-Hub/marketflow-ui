@@ -14,6 +14,7 @@ import { useDebouncedValue } from "@bengo-hub/shared-ui-lib/search";
 import { usePublishAccounts } from "@/hooks/use-publishing";
 import { adsApi, metaBillingURL, STAGE_LABEL, type Objective } from "@/lib/api/ads";
 import { apiErrorMessage } from "@/lib/api/errors";
+import { AUDIENCE_PRESETS, audienceFor } from "@/lib/studio/audience-presets";
 
 const money = (n: number, cur: string) => `${cur} ${n.toLocaleString("en-KE")}`;
 
@@ -53,6 +54,7 @@ export function BoostDialog({
   const [link, setLink] = useState(defaultLink ?? "");
   const [privacy, setPrivacy] = useState("");
   const [extras, setExtras] = useState<string[]>([]);
+  const [audience, setAudience] = useState<string>("ke-all");
   const toggleExtra = (id: string) =>
     setExtras((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length < 2 ? [...cur, id] : cur));
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +85,7 @@ export function BoostDialog({
     setError(null);
     launch.mutate(
       { ad_account_connected_id: acct, budget, days, page_connected_id: pg, asset_id: assetId, objective, message: message.trim(), link: link || undefined,
-        privacy_url: objective === "leads" ? privacy.trim() : undefined, extra_asset_ids: extras.length ? extras : undefined },
+        privacy_url: objective === "leads" ? privacy.trim() : undefined, extra_asset_ids: extras.length ? extras : undefined, ...audienceFor(audience) },
       { onSuccess: (b) => setBoostID(b.id), onError: (e) => setError(apiErrorMessage(e, "Could not start the boost")) },
     );
   };
@@ -121,6 +123,15 @@ export function BoostDialog({
                 ))}
               </fieldset>
             )}
+            <Field label="Who sees it" htmlFor="boost-audience">
+              <select id="boost-audience" className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm" value={audience} onChange={(e) => setAudience(e.target.value)}>
+                {AUDIENCE_PRESETS.map((a) => (
+                  <option key={a.value} value={a.value}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Ad account" htmlFor="boost-account">
               <select id="boost-account" className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm" value={acct} onChange={(e) => setAccount(e.target.value)}>
                 {(accounts.data ?? []).map((a) => (
