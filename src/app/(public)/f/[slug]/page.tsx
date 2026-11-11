@@ -11,6 +11,7 @@ import { getPublicFunnel, getPublicProfile, getTenantBrandColor, type PublicProf
 import { brandCss } from "@/lib/brand";
 import { funnelUrl } from "@/lib/urls";
 import { AB_HEADER, applyVariant, parseBucket, variantFor } from "@/lib/funnel-ab";
+import { DOMAIN_TENANT_HEADER, domainAllows } from "@/lib/tenant-domains";
 import { FunnelForm } from "./funnel-form";
 import { StepView } from "./step-view";
 import type { FunnelStep, PublicFunnel } from "./types";
@@ -28,8 +29,11 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
   const { slug } = await params;
   const raw = await getPublicFunnel<PublicFunnel>(slug);
   if (!raw) notFound();
+  const reqHeaders = await headers();
+  // On a business's own domain only its own funnels are shown (proxy.ts sets the header).
+  if (!domainAllows(reqHeaders.get(DOMAIN_TENANT_HEADER), raw.tenant_slug)) notFound();
   // The version this visitor sees (Sprint 7 #53); proxy.ts gives each visitor a bucket.
-  const variant = variantFor(raw.ab_test, parseBucket((await headers()).get(AB_HEADER)));
+  const variant = variantFor(raw.ab_test, parseBucket(reqHeaders.get(AB_HEADER)));
   const f = applyVariant(raw, variant);
   const tested = f.ab_test ? variant : undefined;
 

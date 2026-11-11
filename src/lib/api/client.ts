@@ -1,12 +1,9 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-// Next.js bakes NEXT_PUBLIC_* at build time. Defaults point at production
-// DNS so a build that forgets to pass --build-arg still works; local dev
-// overrides via .env.local.
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexafrica.com";
-export const AI_API_URL =
-  process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.codevertexafrica.com";
+import { AI_API_URL, API_URL } from "@/lib/urls";
+
+// Service addresses live in lib/urls.ts; re-exported for existing imports.
+export { AI_API_URL, API_URL };
 
 // Main API client (marketflow-api)
 export const apiClient = axios.create({

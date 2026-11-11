@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { BookingWidget } from "@/components/booking/booking-widget";
 import { PoweredByBadge } from "@/components/powered-by";
 import { AppCanvas } from "@/components/ui-kit";
 import { getPublicProfile, getTenantBrandColor } from "@/lib/api/public";
 import { brandCss } from "@/lib/brand";
+import { DOMAIN_TENANT_HEADER, domainAllows } from "@/lib/tenant-domains";
 
 /**
  * Book a call with any tenant: the booking that used to live only on the /p page. Since /p is for
@@ -20,6 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function BookPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  if (!domainAllows((await headers()).get(DOMAIN_TENANT_HEADER), slug)) notFound();
   const [profile, accountColor] = await Promise.all([getPublicProfile(slug), getTenantBrandColor(slug)]);
   // Booking can be switched off on the profile; then there is nothing to book.
   if (!profile || profile.metadata?.booking_enabled === false) notFound();

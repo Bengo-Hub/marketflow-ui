@@ -4,8 +4,7 @@ import { useParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { TenantBrandingProvider, useTenantBranding } from "@bengo-hub/shared-ui-lib/tenant";
 import { DEFAULT_BRAND_COLOR, brandCss } from "@/lib/brand";
-
-const AUTH_API_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || "https://sso.codevertexafrica.com";
+import { AUTH_API_URL } from "@/lib/urls";
 
 /**
  * The tenant's SSO branding (auth-api owns it) drives --primary and --ring for the whole app.

@@ -7,11 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronDown, Store, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-
-const AUTH_API_URL =
-  process.env.NEXT_PUBLIC_AUTH_API_URL ||
-  process.env.NEXT_PUBLIC_SSO_URL ||
-  'https://sso.codevertexafrica.com';
+import { AUTH_API_URL } from '@/lib/urls';
 
 interface OutletListItem {
   id: string;

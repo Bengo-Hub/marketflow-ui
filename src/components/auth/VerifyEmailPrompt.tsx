@@ -2,14 +2,11 @@
 
 import { VerifyEmailBanner, type EmailVerificationState } from '@bengo-hub/shared-ui-lib/auth';
 import { useAuthStore } from '@/store/auth-store';
+import { AUTH_API_URL as AUTH_BASE } from '@/lib/urls';
 
-// auth-api (SSO) hosts the authenticated verify endpoints. The embedded OTP dialog calls
-// them directly with the user's Bearer token — auth-api CORS allows POST + Authorization
-// from these origins — so the user never leaves the app to verify.
-const AUTH_BASE =
-  process.env.NEXT_PUBLIC_SSO_URL ||
-  process.env.NEXT_PUBLIC_AUTH_URL ||
-  'https://sso.codevertexafrica.com';
+// auth-api (SSO) hosts the authenticated verify endpoints. The embedded OTP dialog calls them
+// directly with the user's Bearer token (auth-api CORS allows POST and Authorization from these
+// origins), so the user never leaves the app to verify.
 
 async function postVerify(path: string, body: unknown): Promise<void> {
   const token = useAuthStore.getState().session?.accessToken;

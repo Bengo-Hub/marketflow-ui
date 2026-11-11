@@ -3,9 +3,7 @@
  * use fetch, not the axios apiClient, because apiClient attaches the signed-in user's token and
  * tenant headers, which must never travel with a visitor's request.
  */
-import { API_URL } from "@/lib/urls";
-
-const AUTH_API_URL = (process.env.NEXT_PUBLIC_AUTH_API_URL || "https://sso.codevertexafrica.com").replace(/\/$/, "");
+import { API_URL, AUTH_API_URL } from "@/lib/urls";
 
 export interface Offering {
   name: string;

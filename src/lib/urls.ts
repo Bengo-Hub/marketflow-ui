@@ -4,6 +4,16 @@ export const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "https://marketflow.c
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexafrica.com").replace(/\/$/, "");
 
+/** marketflow-ai (chat, creative, media). */
+export const AI_API_URL = (process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.codevertexafrica.com").replace(/\/$/, "");
+
+/** auth-api (SSO): tenant identity, branding and custom domain lookups. */
+export const AUTH_API_URL = (
+  process.env.NEXT_PUBLIC_AUTH_API_URL ||
+  process.env.NEXT_PUBLIC_SSO_URL ||
+  "https://sso.codevertexafrica.com"
+).replace(/\/$/, "");
+
 /** The accounts site (sign up, profile). Derived from the SSO host when not set. */
 export const ACCOUNTS_URL = (
   process.env.NEXT_PUBLIC_AUTH_UI_URL ||

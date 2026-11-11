@@ -1,6 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://marketflowapi.codevertexafrica.com";
+import { API_URL } from "@/lib/urls";
 
 async function resolveShortLink(code: string): Promise<string | null> {
   try {

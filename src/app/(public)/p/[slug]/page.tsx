@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { CalendarDays, Mail, ShoppingBag, Star } from "lucide-react";
 import { PoweredByBadge } from "@/components/powered-by";
 import { BookingWidget } from "@/components/booking/booking-widget";
@@ -13,9 +14,8 @@ import { flpJoinUrl, flpShopUrl, jsonLd, offeringHref, safeUrl, videoEmbed, what
 import { getAuthTenantPublic, getPublicProfile, getPublicTestimonials, getTenantBrandColor, type Offering, type PublicProfile } from "@/lib/api/public";
 import { brandCss } from "@/lib/brand";
 import { resolvePublicLink } from "@/lib/public-link";
-import { APP_URL, publicProfileUrl } from "@/lib/urls";
-
-const AI_URL = process.env.NEXT_PUBLIC_AI_API_URL || "https://marketflowai.codevertexafrica.com";
+import { DOMAIN_TENANT_HEADER, domainAllows } from "@/lib/tenant-domains";
+import { AI_API_URL as AI_URL, APP_URL, publicProfileUrl } from "@/lib/urls";
 const FLP_COVER = "/images/public-profile/aloe-farm.jpg";
 
 function view(p: PublicProfile) {
@@ -57,11 +57,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PublicProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  // On a business's own domain only its own page is shown (proxy.ts sets the header).
+  const domainTenant = (await headers()).get(DOMAIN_TENANT_HEADER);
+  if (!domainAllows(domainTenant, slug)) notFound();
   const [profile, testimonials, accountColor] = await Promise.all([getPublicProfile(slug), getPublicTestimonials(slug), getTenantBrandColor(slug)]);
   if (!profile) notFound();
   // Only Forever tenants have a MarketFlow page (owner, 2026-11-03). Anyone else's old /p link
-  // goes on to the tenant's own website, custom storefront domain or Codevertex storefront.
+  // goes on to the tenant's own website, custom storefront domain or Codevertex storefront. On the
+  // business's own domain that website may be this very address, so it opens the booking page.
   if (profile.business_type !== "flp") {
+    if (domainTenant) redirect("/book");
     const link = resolvePublicLink({ slug: profile.slug, businessType: profile.business_type, auth: await getAuthTenantPublic(profile.slug) });
     if (link) redirect(link.href);
     notFound();

@@ -1,10 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { DEFAULT_BRAND_COLOR, normalizeHex } from '@/lib/brand';
-
-const AUTH_API_BASE =
-  process.env.NEXT_PUBLIC_SSO_URL ||
-  process.env.NEXT_PUBLIC_AUTH_API_URL ||
-  'https://sso.codevertexafrica.com';
+import { AUTH_API_URL as AUTH_API_BASE } from '@/lib/urls';
 
 // Light app background, matching --background in globals.css.
 const APP_BG = '#fcf8fc';
