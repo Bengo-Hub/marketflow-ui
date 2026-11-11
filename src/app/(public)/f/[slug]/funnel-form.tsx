@@ -18,9 +18,12 @@ export function FunnelForm({
   description,
   ctaText,
   fields,
+  variant,
 }: {
   tenantSlug: string;
   funnelSlug: string;
+  /** The A/B version the visitor saw (Sprint 7 #53), recorded on the lead. */
+  variant?: "a" | "b";
   title?: string;
   description?: string;
   ctaText?: string;
@@ -60,6 +63,7 @@ export function FunnelForm({
         ...(Object.keys(answers).length ? { answers } : {}),
         source: "funnel",
         funnel_slug: funnelSlug,
+        ...(variant ? { funnel_variant: variant } : {}),
         whatsapp_consent: asksPhone && waConsent,
       });
       setDone(true);

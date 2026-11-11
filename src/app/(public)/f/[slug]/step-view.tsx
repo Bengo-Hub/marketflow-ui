@@ -4,7 +4,18 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { recordFunnelStepView } from "@/lib/api/public";
 
 /** Records a funnel step view once, when at least half of the step is on screen (drop-off analytics). */
-export function StepView({ funnelSlug, index, children }: { funnelSlug: string; index: number; children: ReactNode }) {
+export function StepView({
+  funnelSlug,
+  index,
+  variant,
+  children,
+}: {
+  funnelSlug: string;
+  index: number;
+  /** The A/B version the visitor sees (Sprint 7 #53). */
+  variant?: "a" | "b";
+  children: ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -12,7 +23,7 @@ export function StepView({ funnelSlug, index, children }: { funnelSlug: string; 
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
-          recordFunnelStepView(funnelSlug, index);
+          recordFunnelStepView(funnelSlug, index, variant);
           io.disconnect();
         }
       },
@@ -20,6 +31,6 @@ export function StepView({ funnelSlug, index, children }: { funnelSlug: string; 
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [funnelSlug, index]);
+  }, [funnelSlug, index, variant]);
   return <div ref={ref}>{children}</div>;
 }

@@ -38,7 +38,22 @@ export interface FunnelMeta {
   description?: string;
   brand_color?: string;
   hero_image_url?: string;
+  /** A/B test (Sprint 7 #53, marketflow-api funnels.ABTest). */
+  ab_test?: FunnelABTest | null;
   [k: string]: unknown;
+}
+
+export interface FunnelABTest {
+  enabled: boolean;
+  /** Percent of visitors who see version B (10-90). */
+  split: number;
+  b: { headline?: string; subheadline?: string; hero_image_url?: string };
+}
+
+export interface ABResult {
+  views: number;
+  leads: number;
+  conversion_rate: number;
 }
 
 export interface Funnel {
@@ -72,6 +87,7 @@ export interface FunnelAnalytics {
   total_steps: number;
   steps: Array<{ step_index: number; views: number; dropoff?: number; dropoff_rate?: number }>;
   lead_submissions: number;
+  ab_test?: { enabled: boolean; a: ABResult; b: ABResult };
 }
 
 export const funnelsApi = {

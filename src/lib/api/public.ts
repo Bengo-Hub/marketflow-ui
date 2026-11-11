@@ -194,12 +194,12 @@ export function recordProfileEvent(slug: string, eventType: ProfileEvent, metada
   }
 }
 
-export function recordFunnelStepView(funnelSlug: string, stepIndex: number) {
+export function recordFunnelStepView(funnelSlug: string, stepIndex: number, variant?: "a" | "b") {
   try {
     void fetch(`${API_URL}/api/v1/public/funnels/${enc(funnelSlug)}/step-view`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ step_index: stepIndex }),
+      body: JSON.stringify({ step_index: stepIndex, ...(variant ? { variant } : {}) }),
       keepalive: true,
     }).catch(() => undefined);
   } catch {

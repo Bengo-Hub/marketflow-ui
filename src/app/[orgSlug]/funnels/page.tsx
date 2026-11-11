@@ -10,13 +10,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_FORM, StepBuilder } from "@/components/funnels/step-builder";
+import { ABTestEditor, abTestProblem } from "@/components/funnels/ab-test-editor";
 import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, Pager, PageHeader, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
 import { useFunnelAction, useFunnelAnalytics, useFunnels, useSaveFunnel } from "@/hooks/use-funnels";
 import { useTenantProfile } from "@/hooks/use-tenant-profile";
-import { FUNNEL_STATUSES, FUNNEL_TYPES, slugify, type Funnel, type FunnelInput } from "@/lib/api/funnels";
+import { FUNNEL_STATUSES, FUNNEL_TYPES, slugify, type Funnel, type FunnelAnalytics, type FunnelInput } from "@/lib/api/funnels";
 import { funnelUrl } from "@/lib/urls";
 
-type Tab = "page" | "blocks" | "html";
+type Tab = "page" | "blocks" | "ab" | "html";
 const empty: FunnelInput = { name: "", slug: "", funnel_type: "generic", steps: [DEFAULT_FORM], metadata: {} };
 
 function FunnelEditor({ initial, id, isFLP, onDone }: { initial: FunnelInput; id?: string; isFLP: boolean; onDone: () => void }) {
@@ -28,6 +29,7 @@ function FunnelEditor({ initial, id, isFLP, onDone }: { initial: FunnelInput; id
   const setMeta = (patch: Record<string, string | undefined>) => setF({ ...f, metadata: { ...meta, ...patch } });
   const slugOk = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(f.slug) && f.slug.length <= 60;
   const formOk = (f.steps ?? []).every((s) => s.block_type !== "form" || (s.fields ?? []).some((x) => x.key === "phone" || x.key === "email"));
+  const abProblem = abTestProblem(meta.ab_test);
 
   return (
     <>
@@ -35,7 +37,7 @@ function FunnelEditor({ initial, id, isFLP, onDone }: { initial: FunnelInput; id
         label="Editor section"
         value={tab}
         onChange={setTab}
-        options={[{ value: "page", label: "Page" }, { value: "blocks", label: `Blocks (${f.steps?.length ?? 0})` }, { value: "html", label: "Custom HTML" }]}
+        options={[{ value: "page", label: "Page" }, { value: "blocks", label: `Blocks (${f.steps?.length ?? 0})` }, { value: "ab", label: meta.ab_test?.enabled ? "A/B test (on)" : "A/B test" }, { value: "html", label: "Custom HTML" }]}
       />
       <div className="max-h-[60vh] overflow-y-auto pr-1">
         {tab === "page" && (
@@ -75,6 +77,7 @@ function FunnelEditor({ initial, id, isFLP, onDone }: { initial: FunnelInput; id
           </div>
         )}
         {tab === "blocks" && <StepBuilder steps={f.steps ?? []} onChange={(steps) => setF({ ...f, steps })} isFLP={isFLP} />}
+        {tab === "ab" && <ABTestEditor value={meta.ab_test} onChange={(ab_test) => setF({ ...f, metadata: { ...meta, ab_test } })} />}
         {tab === "html" && (
           <Field label="Custom HTML" hint="Replaces the blocks with your own layout. Scripts, forms and frames are removed when saved; the lead form and chat are added for you." htmlFor="fn-html">
             <Textarea id="fn-html" rows={14} className="font-mono text-xs" value={f.landing_page_html ?? ""} onChange={(e) => setF({ ...f, landing_page_html: e.target.value })} />
@@ -83,15 +86,70 @@ function FunnelEditor({ initial, id, isFLP, onDone }: { initial: FunnelInput; id
       </div>
       <DialogFooter>
         {!formOk && <p className="mr-auto text-sm text-destructive">Each lead form needs a phone or email question.</p>}
+        {formOk && abProblem && <p className="mr-auto text-sm text-destructive">A/B test: {abProblem}</p>}
         <Button variant="outline" onClick={onDone}>Cancel</Button>
         <Button
-          disabled={!f.name.trim() || !slugOk || !formOk || save.isPending}
+          disabled={!f.name.trim() || !slugOk || !formOk || !!abProblem || save.isPending}
           onClick={() => save.mutate({ id, data: { ...f, name: f.name.trim() } }, { onSuccess: onDone })}
         >
           {save.isPending ? "Saving..." : id ? "Save funnel" : "Create funnel"}
         </Button>
       </DialogFooter>
     </>
+  );
+}
+
+/** Sprint 7 #53: version A against version B, and "Use version B" to keep the winner. */
+function ABResults({ funnel, ab }: { funnel: Funnel; ab: NonNullable<FunnelAnalytics["ab_test"]> }) {
+  const save = useSaveFunnel();
+  const meta = funnel.metadata ?? {};
+  const b = meta.ab_test?.b ?? {};
+  const useB = () =>
+    save.mutate({
+      id: funnel.id,
+      data: {
+        name: funnel.name,
+        slug: funnel.slug,
+        funnel_type: funnel.funnel_type,
+        steps: funnel.steps ?? [],
+        landing_page_html: funnel.landing_page_html ?? "",
+        metadata: {
+          ...meta,
+          headline: b.headline || meta.headline,
+          subheadline: b.subheadline || meta.subheadline,
+          hero_image_url: b.hero_image_url || meta.hero_image_url,
+          ab_test: { enabled: false, split: meta.ab_test?.split ?? 50, b: {} },
+        },
+      },
+    });
+  const rows: Array<["A" | "B", typeof ab.a]> = [["A", ab.a], ["B", ab.b]];
+  return (
+    <div className="rounded-2xl border border-border p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-sm font-medium">A/B test {ab.enabled ? "(running)" : "(stopped)"}</p>
+        {ab.enabled && (
+          <Button size="sm" variant="outline" disabled={save.isPending} onClick={useB}>
+            Use version B
+          </Button>
+        )}
+      </div>
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs text-muted-foreground">
+          <tr><th className="py-1 font-medium">Version</th><th className="font-medium">Saw it</th><th className="font-medium">Leads</th><th className="font-medium">Rate</th></tr>
+        </thead>
+        <tbody className="tabular">
+          {rows.map(([name, r]) => (
+            <tr key={name} className="border-t border-border">
+              <td className="py-1.5 font-medium">{name}</td>
+              <td>{r.views.toLocaleString()}</td>
+              <td>{r.leads.toLocaleString()}</td>
+              <td>{r.conversion_rate.toFixed(1)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-2 text-xs text-muted-foreground">Wait for at least 100 visitors on each version before choosing; small numbers swing a lot.</p>
+    </div>
   );
 }
 
@@ -109,6 +167,7 @@ function AnalyticsView({ funnel }: { funnel: Funnel }) {
             <div className="rounded-2xl border border-border p-4"><p className="text-xs text-muted-foreground">People who saw it</p><p className="font-display text-2xl font-semibold tabular">{first.toLocaleString()}</p></div>
             <div className="rounded-2xl border border-border p-4"><p className="text-xs text-muted-foreground">Leads from it</p><p className="font-display text-2xl font-semibold tabular">{q.data.lead_submissions.toLocaleString()}</p></div>
           </div>
+          {q.data.ab_test && <ABResults funnel={funnel} ab={q.data.ab_test} />}
           {steps.length === 0 ? (
             <p className="text-sm text-muted-foreground">No views recorded yet. Views count once the page is published and opened.</p>
           ) : (

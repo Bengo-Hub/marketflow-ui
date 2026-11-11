@@ -1,3 +1,5 @@
+import type { PublicABTest } from "@/lib/funnel-ab";
+
 /** The public funnel (marketflow-api funnels.PublicFunnel) and its step blocks. */
 
 export interface FunnelField {
@@ -38,4 +40,6 @@ export interface PublicFunnel {
   hero_image_url?: string;
   steps: FunnelStep[];
   landing_page_html?: string;
+  /** The running A/B test (Sprint 7 #53). */
+  ab_test?: PublicABTest;
 }

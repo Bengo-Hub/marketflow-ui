@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { Handshake, ShoppingBag } from "lucide-react";
 import { BookingWidget } from "@/components/booking/booking-widget";
 import { PoweredByBadge } from "@/components/powered-by";
@@ -9,6 +10,7 @@ import { flpJoinUrl, flpShopUrl, safeUrl, whatsAppLink } from "@/components/publ
 import { getPublicFunnel, getPublicProfile, getTenantBrandColor, type PublicProfile } from "@/lib/api/public";
 import { brandCss } from "@/lib/brand";
 import { funnelUrl } from "@/lib/urls";
+import { AB_HEADER, applyVariant, parseBucket, variantFor } from "@/lib/funnel-ab";
 import { FunnelForm } from "./funnel-form";
 import { StepView } from "./step-view";
 import type { FunnelStep, PublicFunnel } from "./types";
@@ -24,8 +26,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PublicFunnelPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const f = await getPublicFunnel<PublicFunnel>(slug);
-  if (!f) notFound();
+  const raw = await getPublicFunnel<PublicFunnel>(slug);
+  if (!raw) notFound();
+  // The version this visitor sees (Sprint 7 #53); proxy.ts gives each visitor a bucket.
+  const variant = variantFor(raw.ab_test, parseBucket((await headers()).get(AB_HEADER)));
+  const f = applyVariant(raw, variant);
+  const tested = f.ab_test ? variant : undefined;
 
   // Custom HTML from the funnel editor (sanitised by the API on save and on read).
   if (f.landing_page_html && f.landing_page_html.trim()) {
@@ -63,8 +69,8 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
         )}
 
         {steps.map((step, i) => (
-          <StepView key={step.id ?? `step-${i}`} funnelSlug={f.slug} index={i}>
-            <Block step={step} funnel={f} profile={profile} />
+          <StepView key={step.id ?? `step-${i}`} funnelSlug={f.slug} index={i} variant={tested}>
+            <Block step={step} funnel={f} profile={profile} variant={tested} />
           </StepView>
         ))}
 
@@ -72,6 +78,7 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
           <FunnelForm
             tenantSlug={f.tenant_slug}
             funnelSlug={f.slug}
+            variant={tested}
             title="Leave your details"
             fields={[
               { key: "first_name", label: "Name", required: true },
@@ -91,7 +98,7 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
 
 const btn = "inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-dark";
 
-function Block({ step, funnel, profile }: { step: FunnelStep; funnel: PublicFunnel; profile: PublicProfile | null }) {
+function Block({ step, funnel, profile, variant }: { step: FunnelStep; funnel: PublicFunnel; profile: PublicProfile | null; variant?: "a" | "b" }) {
   const type = step.block_type ?? ((step.fields?.length ?? 0) > 0 ? "form" : "content");
 
   if (type === "form") {
@@ -99,6 +106,7 @@ function Block({ step, funnel, profile }: { step: FunnelStep; funnel: PublicFunn
       <FunnelForm
         tenantSlug={funnel.tenant_slug}
         funnelSlug={funnel.slug}
+        variant={variant}
         title={step.title}
         description={step.description}
         ctaText={step.cta_text}
