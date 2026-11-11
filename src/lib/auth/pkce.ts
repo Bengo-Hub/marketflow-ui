@@ -54,6 +54,8 @@ export function buildAuthorizeUrl(opts: {
   tenant?: string;
   /** Opens the accounts site on sign-up instead of sign-in (auth-api reads prompt=create). */
   signup?: boolean;
+  /** A platform owner's business invite, passed on to the sign-up page (auth-api checks it). */
+  invite?: string;
 }): string {
   const params = new URLSearchParams({
     response_type: "code",
@@ -66,6 +68,7 @@ export function buildAuthorizeUrl(opts: {
   });
   if (opts.tenant) params.set("tenant", opts.tenant);
   if (opts.signup) params.set("prompt", "create");
+  if (opts.invite) params.set("invite", opts.invite);
   return `${SSO_BASE_URL}/api/v1/authorize?${params.toString()}`;
 }
 
