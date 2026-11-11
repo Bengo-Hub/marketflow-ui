@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState, Field, GlassPanel, PageHeader } from "@/components/ui-kit";
 import { FeaturedProductsCurator } from "@/components/public-profile/offerings-editor";
+import { AIFieldButton } from "@/components/marketing-os/ai-field-button";
 import { usePublicLink } from "@/hooks/use-public-link";
 import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import type { Offering, PublicMetadata, Socials } from "@/lib/api/public";
@@ -125,6 +126,8 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
   const url = publicLink?.href ?? null;
   const hasErrors = Object.keys(errors).length > 0;
   const setM = (patch: Partial<Meta>) => setMeta((m) => ({ ...m, ...patch }));
+  // What "Generate with AI" reads: the profile as the owner has it now.
+  const profileValues = () => ({ name: form.name, tagline: meta.tagline ?? "", bio: meta.bio ?? "", story: meta.story ?? "", country: form.country });
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,13 +197,13 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
           <Field label="Business name" required error={errors.name} htmlFor="pf-name">
             <Input id="pf-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </Field>
-          <Field label="Tagline" hint="A few words under your name." htmlFor="pf-tagline">
+          <Field label="Tagline" hint="A few words under your name." htmlFor="pf-tagline" action={<AIFieldButton field="tagline" form={profileValues} onResult={(s) => s.text && setM({ tagline: s.text })} />}>
             <Input id="pf-tagline" maxLength={80} value={meta.tagline ?? ""} onChange={(e) => setM({ tagline: e.target.value })} placeholder={isFLP ? "For example: Forever Business Owner" : "For example: Bridal and events makeup in Nairobi"} />
           </Field>
-          <Field label="Bio" hint="Two or three sentences about you and what you offer." className="md:col-span-2" htmlFor="pf-bio">
+          <Field label="Bio" hint="Two or three sentences about you and what you offer." className="md:col-span-2" htmlFor="pf-bio" action={<AIFieldButton field="bio" form={profileValues} onResult={(s) => s.text && setM({ bio: s.text })} />}>
             <Textarea id="pf-bio" rows={3} value={meta.bio ?? ""} onChange={(e) => setM({ bio: e.target.value })} />
           </Field>
-          <Field label={isFLP ? "Your Forever story" : "Your story"} hint="Shown next to your video. Leave a blank line between paragraphs." className="md:col-span-2" htmlFor="pf-story">
+          <Field label={isFLP ? "Your Forever story" : "Your story"} hint="Shown next to your video. Leave a blank line between paragraphs." className="md:col-span-2" htmlFor="pf-story" action={<AIFieldButton field="story" form={profileValues} onResult={(s) => s.text && setM({ story: s.text })} />}>
             <Textarea id="pf-story" rows={5} value={meta.story ?? ""} onChange={(e) => setM({ story: e.target.value })} />
           </Field>
           <Field label="Video link" hint="A YouTube or Vimeo link." error={errors.video_url} className="md:col-span-2" htmlFor="pf-video">
@@ -297,7 +300,7 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
             <Field label="Language" htmlFor="pf-lang">
               <Input id="pf-lang" value={form.flp_language} onChange={(e) => setForm({ ...form, flp_language: e.target.value.toLowerCase() })} placeholder="en" />
             </Field>
-            <Field label="Opportunity text" hint="No income figures or promises: Forever's rules. The income disclosure link is added for you." className="md:col-span-3" htmlFor="pf-opp">
+            <Field label="Opportunity text" hint="No income figures or promises: Forever's rules. The income disclosure link is added for you." className="md:col-span-3" htmlFor="pf-opp" action={<AIFieldButton field="opportunity_text" form={profileValues} onResult={(s) => s.text && setM({ opportunity_text: s.text })} />}>
               <Textarea id="pf-opp" rows={4} value={meta.opportunity_text ?? ""} onChange={(e) => setM({ opportunity_text: e.target.value })} />
             </Field>
           </div>

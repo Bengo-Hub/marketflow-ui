@@ -34,6 +34,13 @@ export interface MemberOverride {
   instructions?: string;
 }
 
+/** One generated field: text for a text field, items for a list field. */
+export interface FieldSuggestion {
+  field: string;
+  text?: string;
+  items?: string[];
+}
+
 export interface BrandContext {
   positioning: string;
   audience: string[];
@@ -311,6 +318,9 @@ export const marketingOsApi = {
   team: () =>
     aiClient.get<{ members: TeamMember[]; playbooks: Playbook[] }>("/api/v1/os/team").then((r) => r.data),
   optimize: (text: string) => aiClient.post<TaskSpec>("/api/v1/os/optimize", { text }).then((r) => r.data),
+  /** "Generate with AI" for one profile or brand-context field (marketflow-ai team.FieldSpecs). */
+  suggestField: (field: string, form: Record<string, string>, language?: "en" | "sw") =>
+    aiClient.post<FieldSuggestion>("/api/v1/os/field-suggest", { field, form, language }).then((r) => r.data),
   ask: (body: AskBody) => aiClient.post<AskResponse>("/api/v1/os/ask", body).then((r) => r.data),
   askStream,
   templates: (q = "", category = "") =>

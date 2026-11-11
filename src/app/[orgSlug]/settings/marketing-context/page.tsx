@@ -13,6 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState, Field, GlassPanel, ListEditor, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { BrandInterview } from "@/components/marketing-os/brand-interview";
+import { AIFieldButton } from "@/components/marketing-os/ai-field-button";
+import { brandFormValues, mergeItems } from "@/lib/brand-form";
 import { useBrandDraft } from "@/hooks/use-onboarding";
 import { cn } from "@/lib/utils";
 
@@ -183,10 +185,22 @@ function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string })
 
       <GlassPanel title="Positioning and voice">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <Field label="What you do and why customers pick you" htmlFor="bc-pos" hint={`${form.positioning.length}/${MAX_TEXT}`} error={form.positioning.length > MAX_TEXT ? `Keep it under ${MAX_TEXT} characters.` : undefined}>
+          <Field
+            label="What you do and why customers pick you"
+            htmlFor="bc-pos"
+            hint={`${form.positioning.length}/${MAX_TEXT}`}
+            error={form.positioning.length > MAX_TEXT ? `Keep it under ${MAX_TEXT} characters.` : undefined}
+            action={<AIFieldButton field="positioning" form={() => brandFormValues(form)} onResult={(s) => s.text && setForm((f) => ({ ...f, positioning: s.text! }))} />}
+          >
             <Textarea id="bc-pos" rows={4} value={form.positioning} placeholder="Handmade shea butter skincare from Kisumu, made in small batches with no added fragrance." onChange={(e) => setForm({ ...form, positioning: e.target.value })} />
           </Field>
-          <Field label="How you sound" htmlFor="bc-voice" hint={`${form.voice.length}/${MAX_TEXT}`} error={form.voice.length > MAX_TEXT ? `Keep it under ${MAX_TEXT} characters.` : undefined}>
+          <Field
+            label="How you sound"
+            htmlFor="bc-voice"
+            hint={`${form.voice.length}/${MAX_TEXT}`}
+            error={form.voice.length > MAX_TEXT ? `Keep it under ${MAX_TEXT} characters.` : undefined}
+            action={<AIFieldButton field="voice" form={() => brandFormValues(form)} onResult={(s) => s.text && setForm((f) => ({ ...f, voice: s.text! }))} />}
+          >
             <Textarea id="bc-voice" rows={4} value={form.voice} placeholder="Warm, plain and local. Mixes Swahili greetings with English. Never pushy." onChange={(e) => setForm({ ...form, voice: e.target.value })} />
           </Field>
         </div>
@@ -195,7 +209,22 @@ function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string })
       {/* grid-cols-1 + min-w-0: an implicit grid column would grow to the widest chip's text. */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {LISTS.map((l) => (
-          <GlassPanel key={l.key} title={l.label} description={l.help} className="min-w-0">
+          <GlassPanel
+            key={l.key}
+            title={l.label}
+            description={l.help}
+            className="min-w-0"
+            actions={
+              l.key === "learnings" ? undefined : (
+                <AIFieldButton
+                  field={l.key}
+                  form={() => brandFormValues(form)}
+                  label="Suggest"
+                  onResult={(s) => s.items?.length && setForm((f) => ({ ...f, [l.key]: mergeItems(f[l.key], s.items!) }))}
+                />
+              )
+            }
+          >
             <ListEditor label={l.label.toLowerCase()} value={form[l.key]} placeholder={l.placeholder} onChange={(v) => setForm({ ...form, [l.key]: v })} />
           </GlassPanel>
         ))}
