@@ -39,6 +39,8 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
   const [profile, accountColor] = await Promise.all([getPublicProfile(f.tenant_slug), getTenantBrandColor(f.tenant_slug)]);
   const steps = f.steps ?? [];
   const hero = safeUrl(f.hero_image_url);
+  // The business logo above its name (Sprint 7 #46).
+  const logo = safeUrl(profile?.metadata?.logo_url);
 
   return (
     <div className="fn-scope app-surface relative min-h-dvh">
@@ -46,6 +48,10 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
       <AppCanvas />
       <main id="main" className="mx-auto max-w-3xl space-y-6 px-4 pb-16 pt-[calc(env(safe-area-inset-top)+3rem)] sm:px-6 md:pt-20">
         <header className="text-center">
+          {logo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt={profile?.name ? `${profile.name} logo` : ""} className="mx-auto mb-3 h-14 w-14 rounded-2xl bg-white object-cover shadow-soft" />
+          )}
           {profile && <p className="text-sm font-semibold text-primary">{profile.name}</p>}
           <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight sm:text-5xl">{f.headline || f.name}</h1>
           {f.subheadline && <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">{f.subheadline}</p>}
