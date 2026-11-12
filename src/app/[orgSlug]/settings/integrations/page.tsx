@@ -11,6 +11,8 @@ import { tenantIntegrations } from "@/lib/providers/catalog";
 import { connectErrorText, connectProviders } from "@/lib/integrations/connect-result";
 import { ConnectedAccounts, type ConnectedAccount } from "@/components/providers/connected-accounts";
 import { CheckCircle2, ExternalLink } from "lucide-react";
+import { useMyAccess } from "@/hooks/use-access";
+import { canConnectIntegration, isRestricted } from "@/lib/access/role-access";
 
 type Integration = {
   provider: string;
@@ -23,6 +25,9 @@ type Integration = {
 export default function IntegrationsPage() {
   const qc = useQueryClient();
   const params = useSearchParams();
+  // Owner 2026-11-12: connecting is admin only (the app reviewer may connect Meta); the API decides.
+  const { data: access } = useMyAccess();
+  const restricted = isRestricted(access);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["integrations"],
@@ -104,6 +109,7 @@ export default function IntegrationsPage() {
         {tenantIntegrations.filter((it) => availableTypes.has(it.requiresPlatformConfig)).map((it) => {
           const existing = rowFor(it.id);
           const connected = !!existing?.connected;
+          const canConnect = canConnectIntegration(access, it.authorizePath);
           return (
             <div
               key={it.id}
@@ -153,7 +159,7 @@ export default function IntegrationsPage() {
               <div className="mt-auto flex items-center gap-2">
                 {connected ? (
                   <>
-                    {!it.comingSoon && it.id !== "google_calendar" && (
+                    {!it.comingSoon && it.id !== "google_calendar" && canConnect && (
                       // Re-runs the connect so the tenant can tick more Pages, an Instagram
                       // account or ad accounts (Meta: choose "Edit settings" in its dialog).
                       <Button size="sm" variant="outline" onClick={() => connect.mutate(it.id)}>
@@ -161,18 +167,22 @@ export default function IntegrationsPage() {
                         <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => disconnect.mutate(it.id)}
-                    >
-                      Disconnect
-                    </Button>
+                    {!restricted && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => disconnect.mutate(it.id)}
+                      >
+                        Disconnect
+                      </Button>
+                    )}
                   </>
                 ) : it.comingSoon ? (
                   <Button size="sm" variant="outline" disabled>
                     Coming soon
                   </Button>
+                ) : !canConnect ? (
+                  <p className="text-xs text-muted-foreground">Ask a MarketFlow admin to connect this.</p>
                 ) : (
                   <Button
                     size="sm"

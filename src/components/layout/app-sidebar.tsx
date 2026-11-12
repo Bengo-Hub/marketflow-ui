@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
+import { useMyAccess } from "@/hooks/use-access";
+import { filterNavGroups } from "@/lib/access/role-access";
 
 interface NavItem {
   label: string;
@@ -203,6 +205,9 @@ export function AppSidebar() {
   const logout = useAuthStore((s) => s.logout);
   const { resolvedTheme, setTheme } = useTheme();
   const dark = resolvedTheme === "dark";
+  // A restricted role (the Meta App Review account) sees only the pages it may use.
+  const { data: access } = useMyAccess();
+  const groups = filterNavGroups(navGroups, access);
 
   function isGroupInitiallyOpen(group: NavGroup): boolean {
     if (!group.defaultCollapsed) return true;
@@ -220,7 +225,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <nav aria-label="Main" className="flex-1 space-y-5 overflow-y-auto px-3 py-3 scrollbar-hide">
-          {navGroups.map((group) => (
+          {groups.map((group) => (
             <NavGroupSection key={group.label} group={group} orgSlug={orgSlug} initialOpen={isGroupInitiallyOpen(group)} />
           ))}
 

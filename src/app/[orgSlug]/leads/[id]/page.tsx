@@ -8,6 +8,7 @@ import { ActivityTimeline } from "@/components/crm/activity-timeline";
 import { CustomFieldsPanel } from "@/components/crm/custom-fields-panel";
 import { CapsuleTabs, ErrorState, GlassPanel, ToneBadge, humanize } from "@/components/ui-kit";
 import { useLead, useUpdateLead } from "@/hooks/use-leads";
+import { useIsRestricted } from "@/hooks/use-access";
 import { LEAD_STATUSES, leadName } from "@/lib/api/leads";
 
 const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
@@ -25,6 +26,8 @@ export default function LeadDetailPage() {
   const { orgSlug, id } = useParams<{ orgSlug: string; id: string }>();
   const lead = useLead(id);
   const update = useUpdateLead(id);
+  // The app reviewer views a lead: no status changes, custom fields or CRM timeline.
+  const restricted = useIsRestricted();
   const l = lead.data;
   const wa = l?.phone ? `https://wa.me/${l.phone.replace(/\D/g, "")}` : null;
 
@@ -87,12 +90,16 @@ export default function LeadDetailPage() {
             )}
             <div className="mt-5">
               <p className="mb-2 text-sm font-medium">Status</p>
-              <CapsuleTabs
-                label="Lead status"
-                value={l.status}
-                onChange={(s) => s !== l.status && update.mutate({ status: s })}
-                options={LEAD_STATUSES.map((s) => ({ value: s, label: humanize(s) }))}
-              />
+              {restricted ? (
+                <ToneBadge>{humanize(l.status)}</ToneBadge>
+              ) : (
+                <CapsuleTabs
+                  label="Lead status"
+                  value={l.status}
+                  onChange={(s) => s !== l.status && update.mutate({ status: s })}
+                  options={LEAD_STATUSES.map((s) => ({ value: s, label: humanize(s) }))}
+                />
+              )}
             </div>
           </div>
 
@@ -120,9 +127,9 @@ export default function LeadDetailPage() {
                   </div>
                 </GlassPanel>
               )}
-              <CustomFieldsPanel entity="lead" id={id} />
+              {!restricted && <CustomFieldsPanel entity="lead" id={id} />}
             </div>
-            <ActivityTimeline entity="lead" id={id} />
+            {!restricted && <ActivityTimeline entity="lead" id={id} />}
           </div>
         </>
       )}

@@ -12,6 +12,7 @@ import { VersionCard } from "@/components/studio/version-card";
 import { VideoAdCard } from "@/components/studio/video-ad-card";
 import { VideoAdForm } from "@/components/studio/video-ad-form";
 import { useBrief, useCanApprove, useMakeLeadPage, useUpdateBrief } from "@/hooks/use-creative";
+import { useIsRestricted } from "@/hooks/use-access";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { OBJECTIVES, type CreativeVersion } from "@/lib/api/creative";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,8 @@ export default function AdPage() {
   const update = useUpdateBrief(id);
   const makeLeadPage = useMakeLeadPage(id);
   const canApprove = useCanApprove();
+  // The app reviewer posts and boosts approved ads only: nothing to make, change or archive.
+  const restricted = useIsRestricted();
   // A poster to start from: "Make another like this" fills the form from it.
   const [base, setBase] = useState<CreativeVersion | null>(null);
   const [make, setMake] = useState<"poster" | "video">("poster");
@@ -79,20 +82,22 @@ export default function AdPage() {
                 <ExternalLink /> Lead page
               </a>
             ) : (
-              !archived && (
+              !archived && !restricted && (
                 <Button variant="outline" disabled={makeLeadPage.isPending} onClick={() => makeLeadPage.mutate()}>
                   <ExternalLink /> {makeLeadPage.isPending ? "Making..." : "Make a lead page"}
                 </Button>
               )
             )}
-            <Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ status: archived ? "active" : "archived" })}>
-              {archived ? <ArchiveRestore /> : <Archive />} {archived ? "Restore" : "Archive"}
-            </Button>
+            {!restricted && (
+              <Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ status: archived ? "active" : "archived" })}>
+                {archived ? <ArchiveRestore /> : <Archive />} {archived ? "Restore" : "Archive"}
+              </Button>
+            )}
           </>
         }
       />
 
-      {!canApprove && (
+      {!canApprove && !restricted && (
         <GlassPanel>
           <p className="flex gap-2 text-sm text-muted-foreground">
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
@@ -101,10 +106,10 @@ export default function AdPage() {
         </GlassPanel>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+      <div className={cn("grid grid-cols-1 gap-6", !restricted && "lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]")}>
         {/* On a phone the posters to review come first once there are some. */}
-        <div className={cn("min-w-0 lg:sticky lg:top-24 lg:self-start", live.length > 0 && "order-2 lg:order-0")}>
-          {archived ? (
+        <div className={cn("min-w-0 lg:sticky lg:top-24 lg:self-start", live.length > 0 && "order-2 lg:order-0", restricted && "hidden")}>
+          {restricted ? null : archived ? (
             <GlassPanel title="Archived">
               <p className="text-sm text-muted-foreground">Restore this ad to make new posters for it.</p>
             </GlassPanel>

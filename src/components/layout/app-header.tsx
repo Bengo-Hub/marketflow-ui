@@ -13,6 +13,7 @@ import { LogOut, User, Globe, Bell, ExternalLink, Settings, Shield, CalendarCloc
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { OutletFilter } from "@/components/layout/outlet-filter";
 import { useAttention, useDismissSuggestion } from "@/hooks/use-attention";
+import { useIsRestricted } from "@/hooks/use-access";
 import { usePublicLink } from "@/hooks/use-public-link";
 import { ORDERING_URL } from "@/lib/urls";
 import { useVisibleServices, serviceTagsFromAccessToken, AppSwitcherGrid, AppSwitcherTrigger, type ServiceKey } from "@bengo-hub/shared-ui-lib/app-switcher";
@@ -33,7 +34,9 @@ const SERVICE_URLS: Partial<Record<ServiceKey, string>> = {
 const timeFmt = new Intl.DateTimeFormat("en-KE", { weekday: "short", hour: "numeric", minute: "2-digit" });
 
 function AttentionBell({ orgSlug }: { orgSlug?: string }) {
-  const { data, isLoading } = useAttention(!!orgSlug);
+  // Tasks, meetings and agent suggestions are closed to a restricted role (the app reviewer).
+  const restricted = useIsRestricted();
+  const { data, isLoading } = useAttention(!!orgSlug && !restricted);
   const dismiss = useDismissSuggestion();
   const tasks = data?.tasks ?? [];
   const meetings = data?.meetings ?? [];

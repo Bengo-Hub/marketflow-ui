@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, ConfirmDialog, Field, ToneBadge, humanize, type Tone } from "@/components/ui-kit";
 import { useApprove, useDiscard, useExtend, useMotion, useRevise } from "@/hooks/use-creative";
+import { useIsRestricted } from "@/hooks/use-access";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { creativeApi, expiresAt, IN_PROGRESS, mainAsset, STATUS_LABEL, type CreativeVersion, type Tier, type VersionStatus } from "@/lib/api/creative";
 import { API_URL } from "@/lib/urls";
@@ -49,6 +50,8 @@ export function VersionCard({
   const approve = useApprove(briefId);
   const discard = useDiscard(briefId);
   const extend = useExtend(briefId);
+  // The app reviewer only looks at posters: no discard, edits, new posters, share links or extensions.
+  const reviewer = useIsRestricted();
   const asset = mainAsset(v);
   const busy = IN_PROGRESS.includes(v.status);
   const finished = v.status === "ready" || v.status === "approved";
@@ -128,7 +131,7 @@ export function VersionCard({
               <Check /> Approve
             </Button>
           )}
-          {(v.status === "ready" || v.status === "failed") && !archived && (
+          {(v.status === "ready" || v.status === "failed") && !archived && !reviewer && (
             <Button size="sm" variant="outline" onClick={() => setOpen("discard")}>
               <X /> Discard
             </Button>
@@ -148,7 +151,7 @@ export function VersionCard({
               <Download /> Download
             </a>
           )}
-          {(finished || editable) && (
+          {(finished || editable) && !reviewer && (
             <DropdownMenu>
               <DropdownMenuTrigger aria-label={`More for version ${v.version_no}`} className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-accent">
                 <MoreVertical className="size-4" />

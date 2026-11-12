@@ -5,6 +5,8 @@ import { useParams, usePathname } from "next/navigation";
 import { LayoutDashboard, Megaphone, MessageSquare, Users } from "lucide-react";
 import { MobileBottomNav, type MobileNavTab } from "@bengo-hub/shared-ui-lib/navigation";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useMyAccess } from "@/hooks/use-access";
+import { pageAllowed } from "@/lib/access/role-access";
 
 /** Phone and tablet navigation (below lg). "More" opens the full sidebar sheet. */
 export function MobileNav() {
@@ -19,12 +21,13 @@ export function MobileNav() {
     icon,
     active: pathname === `${base}${path}` || pathname.startsWith(`${base}${path}/`),
   });
+  const { data: access } = useMyAccess();
   const tabs = [
     tab("dashboard", "Home", "/dashboard", LayoutDashboard),
     tab("leads", "Leads", "/leads", Users),
     tab("chat", "Chat", "/chat", MessageSquare),
     tab("campaigns", "Campaigns", "/campaigns", Megaphone),
-  ];
+  ].filter((t) => pageAllowed(t.href.slice(base.length), access));
   return (
     <MobileBottomNav
       tabs={tabs}

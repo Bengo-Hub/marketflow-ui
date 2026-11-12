@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { onboardingApi } from "@/lib/api/onboarding";
 import { justCompleted, onboardingShownKey, shouldOpenOnboarding } from "@/lib/onboarding-flow";
+import { isRestricted } from "@/lib/access/role-access";
+import { useMyAccess } from "./use-access";
 
 export function useChecklist(enabled = true) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -36,8 +38,13 @@ export function useOnboardingRedirect() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const router = useRouter();
   const checklist = useChecklist();
+  const access = useMyAccess();
+  const accessLoading = access.isLoading;
+  const restricted = isRestricted(access.data);
   useEffect(() => {
     if (!orgSlug) return;
+    // Setup is for the business's own team: never send the app reviewer there (it cannot open it).
+    if (accessLoading || restricted) return;
     let shown = false;
     try {
       shown = sessionStorage.getItem(onboardingShownKey(orgSlug)) === "1";
@@ -51,7 +58,7 @@ export function useOnboardingRedirect() {
       return;
     }
     router.replace(`/${orgSlug}/onboarding`);
-  }, [checklist.data, orgSlug, router]);
+  }, [checklist.data, orgSlug, router, accessLoading, restricted]);
 }
 
 /** Onboarding page: on to the dashboard when the last step completes during this visit. */

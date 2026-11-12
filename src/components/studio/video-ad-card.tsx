@@ -9,6 +9,7 @@ import { ConfirmDialog, Field, GlassPanel, ToneBadge } from "@/components/ui-kit
 import { BoostDialog } from "@/components/studio/boost-dialog";
 import { PublishDialog } from "@/components/studio/publish-dialog";
 import { useApprove, useDiscard } from "@/hooks/use-creative";
+import { useCanPublish, useIsRestricted } from "@/hooks/use-access";
 import {
   useApproveStoryboard,
   useMakeStoryboard,
@@ -44,6 +45,8 @@ export function VideoAdCard({
   funnelSlug?: string;
 }) {
   const parts = videoParts(version);
+  // The app reviewer does not write scripts, storyboards or renders.
+  const restricted = useIsRestricted();
   const kindLabel = VIDEO_KINDS.find((k) => k.value === parts.kind)?.label ?? "Video";
   const busy = IN_PROGRESS.includes(version.status);
   const stageLabel = busy
@@ -68,7 +71,7 @@ export function VideoAdCard({
     >
       {busy && <Progress stage={parts.stage} />}
       {version.error && <p className="mb-3 text-sm text-destructive">{version.error}</p>}
-      {version.status === "script_ready" && !archived && <ScriptReview briefId={briefId} version={version} />}
+      {version.status === "script_ready" && !archived && !restricted && <ScriptReview briefId={briefId} version={version} />}
       {(version.status === "ready" || version.status === "approved") && (
         <Finished briefId={briefId} version={version} canApprove={canApprove} archived={archived} funnelSlug={funnelSlug} otherVideos={otherVideos} />
       )}
@@ -301,6 +304,9 @@ function Finished({
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [posting, setPosting] = useState(false);
   const [boosting, setBoosting] = useState(false);
+  // Post and Boost: the approving roles and the app reviewer. Changing or discarding: not the reviewer.
+  const canPublish = useCanPublish();
+  const restricted = useIsRestricted();
   const ready = version.status === "ready";
   const caption = [version.copy?.headline, version.copy?.subline, version.copy?.cta].filter(Boolean).join("\n");
   // A post ends with the ad's lead page, tagged so its leads show they came from this ad.
@@ -326,20 +332,22 @@ function Finished({
               <Check /> Approve
             </Button>
           )}
-          {version.status === "approved" && video && canApprove && (
+          {version.status === "approved" && video && canPublish && (
             <Button onClick={() => setPosting(true)}>
               <Send /> Post
             </Button>
           )}
-          {version.status === "approved" && video && canApprove && (
+          {version.status === "approved" && video && canPublish && (
             <Button variant="outline" onClick={() => setBoosting(true)}>
               <Rocket /> Boost
             </Button>
           )}
-          <Button variant="outline" disabled={revise.isPending} onClick={() => revise.mutate(version.id)}>
-            <Pencil /> Change a scene
-          </Button>
-          {ready && (
+          {!restricted && (
+            <Button variant="outline" disabled={revise.isPending} onClick={() => revise.mutate(version.id)}>
+              <Pencil /> Change a scene
+            </Button>
+          )}
+          {ready && !restricted && (
             <Button variant="ghost" onClick={() => setConfirmDiscard(true)}>
               <Trash2 /> Discard
             </Button>

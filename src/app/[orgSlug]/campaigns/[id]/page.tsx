@@ -9,7 +9,8 @@ import { LeadTrendChart } from "@/components/dashboard/charts";
 import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
 import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, ListTable, StatCard, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
 import { useCampaign, useCampaignAction, useCampaignMetrics } from "@/hooks/use-campaigns";
-import { formatMoney, type CampaignMetrics } from "@/lib/api/campaigns";
+import { formatMoney, runsOnAdPlatform, type CampaignMetrics } from "@/lib/api/campaigns";
+import { useIsRestricted } from "@/hooks/use-access";
 import { metaReviewLabel } from "@/lib/campaigns/review";
 
 type Point = CampaignMetrics["series"][number];
@@ -25,6 +26,9 @@ export default function CampaignDetailPage() {
   const metrics = useCampaignMetrics(id, Number(days));
   const action = useCampaignAction();
   const c = campaign.data;
+  // The app reviewer pauses and resumes a boost (an ad-platform campaign) only; no SMS.
+  const restricted = useIsRestricted();
+  const canAct = !restricted || runsOnAdPlatform(c);
   const review = c ? metaReviewLabel(c) : null;
   const t = metrics.data?.totals;
   const currency = metrics.data?.series[0]?.currency || c?.currency || "KES";
@@ -65,17 +69,17 @@ export default function CampaignDetailPage() {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          {c?.status === "active" && (
+          {c?.status === "active" && canAct && (
             <Button variant="outline" disabled={action.isPending} onClick={() => action.mutate({ id, action: "pause", campaign: c })}>
               <Pause /> Pause
             </Button>
           )}
-          {(c?.status === "paused" || c?.status === "draft") && (
+          {(c?.status === "paused" || (c?.status === "draft" && !restricted)) && canAct && (
             <Button disabled={action.isPending} onClick={() => action.mutate({ id, action: "resume", campaign: c })}>
               <Play /> {c.status === "draft" ? "Start" : "Resume"}
             </Button>
           )}
-          <SendSMSDialog campaignId={id} campaignName={c?.name} />
+          {!restricted && <SendSMSDialog campaignId={id} campaignName={c?.name} />}
         </div>
       </div>
 

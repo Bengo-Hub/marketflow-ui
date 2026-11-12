@@ -15,7 +15,7 @@ import {
   type VersionInput,
 } from "@/lib/api/creative";
 import { useAuthStore } from "@/store/auth-store";
-import { useTeam } from "./use-team";
+import { useMyAccess } from "./use-access";
 
 export function useBriefs(status: "active" | "archived", page: number, limit: number) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -64,11 +64,11 @@ export function useCreativeQuote(tenantId: string | undefined, tier: Tier) {
  */
 export function useCanApprove(): boolean {
   const platformOwner = useAuthStore((s) => s.user?.isPlatformOwner ?? false);
-  const team = useTeam();
+  // The caller's own role, not the team list: the app reviewer may not read the team.
+  const access = useMyAccess();
   if (platformOwner) return true;
-  const me = team.data?.members.find((m) => m.you);
-  if (!me) return !team.isSuccess; // unknown yet: show it and let the API decide
-  return me.roles.some((r) => r === "marketflow_admin" || r === "fbo_owner");
+  if (!access.data) return !access.isSuccess; // unknown yet: show it and let the API decide
+  return access.data.roles.some((r) => r === "marketflow_admin" || r === "fbo_owner");
 }
 
 export function useCreateBrief() {

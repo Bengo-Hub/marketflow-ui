@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { CapsuleTabs, EmptyState, ErrorState, ListTable, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { NewAdForm } from "@/components/studio/new-ad-form";
 import { useBriefs } from "@/hooks/use-creative";
+import { useIsRestricted } from "@/hooks/use-access";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { OBJECTIVES, type CreativeBrief } from "@/lib/api/creative";
 
@@ -23,6 +24,7 @@ export default function StudioPage() {
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const list = useBriefs(status, page, PAGE);
+  const restricted = useIsRestricted();
 
   const columns: DataTableColumn<CreativeBrief>[] = [
     {
@@ -73,20 +75,23 @@ export default function StudioPage() {
         title="Studio"
         description="Make posters for your products and promotions, review them, and keep the ones you approve."
         actions={
-          <>
-            <Link href={`/${orgSlug}/studio/research`} className={buttonVariants({ variant: "outline" })}>
-              <Compass /> Research
-            </Link>
-            <Link href={`/${orgSlug}/studio/autopilot`} className={buttonVariants({ variant: "outline" })}>
-              <Bot /> Autopilot
-            </Link>
-            <Link href={`/${orgSlug}/studio/calendar`} className={buttonVariants({ variant: "outline" })}>
-              <CalendarDays /> Calendar
-            </Link>
-            <Button onClick={() => setCreating(true)}>
-              <Plus /> New ad
-            </Button>
-          </>
+          // The app reviewer opens existing ads only: no research, autopilot, calendar or new ads.
+          restricted ? undefined : (
+            <>
+              <Link href={`/${orgSlug}/studio/research`} className={buttonVariants({ variant: "outline" })}>
+                <Compass /> Research
+              </Link>
+              <Link href={`/${orgSlug}/studio/autopilot`} className={buttonVariants({ variant: "outline" })}>
+                <Bot /> Autopilot
+              </Link>
+              <Link href={`/${orgSlug}/studio/calendar`} className={buttonVariants({ variant: "outline" })}>
+                <CalendarDays /> Calendar
+              </Link>
+              <Button onClick={() => setCreating(true)}>
+                <Plus /> New ad
+              </Button>
+            </>
+          )
         }
       />
 
@@ -117,7 +122,7 @@ export default function StudioPage() {
               icon={<ImageIcon />}
               title="No ads yet"
               description="Pick a product, service or promotion and Studio makes a poster you can post on WhatsApp, Facebook or Instagram."
-              action={<Button onClick={() => setCreating(true)}><Plus /> New ad</Button>}
+              action={restricted ? undefined : <Button onClick={() => setCreating(true)}><Plus /> New ad</Button>}
             />
           ) : (
             <EmptyState icon={<ImageIcon />} title="Nothing archived" description="Ads you archive show here, with their approved posters." />

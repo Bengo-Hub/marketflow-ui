@@ -12,6 +12,7 @@ import { SubscriptionBanner } from "@/components/subscription/subscription-banne
 import { VerifyEmailPrompt } from "@/components/auth/VerifyEmailPrompt";
 import { SubscriptionEntitlementsProvider } from "@/components/subscription/subscription-entitlements-provider";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { RolePageGuard } from "@/components/layout/role-page-guard";
 import { AppCanvas } from "@/components/ui-kit";
 
 export default function OrgLayout({ children }: { children: React.ReactNode }) {
@@ -76,7 +77,7 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
               id="main"
               className="mx-auto w-full max-w-7xl flex-1 px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-8 lg:pb-12"
             >
-              {children}
+              <RolePageGuard>{children}</RolePageGuard>
             </main>
           </div>
           <MobileNav />

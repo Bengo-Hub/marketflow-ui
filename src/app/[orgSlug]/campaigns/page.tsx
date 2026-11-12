@@ -12,8 +12,9 @@ import { Input } from "@/components/ui/input";
 import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, Pager, PageHeader, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
 import { useCampaignAction, useCampaigns, useSaveCampaign } from "@/hooks/use-campaigns";
 import {
-  CAMPAIGN_CHANNELS, CAMPAIGN_PLATFORMS, CAMPAIGN_STATUSES, CAMPAIGN_TYPES, formatMoney, type Campaign, type CampaignInput,
+  CAMPAIGN_CHANNELS, CAMPAIGN_PLATFORMS, CAMPAIGN_STATUSES, CAMPAIGN_TYPES, formatMoney, runsOnAdPlatform, type Campaign, type CampaignInput,
 } from "@/lib/api/campaigns";
+import { useIsRestricted } from "@/hooks/use-access";
 
 const empty: CampaignInput = { name: "", campaign_type: "lead_gen", platform: "meta", channel: "whatsapp", currency: "KES" };
 const label = (v: string) => (v === "sms" ? "SMS" : v === "lead_gen" ? "Lead generation" : v === "re_engagement" ? "Re-engagement" : humanize(v));
@@ -99,6 +100,19 @@ export default function CampaignsPage() {
   const action = useCampaignAction();
   const rows = list.data?.data ?? [];
   const counts = list.data?.lead_counts ?? {};
+  // The app reviewer sees results and pauses or resumes a boost; nothing else here changes.
+  const restricted = useIsRestricted();
+  const boostMenu = (c: Campaign) =>
+    runsOnAdPlatform(c) && (c.status === "active" || c.status === "paused") ? (
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={action.isPending}
+        onClick={() => action.mutate({ id: c.id, action: c.status === "active" ? "pause" : "resume", campaign: c })}
+      >
+        {c.status === "active" ? <Pause /> : <Play />} {c.status === "active" ? "Pause" : "Resume"}
+      </Button>
+    ) : null;
 
   const newButton = (
     <Button onClick={() => setEditing({ data: empty })}>
@@ -151,7 +165,7 @@ export default function CampaignsPage() {
         icon={<Megaphone />}
         title="Campaigns"
         description="Ad campaigns and the leads they bring in."
-        actions={canCreate ? newButton : <FeatureLock feature="basic_campaigns" mode="block">{newButton}</FeatureLock>}
+        actions={restricted ? undefined : canCreate ? newButton : <FeatureLock feature="basic_campaigns" mode="block">{newButton}</FeatureLock>}
       />
       <CapsuleTabs
         label="Filter by status"
@@ -183,7 +197,7 @@ export default function CampaignsPage() {
                   <p className="font-display text-lg font-semibold tabular">{(counts[c.id] ?? 0).toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">leads</p>
                 </div>
-                {menu(c)}
+                {restricted ? boostMenu(c) : menu(c)}
               </li>
             ))}
           </ul>

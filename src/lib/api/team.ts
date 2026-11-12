@@ -5,6 +5,11 @@ export const TEAM_ROLES = [
   { value: "marketflow_admin", label: "Admin", hint: "Everything, including the team, settings, integrations, autopilot and lead export" },
   { value: "fbo_owner", label: "Member", hint: "Day-to-day marketing: create, approve, boost, post, reply and use AI credits" },
   { value: "viewer", label: "Viewer", hint: "Can look, cannot change anything" },
+  {
+    value: "app_reviewer",
+    label: "App reviewer",
+    hint: "Meta App Review only: connect Facebook and Instagram, boost, post, reply, view leads and results",
+  },
 ] as const;
 
 export type TeamRole = (typeof TEAM_ROLES)[number]["value"];

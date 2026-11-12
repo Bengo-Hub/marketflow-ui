@@ -27,6 +27,12 @@ export interface InboxItem {
   lead_id?: string;
   can_reply: boolean;
   reply_window?: string;
+  /** Hidden on the post: only the commenter and their friends still see it. */
+  hidden?: boolean;
+  /** Deleted from the post; the item stays in the inbox, marked. */
+  deleted_at?: string;
+  /** A live Facebook Page or Instagram comment, so it can be hidden or deleted. */
+  can_moderate?: boolean;
 }
 
 export interface InboxPage {
@@ -49,6 +55,10 @@ export const inboxApi = {
   reply: (id: string, text: string) => apiClient.post<InboxItem>(`${base}/${id}/reply`, { text }).then((r) => r.data),
   handled: (id: string) => apiClient.post<InboxItem>(`${base}/${id}/handled`).then((r) => r.data),
   promote: (id: string) => apiClient.post<{ lead_id: string }>(`${base}/${id}/promote`).then((r) => r.data),
+  /** Hide or unhide a Facebook Page or Instagram comment on the business's own post. */
+  hide: (id: string, hidden: boolean) => apiClient.post<InboxItem>(`${base}/${id}/hide`, { hidden }).then((r) => r.data),
+  /** Delete a Facebook Page or Instagram comment from the post; the inbox item stays, marked. */
+  remove: (id: string) => apiClient.delete<InboxItem>(`${base}/${id}`).then((r) => r.data),
 };
 
 export const INTENT_LABEL: Record<string, string> = {

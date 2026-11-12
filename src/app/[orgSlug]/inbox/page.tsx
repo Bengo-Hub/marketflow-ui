@@ -4,13 +4,15 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Inbox, MessageCircle, Reply, UserPlus } from "lucide-react";
+import { Check, Eye, EyeOff, Inbox, MessageCircle, Reply, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { CapsuleTabs, EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
-import { useInbox, useInboxHandled, useInboxPromote, useInboxReply } from "@/hooks/use-inbox";
+import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
+import { useInbox, useInboxDelete, useInboxHandled, useInboxHide, useInboxPromote, useInboxReply } from "@/hooks/use-inbox";
+import { useIsRestricted, useMyAccess } from "@/hooks/use-access";
+import { canModerate } from "@/lib/inbox/moderation";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { INTENT_LABEL, MAX_AUTO_REPLY, MAX_REPLY, type InboxFilter, type InboxItem } from "@/lib/api/inbox";
 import { marketingOsApi } from "@/lib/api/marketing-os";
@@ -34,6 +36,8 @@ export default function InboxPage() {
   );
   const inbox = useInbox(filter);
   const items = useMemo(() => inbox.data?.pages.flatMap((p) => p.data) ?? [], [inbox.data]);
+  // The app reviewer reads and replies: no automatic-reply settings.
+  const restricted = useIsRestricted();
 
   return (
     <div className="space-y-6">
@@ -42,7 +46,7 @@ export default function InboxPage() {
         title="Inbox"
         description="Comments and messages on your Facebook Page and Instagram. People asking to buy are marked so you can answer them first."
       />
-      <AutoReplySettings />
+      {!restricted && <AutoReplySettings />}
       <CapsuleTabs
         label="Which messages to show"
         value={view}
@@ -84,6 +88,14 @@ function Row({ item: it }: { item: InboxItem }) {
   const reply = useInboxReply();
   const handled = useInboxHandled();
   const promote = useInboxPromote();
+  // The app reviewer replies only: adding to leads and marking handled are closed to it.
+  const restricted = useIsRestricted();
+  // Hide, unhide and delete: Facebook and Instagram comments, for members, admins and the reviewer.
+  const { data: access } = useMyAccess();
+  const moderate = canModerate(it, access);
+  const hide = useInboxHide();
+  const remove = useInboxDelete();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   return (
@@ -96,6 +108,8 @@ function Row({ item: it }: { item: InboxItem }) {
         {it.intent && <ToneBadge tone={tone(it)}>{INTENT_LABEL[it.intent] ?? it.intent}</ToneBadge>}
         {it.replied_at && <ToneBadge tone="info">Replied</ToneBadge>}
         {it.handled_at && <ToneBadge tone="neutral">Handled</ToneBadge>}
+        {it.hidden && !it.deleted_at && <ToneBadge tone="warning">Hidden</ToneBadge>}
+        {it.deleted_at && <ToneBadge tone="danger">Deleted</ToneBadge>}
       </div>
       <p className="whitespace-pre-line text-sm">{it.text}</p>
       {it.intent_status === "flagged" && (
@@ -114,16 +128,38 @@ function Row({ item: it }: { item: InboxItem }) {
             Open lead
           </Link>
         ) : (
-          <Button size="sm" variant="ghost" disabled={promote.isPending} onClick={() => promote.mutate(it.id)}>
-            <UserPlus /> Add to leads
-          </Button>
+          !restricted && (
+            <Button size="sm" variant="ghost" disabled={promote.isPending} onClick={() => promote.mutate(it.id)}>
+              <UserPlus /> Add to leads
+            </Button>
+          )
         )}
-        {!it.handled_at && (
+        {!it.handled_at && !restricted && (
           <Button size="sm" variant="ghost" disabled={handled.isPending} onClick={() => handled.mutate(it.id)}>
             <Check /> Mark handled
           </Button>
         )}
+        {moderate && (
+          <>
+            <Button size="sm" variant="ghost" disabled={hide.isPending} onClick={() => hide.mutate({ id: it.id, hidden: !it.hidden })}>
+              {it.hidden ? <Eye /> : <EyeOff />} {it.hidden ? "Unhide" : "Hide"}
+            </Button>
+            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setConfirmDelete(true)}>
+              <Trash2 /> Delete
+            </Button>
+          </>
+        )}
       </div>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete this comment?"
+        description={`It is removed from your ${it.platform === "instagram" ? "Instagram post" : "Facebook post"} for everyone. This cannot be undone; it stays here marked as deleted.`}
+        confirmLabel="Delete"
+        variant="danger"
+        pending={remove.isPending}
+        onConfirm={() => remove.mutate(it.id, { onSuccess: () => setConfirmDelete(false) })}
+      />
       {open && (
         <div className="space-y-2">
           <Textarea

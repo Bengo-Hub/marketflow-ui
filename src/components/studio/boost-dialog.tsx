@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, Field, ToneBadge } from "@/components/ui-kit";
 import { useAdAccounts, useAdQuote, useBoost, useBoostAction, useLaunchBoost } from "@/hooks/use-ads";
+import { useIsRestricted } from "@/hooks/use-access";
 import { useDebouncedValue } from "@bengo-hub/shared-ui-lib/search";
 import { usePublishAccounts } from "@/hooks/use-publishing";
 import { adsApi, metaBillingURL, STAGE_LABEL, type Objective } from "@/lib/api/ads";
@@ -42,6 +43,8 @@ export function BoostDialog({
   defaultLink?: string;
 }) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
+  // Creating a new ad account is not part of the app reviewer's boost flow.
+  const restricted = useIsRestricted();
   const accounts = useAdAccounts(open);
   const pages = usePublishAccounts(open);
   const fbPages = useMemo(() => (pages.data ?? []).filter((p) => p.platform === "facebook"), [pages.data]);
@@ -184,7 +187,7 @@ export function BoostDialog({
               <Textarea id="boost-text" rows={3} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} />
             </Field>
 
-            {accounts.isSuccess && !hasKES && (
+            {accounts.isSuccess && !hasKES && !restricted && (
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3 text-sm">
                 <span className="flex-1">To pay Meta with M-Pesa you need a KES ad account.</span>
                 <Button size="sm" variant="outline" disabled={createKES.isPending} onClick={() => createKES.mutate()}>

@@ -13,6 +13,7 @@ import { CapsuleTabs, EmptyState, ListTable, PageHeader, StatusBadge, ToneBadge,
 import { useDashboard } from "@/hooks/use-analytics";
 import { useDebouncedSearch } from "@bengo-hub/shared-ui-lib/search";
 import { useLeads } from "@/hooks/use-leads";
+import { useIsRestricted } from "@/hooks/use-access";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { LEAD_STATUSES, leadName, leadsApi, type Lead, type LeadFilters } from "@/lib/api/leads";
 import { datedFilename, saveBlob } from "@/lib/download";
@@ -29,6 +30,7 @@ export default function LeadsPage() {
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
+  const restricted = useIsRestricted();
   // Shared debounced search: one request after the pause, Enter searches at once.
   const search = useDebouncedSearch({ onTermChange: () => setPage(1) });
   const q = search.term;
@@ -125,10 +127,13 @@ export default function LeadsPage() {
         title="Leads"
         description={leads.isLoading ? "Loading..." : `${total.toLocaleString()} ${hasFilters ? "matching" : "in total"}`}
         actions={
-          <Button variant="outline" onClick={exportCsv} disabled={exporting || total === 0}>
-            {exporting ? <Loader2 className="animate-spin" /> : <Download />}
-            Export CSV
-          </Button>
+          // Export is closed to the app reviewer.
+          restricted ? undefined : (
+            <Button variant="outline" onClick={exportCsv} disabled={exporting || total === 0}>
+              {exporting ? <Loader2 className="animate-spin" /> : <Download />}
+              Export CSV
+            </Button>
+          )
         }
       />
 
