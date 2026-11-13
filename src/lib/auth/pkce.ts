@@ -55,6 +55,8 @@ export function buildAuthorizeUrl(opts: {
   signup?: boolean;
   /** A platform owner's business invite, passed on to the sign-up page (auth-api checks it). */
   invite?: string;
+  /** A gift a friend link's code (CV-...), passed on to sign-up as ?ref= (auth-api keeps it only when well formed). */
+  referralCode?: string;
 }): string {
   const params = new URLSearchParams({
     response_type: "code",
@@ -68,6 +70,7 @@ export function buildAuthorizeUrl(opts: {
   if (opts.tenant) params.set("tenant", opts.tenant);
   if (opts.signup) params.set("prompt", "create");
   if (opts.invite) params.set("invite", opts.invite);
+  if (opts.referralCode) params.set("ref", opts.referralCode);
   return `${SSO_BASE_URL}/api/v1/authorize?${params.toString()}`;
 }
 

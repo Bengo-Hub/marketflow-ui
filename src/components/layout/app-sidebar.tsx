@@ -19,7 +19,7 @@ import {
   Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
   Briefcase, Activity, CheckSquare, ChevronDown, LogOut, UsersRound, Filter,
   SlidersHorizontal, Workflow, Palette, UserCircle, CreditCard, PlugZap, Quote,
-  ScrollText, Gauge, KeyRound, Cog, Receipt, ImageIcon, Inbox, Plug,
+  ScrollText, Gauge, KeyRound, Cog, Receipt, ImageIcon, Inbox, Plug, Gift,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
@@ -82,6 +82,7 @@ export const navGroups: NavGroup[] = [
       { label: "Custom fields", icon: SlidersHorizontal, href: "/settings/custom-fields" },
       { label: "Agents", icon: Workflow, href: "/settings/agents" },
       { label: "Billing", icon: CreditCard, href: "/settings/billing" },
+      { label: "Invite and earn", icon: Gift, href: "/settings/invite" },
       { label: "Activity log", icon: ScrollText, href: "/settings/audit" },
     ],
   },

@@ -13,6 +13,7 @@ import { apiErrorMessage } from "@/lib/api/errors";
 import { billingApi, kes, type CreditService, type CreditSnapshot, type UsageMetric } from "@/lib/api/billing";
 import { PRICING_URL } from "@/lib/urls";
 import { cn } from "@/lib/utils";
+import { UsageCard } from "@/components/billing/usage-card";
 import { useAuthStore } from "@/store/auth-store";
 
 const dateFmt = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium" });
@@ -213,6 +214,17 @@ export default function BillingPage() {
       )}
 
       <PageHeader icon={<CreditCard />} title="Billing" description="Your plan, what you have used this period, and prepaid credits." />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <UsageCard />
+        <Link
+          href={`/${orgSlug}/settings/invite`}
+          className="flex flex-col justify-center gap-1 rounded-2xl border bg-card p-4 text-sm shadow-sm transition-colors hover:bg-muted/40"
+        >
+          <span className="font-medium">Invite a business, both get free AI credits</span>
+          <span className="text-muted-foreground">Paid once, when the business you invite makes its first payment.</span>
+        </Link>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <GlassPanel title="Plan">
