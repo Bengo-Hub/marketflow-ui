@@ -13,7 +13,9 @@ import { ErrorState, Field, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { useBrandDraft, useChecklist, useCompletionRedirect, useDismissChecklist } from "@/hooks/use-onboarding";
 import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import { apiErrorMessage } from "@/lib/api/errors";
-import { marketingOsApi } from "@/lib/api/marketing-os";
+import { marketingOsApi, type BrandContext } from "@/lib/api/marketing-os";
+import { ActorNamesFields } from "@/components/marketing-os/actor-names-fields";
+import { BrandImagesPanel } from "@/components/media/brand-images-panel";
 import { STEP_META, type BrandDraft, type StepKey } from "@/lib/api/onboarding";
 import type { TenantProfile } from "@/lib/api/tenant-profile";
 import { cn } from "@/lib/utils";
@@ -62,8 +64,12 @@ function ProfileStep({ profile, draft, onDone }: { profile: TenantProfile; draft
 function BrandStep({ draft, onDone }: { draft?: BrandDraft; onDone: () => void }) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const qc = useQueryClient();
+  const [actors, setActors] = useState<Pick<BrandContext, "actor_name_style" | "actor_names">>({
+    actor_name_style: draft?.suggested.actor_name_style ?? "",
+    actor_names: draft?.suggested.actor_names ?? [],
+  });
   const use = useMutation({
-    mutationFn: () => marketingOsApi.saveBrandContext(draft!.suggested),
+    mutationFn: () => marketingOsApi.saveBrandContext({ ...draft!.suggested, ...actors }),
     onSuccess: (saved) => {
       qc.setQueryData(["os-brand-context", orgSlug], saved);
       toast.success("Brief saved. Fine-tune it any time.");
@@ -80,6 +86,7 @@ function BrandStep({ draft, onDone }: { draft?: BrandDraft; onDone: () => void }
         <div className="rounded-xl bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">What you sell</dt><dd className="mt-1">{s.offers.length ? `${s.offers.length} items` : "Not found yet"}</dd></div>
         <div className="rounded-xl bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">Who you sell to</dt><dd className="mt-1">{s.audience.length ? `${s.audience.length} groups` : "Add this yourself"}</dd></div>
       </dl>
+      <ActorNamesFields idPrefix="ob-actor" value={actors} onChange={setActors} />
       <div className="flex flex-wrap gap-2">
         <Button disabled={use.isPending || (!s.positioning && s.offers.length === 0)} onClick={() => use.mutate()}>{use.isPending ? "Saving..." : "Use this as a start"}</Button>
         <Link href={`/${orgSlug}/settings/marketing-context`} className={buttonVariants({ variant: "outline" })}>Open the full brief</Link>
@@ -107,7 +114,7 @@ export default function OnboardingPage() {
   if (checklist.isError) return <ErrorState message="Could not load your setup steps." onRetry={() => void checklist.refetch()} />;
   const c = checklist.data;
   const pct = c && c.total ? Math.round((c.done / c.total) * 100) : 0;
-  const inline: Partial<Record<StepKey, boolean>> = { profile: true, brand_context: true };
+  const inline: Partial<Record<StepKey, boolean>> = { profile: true, brand_context: true, brand_images: true };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -155,8 +162,9 @@ export default function OnboardingPage() {
                     <div className="mt-4 border-t border-border pt-4">
                       {draft.isError && <p className="mb-3 text-sm text-warning">We couldn&apos;t read your other Codevertex apps just now, so fill this in yourself.</p>}
                       {profile.data && st.key === "profile" && <ProfileStep key={draft.data ? "with" : "without"} profile={profile.data} draft={draft.data} onDone={refresh} />}
-                      {st.key === "brand_context" && <BrandStep draft={draft.data} onDone={refresh} />}
-                      {profile.isLoading && st.key !== "brand_context" && <div className="h-24 animate-pulse rounded-xl bg-muted" />}
+                      {st.key === "brand_context" && <BrandStep key={draft.data ? "with" : "without"} draft={draft.data} onDone={refresh} />}
+                      {st.key === "brand_images" && <BrandImagesPanel />}
+                      {profile.isLoading && st.key === "profile" && <div className="h-24 animate-pulse rounded-xl bg-muted" />}
                     </div>
                   )}
                 </li>

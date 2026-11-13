@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ErrorState, Field, GlassPanel, ListEditor, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { BrandInterview } from "@/components/marketing-os/brand-interview";
 import { AIFieldButton } from "@/components/marketing-os/ai-field-button";
+import { ActorNamesFields } from "@/components/marketing-os/actor-names-fields";
+import { BrandImagesPanel } from "@/components/media/brand-images-panel";
 import { brandFormValues, mergeItems } from "@/lib/brand-form";
 import { useBrandDraft } from "@/hooks/use-onboarding";
 import { cn } from "@/lib/utils";
@@ -229,6 +231,21 @@ function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string })
           </GlassPanel>
         ))}
       </div>
+
+      <GlassPanel title="People in your videos" description="Video ads give their actors names. Choose which names fit your business; saved with the rest of this page.">
+        <ActorNamesFields
+          idPrefix="bc-actor"
+          value={{ actor_name_style: form.actor_name_style, actor_names: form.actor_names }}
+          onChange={(v) => setForm({ ...form, ...v })}
+        />
+      </GlassPanel>
+
+      <GlassPanel
+        title="Brand images"
+        description="Three to five pictures of your business: the shop, your team, your products in use. Video ads and presenter videos need them. They stay private to your business."
+      >
+        <BrandImagesPanel />
+      </GlassPanel>
 
       {dirty && (
         <div className="glass-strong fixed inset-x-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex items-center justify-between gap-3 rounded-2xl p-3 shadow-lift md:sticky md:inset-x-auto md:bottom-4">

@@ -9,9 +9,11 @@ import { toast } from "sonner";
 import {
   apiError,
   marketingOsApi,
+  MEDIA_ACTIONS,
   type AskResponse,
   type BrandContext,
   type CreativePlan,
+  type MadeMedia,
   type PlanOption,
   type TaskSpec,
   type TeamMember,
@@ -23,6 +25,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
+import { BrandImagesRequired } from "@/components/media/brand-images-required";
+import { isBrandImagesRequired } from "@/lib/api/brand-images";
 import { cn } from "@/lib/utils";
 
 const MAX_ASK = 2000;
@@ -199,9 +203,9 @@ function PlanView({
       ) : (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
-            Poster and video production is not switched on yet. Approving now writes and reviews the copy
-            {copy ? ` (${copy.credits} credits plus 1 for the request)` : ""}; nothing is posted or paid for until you
-            say so.
+            Approving now writes and reviews the drafts
+            {copy ? ` (${copy.credits} credits plus 1 for the request)` : ""}. A video script can then go to the Studio
+            with its storyboard; nothing is rendered, posted or paid for until you say so.
           </p>
           <Button onClick={onApprove} disabled={approving} className="gap-2">
             {approving && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -359,17 +363,35 @@ export function ManagerConsole({
     onError: (e) => toast.error(apiError(e, "Could not save the brand context")),
   });
 
+  // An approved turn's video script becomes a Studio draft with its storyboard (marketflow-ai
+  // make-media); the render stays a separate, paid step in the Studio.
+  const [made, setMade] = useState<MadeMedia | null>(null);
+  const makeMedia = useMutation({
+    mutationFn: (runId: string) => marketingOsApi.makeMedia(runId),
+    onSuccess: (m) => {
+      setMade(m);
+      toast.success("Sent to the Studio. The storyboard is being drawn.");
+    },
+    onError: (e) => {
+      if (!isBrandImagesRequired(e)) toast.error(apiError(e, "Could not make the video"));
+    },
+  });
+
   const result = res?.result;
   const shortlist = new Set(result?.shortlist ?? []);
   const tooLong = draft.length > MAX_ASK;
   const busy = preview.isPending || ask.isPending;
   const elapsed = useElapsed(ask.isPending);
   const brandStep = result?.steps?.find((s) => s.contract === "brand_context" && s.output);
+  // The first available media action makes the Studio draft; the others open it afterwards.
+  const mediaKey = result?.next_actions?.find((a) => MEDIA_ACTIONS.has(a.key) && a.available)?.key;
 
   const reset = () => {
     setSpec(null);
     setRes(null);
     setTier("");
+    setMade(null);
+    makeMedia.reset();
   };
 
   return (
@@ -505,6 +527,31 @@ export function ManagerConsole({
                     >
                       {a.label}
                     </Button>
+                  ) : MEDIA_ACTIONS.has(a.key) && a.available && res?.run_id ? (
+                    made ? (
+                      <Link
+                        key={a.key}
+                        href={`/${orgSlug}${made.studio_path}`}
+                        className={buttonVariants({ size: "sm", variant: a.key === mediaKey ? "default" : "outline" })}
+                      >
+                        {a.key === mediaKey ? "Open in the Studio" : a.label}
+                      </Link>
+                    ) : a.key !== mediaKey ? (
+                      <Button key={a.key} size="sm" variant="outline" disabled title="In the Studio, after the storyboard">
+                        {a.label}
+                      </Button>
+                    ) : (
+                      <Button
+                        key={a.key}
+                        size="sm"
+                        onClick={() => makeMedia.mutate(res.run_id)}
+                        disabled={makeMedia.isPending}
+                        className="gap-2"
+                      >
+                        {makeMedia.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                        {a.label}
+                      </Button>
+                    )
                   ) : (
                     <Button key={a.key} size="sm" variant="outline" disabled title="Coming soon">
                       {a.label}
@@ -513,6 +560,14 @@ export function ManagerConsole({
                 )}
               </div>
             )}
+            {made && (
+              <p className="text-sm text-muted-foreground">
+                The script is in the Studio as a {made.seconds}-second {made.kind.replace("_", " ")} video and the
+                storyboard is being drawn. Check the pictures there, then render when you are happy; the render is
+                quoted before anything is charged.
+              </p>
+            )}
+            <BrandImagesRequired error={makeMedia.error} />
           </div>
         )}
 

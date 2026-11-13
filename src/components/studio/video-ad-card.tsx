@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog, Field, GlassPanel, ToneBadge } from "@/components/ui-kit";
 import { BoostDialog } from "@/components/studio/boost-dialog";
+import { BrandImagesRequired } from "@/components/media/brand-images-required";
 import { PublishDialog } from "@/components/studio/publish-dialog";
 import { useApprove, useDiscard } from "@/hooks/use-creative";
 import { useCanPublish, useIsRestricted } from "@/hooks/use-access";
@@ -120,6 +121,7 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
 
   return (
     <div className="space-y-4">
+      <BrandImagesRequired error={render.error ?? board.error} />
       {parts.findings.length > 0 && (
         <div className="rounded-xl border border-warning/40 p-3 text-sm">
           <p className="mb-1 flex items-center gap-2 font-medium">
@@ -313,6 +315,7 @@ function Finished({
   const postCaption = funnelSlug ? `${caption}\n\n${adLeadUrl(funnelSlug, briefId, "social", "social")}` : caption;
   return (
     <div className="space-y-3">
+      <BrandImagesRequired error={revise.error} />
       {video ? (
         <video
           controls

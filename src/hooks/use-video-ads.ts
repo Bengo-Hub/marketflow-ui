@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { isBrandImagesRequired } from "@/lib/api/brand-images";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { videoAdsApi, type EndCard, type VideoAdInput, type VideoScript } from "@/lib/api/video-ads";
 
@@ -31,7 +32,10 @@ function useAction<A>(briefId: string, fn: (a: A) => Promise<unknown>, ok: strin
       void qc.invalidateQueries({ queryKey: ["creative-brief", briefId] });
       void qc.invalidateQueries({ queryKey: ["video-ad-quote"] });
     },
-    onError: (e) => toast.error(apiErrorMessage(e, fail)),
+    // Missing brand images are shown as a prompt with a link on the form (BrandImagesRequired).
+    onError: (e) => {
+      if (!isBrandImagesRequired(e)) toast.error(apiErrorMessage(e, fail));
+    },
   });
 }
 

@@ -40,9 +40,12 @@ export default async function BookPage({ params }: { params: Promise<{ slug: str
         <div className="mt-8">
           <BookingWidget tenantSlug={profile.slug} />
         </div>
-        <div className="mt-10">
-          <PoweredByBadge />
-        </div>
+        {/* White label (Business plan) hides the badge. */}
+        {!profile.white_label && (
+          <div className="mt-10">
+            <PoweredByBadge />
+          </div>
+        )}
       </main>
     </div>
   );

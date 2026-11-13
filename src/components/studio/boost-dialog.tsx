@@ -13,7 +13,7 @@ import { useAdAccounts, useAdQuote, useBoost, useBoostAction, useLaunchBoost } f
 import { useIsRestricted } from "@/hooks/use-access";
 import { useDebouncedValue } from "@bengo-hub/shared-ui-lib/search";
 import { usePublishAccounts } from "@/hooks/use-publishing";
-import { adsApi, metaBillingURL, STAGE_LABEL, type Objective } from "@/lib/api/ads";
+import { adsApi, liveShortfall, metaBillingURL, STAGE_LABEL, timeAgo, type Objective } from "@/lib/api/ads";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { AUDIENCE_PRESETS, audienceFor } from "@/lib/studio/audience-presets";
 
@@ -244,7 +244,15 @@ function BoostProgress({ boost, onPaid, paying }: { boost?: Awaited<ReturnType<t
       {boost.launch?.error && stage === "failed" && <p className="text-sm text-destructive">{boost.launch.error}</p>}
       {needsFunds && q && (
         <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
-          <p>Add {money(q.shortfall || q.budget, q.currency)} to your Meta ad account. On a KES account Meta offers M-Pesa.</p>
+          <p>Add {money(liveShortfall(boost.launch?.funding_seen, q), q.currency)} to your Meta ad account. On a KES account Meta offers M-Pesa.</p>
+          {boost.launch?.funding_seen && (
+            <p className="text-xs text-muted-foreground">
+              {boost.launch.funding_seen.balance > 0
+                ? `Balance on Meta: ${money(boost.launch.funding_seen.balance, boost.launch.funding_seen.currency || q.currency)}. `
+                : ""}
+              Checked {timeAgo(boost.launch.funding_seen.at)}; we keep checking (every minute at first, then every 15 minutes) and start the boost as soon as it is covered.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <a href={metaBillingURL(q.ad_account_id)} target="_blank" rel="noopener noreferrer" className={buttonVariants({ size: "sm" })}>
               Add funds on Meta

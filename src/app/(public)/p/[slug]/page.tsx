@@ -245,7 +245,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       </main>
 
       <footer className="flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+2rem)]">
-        <PoweredByBadge />
+        {/* White label (Business plan) hides the badge. */}
+        {!profile.white_label && <PoweredByBadge />}
       </footer>
 
       {/* The chat assistant is scoped to this tenant; the persona is fixed per business type on the server side. */}

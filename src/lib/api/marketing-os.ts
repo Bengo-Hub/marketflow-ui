@@ -50,7 +50,29 @@ export interface BrandContext {
   voice_examples: string[];
   banned_claims: string[];
   learnings: string[];
+  /** Naming tradition for people in videos; empty leaves it to the writer. */
+  actor_name_style?: ActorNameStyle | "";
+  /** Exact names the business likes for people in videos; the writer uses only these when set. */
+  actor_names?: string[];
 }
+
+/** Server list (marketflow-api marketingos.ActorNameStyles). */
+export type ActorNameStyle = "kikuyu" | "luo" | "kalenjin" | "kamba" | "maasai" | "swahili_coast" | "neutral" | "mixed";
+
+export const ACTOR_NAME_STYLES: Record<ActorNameStyle, string> = {
+  kikuyu: "Kikuyu names",
+  luo: "Luo names",
+  kalenjin: "Kalenjin names",
+  kamba: "Kamba names",
+  maasai: "Maasai names",
+  swahili_coast: "Swahili coast names",
+  neutral: "Neutral names",
+  mixed: "A mix of Kenyan names",
+};
+
+/** Server limits for actor names (marketingos/actor_names.go). */
+export const MAX_ACTOR_NAMES = 20;
+export const MAX_ACTOR_NAME_LEN = 40;
 
 export interface OSSettings {
   daily_brief: boolean;
@@ -217,6 +239,21 @@ export interface AskResponse {
   credits_charged: number;
 }
 
+/** What make-media made in Studio from an approved turn (marketflow-ai /os/make-media). */
+export interface MadeMedia {
+  run_id: string;
+  brief_id: string;
+  version_id: string;
+  seconds: number;
+  kind: string;
+  step: number;
+  /** The brief's Studio page after the org slug, e.g. "/studio/<brief id>". */
+  studio_path: string;
+}
+
+/** Console actions that make media from an approved turn once marketflow-ai marks them available. */
+export const MEDIA_ACTIONS = new Set(["produce_media", "storyboard", "render"]);
+
 export interface Template {
   id: string;
   title: string;
@@ -323,6 +360,14 @@ export const marketingOsApi = {
     aiClient.post<FieldSuggestion>("/api/v1/os/field-suggest", { field, form, language }).then((r) => r.data),
   ask: (body: AskBody) => aiClient.post<AskResponse>("/api/v1/os/ask", body).then((r) => r.data),
   askStream,
+  /**
+   * Make an approved turn's video script into a Studio video ad and start its storyboard. Studio's
+   * refusals (brand images missing, too many drafts) come back with Studio's status and code.
+   */
+  makeMedia: (runId: string, step?: number) =>
+    aiClient
+      .post<MadeMedia>("/api/v1/os/make-media", { run_id: runId, step }, { timeout: 60_000 })
+      .then((r) => r.data),
   templates: (q = "", category = "") =>
     aiClient
       .get<{ templates: Template[] }>("/api/v1/os/library/templates", { params: { q, category, limit: 30 } })

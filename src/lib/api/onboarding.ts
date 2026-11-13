@@ -2,7 +2,7 @@ import { apiClient } from "./client";
 import type { BrandContext } from "./marketing-os";
 
 /** forever_shop is the Forever tenant's step only; no tenant has a products step (owner, 2026-11-03). */
-export type StepKey = "profile" | "forever_shop" | "brand_context" | "channels" | "lead_capture" | "team";
+export type StepKey = "profile" | "forever_shop" | "brand_context" | "brand_images" | "channels" | "lead_capture" | "team";
 
 /** GET /api/v1/tenant/onboarding (marketflow-api onboarding.Checklist). Done and total count required steps. */
 export interface Checklist {
@@ -74,6 +74,12 @@ export const STEP_META: Record<StepKey, { title: string; blurb: string; href: st
     blurb: "Who you sell to, what you sell and how you sound. Every post and ad starts here.",
     href: "/settings/marketing-context",
     action: "Set brand context",
+  },
+  brand_images: {
+    title: "Add pictures of your business",
+    blurb: "Three to five photos of your shop, your team or your products in use. Video ads need them. Only your business can see them.",
+    href: "/settings/marketing-context",
+    action: "Add pictures",
   },
   channels: {
     title: "Connect a channel",

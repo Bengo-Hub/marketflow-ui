@@ -60,7 +60,15 @@ export interface Boost {
   status: "launching" | "active" | "paused" | "failed";
   budget: number;
   currency: string;
-  launch?: { stage: string; review_status?: string; review_reasons?: string[]; error?: string; paid_confirmed?: boolean };
+  launch?: {
+    stage: string;
+    review_status?: string;
+    review_reasons?: string[];
+    error?: string;
+    paid_confirmed?: boolean;
+    /** The ad account's funding as last read on Meta while the boost waits for money (Sprint 18 L62). */
+    funding_seen?: { funding: Funding; balance: number; shortfall: number; currency?: string; at: string };
+  };
   quote?: AdQuote;
 }
 
@@ -84,6 +92,26 @@ export const adsApi = {
  */
 export function metaBillingURL(adAccountID: string) {
   return `https://business.facebook.com/billing_hub/payment_settings/?asset_id=${encodeURIComponent(adAccountID.replace(/^act_/, ""))}`;
+}
+
+/**
+ * What is still to add on Meta: the shortfall from the last live check when there is one (it
+ * moves as the client tops up), else the quote's shortfall, else the whole budget.
+ */
+export function liveShortfall(
+  seen: { shortfall: number; funding: Funding } | undefined,
+  quote: { shortfall: number; budget: number },
+): number {
+  if (seen && (seen.funding === "needs_funds" || seen.funding === "unknown") && seen.shortfall > 0) return seen.shortfall;
+  return quote.shortfall || quote.budget;
+}
+
+/** "just now", "5 min ago", "2 h ago" for a check time. */
+export function timeAgo(at: string, now: Date = new Date()): string {
+  const mins = Math.floor((now.getTime() - new Date(at).getTime()) / 60000);
+  if (!Number.isFinite(mins) || mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  return `${Math.floor(mins / 60)} h ago`;
 }
 
 export const STAGE_LABEL: Record<string, string> = {

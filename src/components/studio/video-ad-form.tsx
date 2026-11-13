@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SearchableCombobox } from "@bengo-hub/shared-ui-lib/combobox";
+import { BrandImagesRequired } from "@/components/media/brand-images-required";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -130,6 +131,7 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
         <p className="text-sm text-muted-foreground">
           The script is written first for 1 credit. You check and change it, see the price, and only then render.
         </p>
+        <BrandImagesRequired error={create.error} />
         <Button type="submit" className="w-full" disabled={create.isPending || photoList.length + clipList.length === 0 || musicBlocked}>
           {create.isPending ? "Starting..." : "Write the script"}
         </Button>

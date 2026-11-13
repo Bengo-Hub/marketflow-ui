@@ -52,6 +52,8 @@ export interface PublicProfile {
   flp_store_code?: string;
   flp_language?: string;
   metadata?: PublicMetadata;
+  /** The plan includes white label (Business): the public pages hide "Powered by Codevertex". */
+  white_label?: boolean;
 }
 
 export interface Testimonial {

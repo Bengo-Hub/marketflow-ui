@@ -94,7 +94,8 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
         )}
       </main>
       <footer className="flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+2rem)]">
-        <PoweredByBadge />
+        {/* White label (Business plan) hides the badge. */}
+        {!profile?.white_label && <PoweredByBadge />}
       </footer>
     </div>
   );
