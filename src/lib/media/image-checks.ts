@@ -72,6 +72,25 @@ export function fitDimensions(width: number, height: number, limits: ImageLimits
   return { width: fix(w, width <= height), height: fix(h, height < width), resized: true };
 }
 
+/** Below this spread of brightness (0 to 255) a resized picture counts as blank. */
+export const BLANK_SPREAD = 6;
+
+/**
+ * The spread of brightness in RGBA pixel data: the 98th minus the 2nd percentile of luma, so a
+ * few stray pixels do not make a blank picture look detailed.
+ */
+export function lumaSpread(rgba: Uint8ClampedArray | number[]): number {
+  const n = Math.floor(rgba.length / 4);
+  if (n === 0) return 0;
+  const luma: number[] = new Array(n);
+  for (let i = 0; i < n; i++) {
+    luma[i] = 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
+  }
+  luma.sort((a, b) => a - b);
+  const at = (p: number) => luma[Math.min(n - 1, Math.max(0, Math.round(p * (n - 1))))];
+  return at(0.98) - at(0.02);
+}
+
 /** JPEG qualities tried, best first, until the file fits under the cap. */
 export const JPEG_QUALITIES = [0.9, 0.85, 0.8, 0.72, 0.65] as const;
 

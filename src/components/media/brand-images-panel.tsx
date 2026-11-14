@@ -21,24 +21,37 @@ export function BrandImagesPanel({ onChange }: { onChange?: (count: number) => v
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const qc = useQueryClient();
   const list = useQuery({ queryKey: brandImagesKey(orgSlug), queryFn: brandImagesApi.list, refetchInterval: 10 * 60 * 1000 });
-  const settle = (next?: BrandImageList) => {
+  const key = brandImagesKey(orgSlug);
+  // Reload the list after a change. Several uploads finish close together: fetchQuery would join a
+  // reload already in flight (started before the last upload was saved) and keep its stale list,
+  // so only some pictures showed. cancelRefetch drops that older reload and asks again.
+  const refresh = async () => {
+    await qc.refetchQueries({ queryKey: key, exact: true }, { cancelRefetch: true });
+    const next = qc.getQueryData<BrandImageList>(key);
     if (next) onChange?.(next.images.length);
     void qc.invalidateQueries({ queryKey: ["onboarding"] });
   };
   const upload = useMutation({
     mutationFn: ({ file, name }: { file: Blob; name: string }) => brandImagesApi.upload(file, name),
-    onSuccess: async () => settle(await qc.fetchQuery({ queryKey: brandImagesKey(orgSlug), queryFn: brandImagesApi.list })),
+    onSuccess: async (added) => {
+      // Show the new picture at once, then confirm with the server's list.
+      qc.setQueryData<BrandImageList>(key, (cur) => (cur && !cur.images.some((i) => i.id === added.id) ? { ...cur, images: [...cur.images, added] } : cur));
+      await refresh();
+    },
   });
   const remove = useMutation({
     mutationFn: (id: string) => brandImagesApi.remove(id),
-    onSuccess: async () => settle(await qc.fetchQuery({ queryKey: brandImagesKey(orgSlug), queryFn: brandImagesApi.list })),
+    onSuccess: async (_, id) => {
+      qc.setQueryData<BrandImageList>(key, (cur) => (cur ? { ...cur, images: cur.images.filter((i) => i.id !== id) } : cur));
+      await refresh();
+    },
   });
   // Website pictures first (owner, 2026-11-14): link what the business already shows on its site.
   const fromSite = useMutation({
     mutationFn: brandImagesApi.importFromSite,
     onSuccess: async (r) => {
       (r.added.length > 0 ? toast.success : toast.info)(describeImport(r));
-      settle(await qc.fetchQuery({ queryKey: brandImagesKey(orgSlug), queryFn: brandImagesApi.list }));
+      await refresh();
     },
     onError: (e) => toast.error(apiErrorMessage(e, "Could not read your website. Upload your pictures instead.")),
   });

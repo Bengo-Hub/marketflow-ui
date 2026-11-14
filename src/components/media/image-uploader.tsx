@@ -12,7 +12,9 @@ import {
   fitDimensions,
   formatBytes,
   imageCountLabel,
+  BLANK_SPREAD,
   JPEG_QUALITIES,
+  lumaSpread,
   SIZE_HEADROOM,
   type ImageLimits,
 } from "@/lib/media/image-checks";
@@ -47,6 +49,17 @@ async function dimensions(file: Blob): Promise<{ width: number; height: number; 
 
 const CONVERT_FAILED = "This browser could not prepare the picture. Save it as a JPEG and try again.";
 
+/** True when a drawn canvas has no detail: a 32 x 32 sample whose brightness barely varies. */
+function isBlank(canvas: HTMLCanvasElement): boolean {
+  const s = document.createElement("canvas");
+  s.width = 32;
+  s.height = 32;
+  const sctx = s.getContext("2d", { willReadFrequently: true });
+  if (!sctx) return false;
+  sctx.drawImage(canvas, 0, 0, 32, 32);
+  return lumaSpread(sctx.getImageData(0, 0, 32, 32).data) < BLANK_SPREAD;
+}
+
 /**
  * Draws a picture at the given size and saves it as a JPEG (which the server accepts), lowering
  * the quality until it fits under the size cap with some headroom.
@@ -63,6 +76,14 @@ async function toJpeg(bitmap: ImageBitmap, width: number, height: number, maxByt
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(bitmap, 0, 0, width, height);
+  // Under memory pressure a browser can return a blank canvas, which uploaded as a plain picture
+  // (owner report, 2026-11-14). Draw once more if it came out blank; refuse it if it still does.
+  if (isBlank(canvas)) {
+    await new Promise((r) => setTimeout(r, 50));
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    if (isBlank(canvas)) throw new Error("This picture came out blank after resizing. Try again, or use another file.");
+  }
   let last: Blob | null = null;
   for (const q of JPEG_QUALITIES) {
     last = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", q));
@@ -119,18 +140,18 @@ export function ImageUploader({ images, min, max, limits, onUpload, onDelete, la
     if (files.length > room) found.push(`Only ${room} more ${room === 1 ? "picture fits" : "pictures fit"}; the rest were left out.`);
     const chosen = files.slice(0, room);
     setBusy((n) => n + chosen.length);
-    await Promise.all(
-      chosen.map(async (file) => {
-        try {
-          const { blob, name } = await prepare(file);
-          await onUpload(blob, name);
-        } catch (e) {
-          found.push(`${file.name}: ${e instanceof Error ? e.message : "upload failed"}`);
-        } finally {
-          setBusy((n) => n - 1);
-        }
-      }),
-    );
+    // One at a time: resizing several large pictures on canvases at once can run the browser out
+    // of graphics memory and give blank pictures; uploads in order also keep the list in order.
+    for (const file of chosen) {
+      try {
+        const { blob, name } = await prepare(file);
+        await onUpload(blob, name);
+      } catch (e) {
+        found.push(`${file.name}: ${e instanceof Error ? e.message : "upload failed"}`);
+      } finally {
+        setBusy((n) => n - 1);
+      }
+    }
     setErrors(found);
     if (input.current) input.current.value = "";
   };

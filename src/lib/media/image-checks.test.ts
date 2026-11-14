@@ -1,7 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { checkImageDimensions, checkImageSize, checkImageType, fitDimensions, formatBytes, imageCountLabel, MAX_LONG_SIDE } from "./image-checks";
+import {
+  BLANK_SPREAD,
+  checkImageDimensions,
+  checkImageSize,
+  checkImageType,
+  fitDimensions,
+  formatBytes,
+  imageCountLabel,
+  lumaSpread,
+  MAX_LONG_SIDE,
+} from "./image-checks";
 
 const limits = { maxBytes: 2 * 1024 * 1024, minShortSide: 1024 };
+
+describe("blank picture check", () => {
+  const px = (...rgb: [number, number, number][]) => rgb.flatMap(([r, g, b]) => [r, g, b, 255]);
+  it("sees a uniform picture as blank", () => {
+    expect(lumaSpread(px(...Array(64).fill([0, 0, 0])))).toBeLessThan(BLANK_SPREAD);
+    expect(lumaSpread(px(...Array(64).fill([255, 255, 255])))).toBeLessThan(BLANK_SPREAD);
+  });
+  it("sees a photo-like picture as detailed", () => {
+    const pixels = Array.from({ length: 64 }, (_, i) => [i * 4, 120, 255 - i * 4] as [number, number, number]);
+    expect(lumaSpread(px(...pixels))).toBeGreaterThan(BLANK_SPREAD);
+  });
+  it("ignores a few stray pixels", () => {
+    const pixels: [number, number, number][] = [...Array(98).fill([10, 10, 10]), [255, 255, 255], [250, 250, 250]];
+    expect(lumaSpread(px(...pixels))).toBeLessThan(BLANK_SPREAD);
+  });
+});
 
 describe("resizing before upload", () => {
   it("enlarges a slightly small picture to the minimum short side", () => {
