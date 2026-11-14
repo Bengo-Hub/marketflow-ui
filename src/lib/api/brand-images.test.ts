@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { isBrandImagesRequired } from "./brand-images";
+import { describeImport, isBrandImagesRequired } from "./brand-images";
+
+describe("website import message", () => {
+  const base = { sites: ["https://example.com"], found: 4, added: [], skipped: {}, total: 0, min: 3 };
+  const img = { id: "1", url: "", content_type: "image/jpeg", width: 1200, height: 1200, bytes: 1, uploaded_at: "" };
+  it("counts what was added and what is left", () => {
+    expect(describeImport({ ...base, added: [img, img], total: 2 })).toBe("Added 2 pictures from your website. Upload 1 more to finish.");
+    expect(describeImport({ ...base, added: [img], total: 3 })).toBe("Added 1 picture from your website.");
+  });
+  it("explains why nothing was added", () => {
+    expect(describeImport({ ...base, found: 0 })).toMatch(/No pictures were found/);
+    expect(describeImport({ ...base, skipped: { too_small: 3 } })).toMatch(/too small/);
+    expect(describeImport(base)).toMatch(/No new pictures/);
+  });
+});
 
 describe("brand images required", () => {
   it("recognises only the server's brand_images_required answer", () => {
