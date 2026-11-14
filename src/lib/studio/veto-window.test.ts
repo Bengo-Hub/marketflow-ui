@@ -10,6 +10,7 @@ import {
   needsTermsAcceptance,
   openPosts,
   postStateLabel,
+  termsPageUrl,
 } from "./veto-window";
 
 const status = (over: Partial<AutoPublishStatus> = {}): AutoPublishStatus => ({
@@ -108,6 +109,19 @@ describe("needsTermsAcceptance", () => {
     expect(needsTermsAcceptance(status())).toBe(true);
     expect(needsTermsAcceptance(status({ terms_accepted: true }))).toBe(false);
     expect(needsTermsAcceptance(status({ terms_accepted: true, new_terms_pending: true }))).toBe(true);
+  });
+  it("does not ask while the terms could not be checked", () => {
+    expect(needsTermsAcceptance(status({ terms_unknown: true }))).toBe(false);
+  });
+});
+
+// Owner 2026-11-14: the full terms live on the accounts site, one page per version.
+describe("termsPageUrl", () => {
+  it("links the published version, else the terms page", () => {
+    expect(termsPageUrl(status({ terms_url: "https://accounts.example/legal/marketflow-autopublish-terms/v1" }), "https://accounts.example")).toBe(
+      "https://accounts.example/legal/marketflow-autopublish-terms/v1",
+    );
+    expect(termsPageUrl(status(), "https://accounts.example/")).toBe("https://accounts.example/legal/marketflow-autopublish-terms");
   });
 });
 

@@ -30,7 +30,13 @@ export interface AutopilotConfig {
 export interface AutoPublishStatus {
   plan_allows: boolean;
   terms_accepted: boolean;
+  /** auth-api's terms could not be read just now: nothing auto-publishes and nothing is cancelled for it. */
+  terms_unknown?: boolean;
   terms_version: string;
+  /** True when terms_version is a version published in auth-api (owner 2026-11-14). */
+  terms_document?: boolean;
+  /** The full terms for terms_version on the accounts site, when published. */
+  terms_url?: string;
   /** When terms_version applies (RFC 3339), when a date is set. */
   terms_effective_at?: string;
   /**
@@ -152,7 +158,11 @@ export const autopilotApi = {
   setActive: (id: string, is_active: boolean) => apiClient.put<AutopilotAgent>(`${base}/custom/${id}`, { is_active }).then((r) => r.data),
   runNow: (id: string) => apiClient.post(`${base}/custom/${id}/run`).then((r) => r.data),
   autoPublish: () => apiClient.get<AutoPublishStatus>(`${base}/autopilot/auto-publish`).then((r) => r.data),
-  setAutoPublish: (body: { accept_terms?: boolean; hold_categories?: string[] }) =>
+  /**
+   * accept_terms records the acceptance (in auth-api once the terms are published there).
+   * terms_version is the version the person read; a newer one answers 409 terms_changed.
+   */
+  setAutoPublish: (body: { accept_terms?: boolean; terms_version?: string; hold_categories?: string[] }) =>
     apiClient.put<AutoPublishStatus>(`${base}/autopilot/auto-publish`, body).then((r) => r.data),
   /** The agents' videos in veto-window mode, newest first. */
   posts: (agentId?: string) =>

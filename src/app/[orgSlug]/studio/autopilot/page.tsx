@@ -26,8 +26,11 @@ import {
   needsTermsAcceptance,
   openPosts,
   postStateLabel,
+  termsPageUrl,
   type ApprovalMode,
 } from "@/lib/studio/veto-window";
+import { ACCOUNTS_URL } from "@/lib/urls";
+import { HoldCategoriesEditor } from "@/components/studio/hold-categories-editor";
 
 const KEY = ["autopilot-agents"];
 const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
@@ -375,14 +378,17 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const list = accounts.data ?? [];
   const autoPublish = useQuery({ queryKey: [...KEY, "auto-publish"], queryFn: autopilotApi.autoPublish, retry: false });
   const veto = autoPublish.data;
-  const hours = clampVetoHours(vetoHours ?? veto?.default_veto_hours ?? 4, veto);
+  // The hold list is the approving roles' (owner and admin), as the API checks.
+  const canEditHold = useCanApprove();
+  const hours =clampVetoHours(vetoHours ?? veto?.default_veto_hours ?? 4, veto);
   const vetoBlocked = mode === "auto_publish" && !canSaveVetoWindow(veto, acceptTerms);
 
   const save = useMutation({
     mutationFn: async () => {
       // The terms are accepted first, so the save that follows is allowed.
       if (mode === "auto_publish" && acceptTerms && needsTermsAcceptance(veto)) {
-        await autopilotApi.setAutoPublish({ accept_terms: true });
+        // The version shown is sent back, so a version published meanwhile is not accepted unread.
+        await autopilotApi.setAutoPublish({ accept_terms: true, terms_version: veto?.terms_version });
       }
       const chosen = list.filter((a) => acctIDs.includes(a.id));
       return autopilotApi.save(
@@ -409,7 +415,15 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
       toast.success("Settings saved. Switch the agent on when you are ready.");
       onDone();
     },
-    onError: (e) => setError(apiErrorMessage(e, "Could not save the settings")),
+    onError: (e) => {
+      setError(apiErrorMessage(e, "Could not save the settings"));
+      // A newer terms version may have been published (409 terms_changed): show it, to be read
+      // and accepted again.
+      if (acceptTerms) {
+        setAcceptTerms(false);
+        void autoPublish.refetch();
+      }
+    },
   });
 
   const togglePick = (o: Offering, on: boolean) =>
@@ -549,15 +563,33 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
                       <li key={t}>{t}</li>
                     ))}
                   </ul>
+                  <a
+                    href={termsPageUrl(veto, ACCOUNTS_URL)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+                  >
+                    Read the full Autopilot terms{veto.terms_document ? ` (version ${veto.terms_version})` : ""}
+                  </a>
                   <label className="flex min-h-11 items-center gap-3">
                     <Checkbox checked={acceptTerms} onCheckedChange={(on) => setAcceptTerms(on === true)} aria-label="I accept the Autopilot terms" />
                     I accept the Autopilot terms
                   </label>
                 </div>
               )}
+              {veto.terms_unknown && (
+                <div role="status" className="text-sm text-muted-foreground">
+                  The Autopilot terms could not be checked just now. Videos wait for your approval until they can be, and
+                  nothing already scheduled is cancelled. Try again in a few minutes.
+                </div>
+              )}
             </div>
           )}
         </fieldset>
+
+        {mode === "auto_publish" && veto && (
+          <HoldCategoriesEditor status={veto} canEdit={canEditHold} queryKey={[...KEY, "auto-publish"]} />
+        )}
 
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="flex flex-wrap gap-2">

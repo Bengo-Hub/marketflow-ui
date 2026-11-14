@@ -24,7 +24,16 @@ export function canSaveVetoWindow(status: AutoPublishStatus | undefined, accepti
  * into force on its effective date (owner 2026-11-14: 14 days after it is announced).
  */
 export function needsTermsAcceptance(status: AutoPublishStatus | undefined): boolean {
-  return !!status && (!status.terms_accepted || !!status.new_terms_pending);
+  return !!status && !status.terms_unknown && (!status.terms_accepted || !!status.new_terms_pending);
+}
+
+/**
+ * The page with the full terms on the accounts site: the version's own page when the terms are
+ * published in auth-api (terms_url), else the terms page, which says when they are not published yet.
+ */
+export function termsPageUrl(status: AutoPublishStatus | undefined, accountsUrl: string): string {
+  if (status?.terms_url) return status.terms_url;
+  return `${accountsUrl.replace(/\/$/, "")}/legal/marketflow-autopublish-terms`;
 }
 
 /**
