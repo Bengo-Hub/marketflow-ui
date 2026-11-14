@@ -20,6 +20,57 @@ export interface AutopilotConfig {
   connected_account_ids: string[];
   monthly_credit_ceiling: number;
   new_item_drafts?: boolean;
+  /** approve_each (default) or auto_publish: publish after a veto window unless the owner cancels. */
+  approval_mode?: "approve_each" | "auto_publish";
+  /** The veto window in hours, for auto_publish. */
+  veto_hours?: number;
+}
+
+/** Whether the tenant may use the veto window, and the terms it accepts. */
+export interface AutoPublishStatus {
+  plan_allows: boolean;
+  terms_accepted: boolean;
+  terms_version: string;
+  accepted_at?: string;
+  can_auto_publish: boolean;
+  hold_categories: string[];
+  terms: string[];
+  default_veto_hours: number;
+  min_veto_hours: number;
+  max_veto_hours: number;
+}
+
+/** One scheduled or finished post of a publishing job, as the calendar shows it. */
+export interface VetoJob {
+  id: string;
+  platform: string;
+  status: string;
+  planned_at: string;
+  permalink?: string;
+}
+
+/** An agent's video in veto-window mode, for the dashboard. */
+export interface AutopilotPost {
+  version_id: string;
+  brief_id: string;
+  agent_id: string;
+  agent_name?: string;
+  offering: string;
+  caption?: string;
+  /** active | scheduled | held | vetoed | released | failed | handed_over */
+  state: string;
+  reason?: string;
+  status: string;
+  publish_at?: string;
+  veto_hours?: number;
+  decision?: { outcome?: string; by?: string; at?: string };
+  jobs?: VetoJob[];
+}
+
+export interface VetoResult {
+  state: string;
+  cancelled: number;
+  message: string;
 }
 
 export interface ConfigVersion {
@@ -91,6 +142,15 @@ export const autopilotApi = {
   rollback: (id: string, version: number) => apiClient.post<AutopilotAgent>(`${base}/custom/${id}/autopilot/rollback`, { version }).then((r) => r.data),
   setActive: (id: string, is_active: boolean) => apiClient.put<AutopilotAgent>(`${base}/custom/${id}`, { is_active }).then((r) => r.data),
   runNow: (id: string) => apiClient.post(`${base}/custom/${id}/run`).then((r) => r.data),
+  autoPublish: () => apiClient.get<AutoPublishStatus>(`${base}/autopilot/auto-publish`).then((r) => r.data),
+  setAutoPublish: (body: { accept_terms?: boolean; hold_categories?: string[] }) =>
+    apiClient.put<AutoPublishStatus>(`${base}/autopilot/auto-publish`, body).then((r) => r.data),
+  /** The agents' videos in veto-window mode, newest first. */
+  posts: (agentId?: string) =>
+    apiClient
+      .get<{ data: AutopilotPost[] | null }>(`${base}/autopilot/posts`, { params: agentId ? { agent_id: agentId } : undefined })
+      .then((r) => r.data.data ?? []),
+  veto: (versionId: string) => apiClient.post<VetoResult>(`${base}/autopilot/posts/${versionId}/veto`).then((r) => r.data),
 };
 
 export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

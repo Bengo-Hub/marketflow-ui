@@ -171,6 +171,35 @@ export async function createPublicLead(tenantSlug: string, input: Record<string,
   }
 }
 
+/** The post an emailed "Cancel this post" link points at (ad autopilot veto window). */
+export interface VetoPost {
+  business: string;
+  offering: string;
+  caption?: string;
+  places: string[];
+  publish_at?: string;
+  state: string;
+  can_cancel: boolean;
+}
+
+/** Reads the post behind a cancel link; null when the link is not valid. Never cached. */
+export async function getVetoPost(token: string): Promise<VetoPost | null> {
+  try {
+    const r = await fetch(`${API_URL}/api/v1/public/autopilot/veto/${enc(token)}`, { cache: "no-store" });
+    return r.ok ? ((await r.json()) as VetoPost) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Cancels the post behind a cancel link. A post that already went out is an error with the reason. */
+export async function cancelVetoPost(token: string): Promise<{ state: string; message: string }> {
+  const r = await fetch(`${API_URL}/api/v1/public/autopilot/veto/${enc(token)}`, { method: "POST" });
+  const body = (await r.json().catch(() => null)) as { state?: string; message?: string; error?: string } | null;
+  if (!r.ok) throw new Error(body?.error || "Could not cancel the post. Try again.");
+  return { state: body?.state ?? "", message: body?.message ?? "Cancelled." };
+}
+
 export type ProfileEvent =
   | "page_view"
   | "cta_click"

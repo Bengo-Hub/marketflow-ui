@@ -1,21 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, Play, Plus, RotateCcw } from "lucide-react";
+import { Ban, Bot, Play, Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge } from "@/components/ui-kit";
-import { useOfferingSearch } from "@/hooks/use-creative";
+import { EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
+import { useCanApprove, useOfferingSearch } from "@/hooks/use-creative";
 import { usePublishAccounts } from "@/hooks/use-publishing";
-import { autopilotApi, WEEKDAYS, type AutopilotAgent, type AutopilotConfig } from "@/lib/api/autopilot";
+import { autopilotApi, WEEKDAYS, type AutopilotAgent, type AutopilotConfig, type AutopilotPost } from "@/lib/api/autopilot";
 import type { Offering } from "@/lib/api/creative";
 import { apiErrorMessage } from "@/lib/api/errors";
+import {
+  canOfferVetoWindow,
+  canSaveVetoWindow,
+  clampVetoHours,
+  countdown,
+  isCancellable,
+  openPosts,
+  postStateLabel,
+  type ApprovalMode,
+} from "@/lib/studio/veto-window";
 
 const KEY = ["autopilot-agents"];
 const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
@@ -58,7 +68,7 @@ export default function AutopilotPage() {
       <PageHeader
         icon={<Bot />}
         title="Ad autopilot"
-        description="An agent drafts ads for your products on a schedule. Nothing is posted or paid for until you approve it in the Studio."
+        description="An agent drafts ads for your products on a schedule. By default nothing is posted until you approve it in the Studio. On plans that include it, an agent can post after a veto window you can cancel. Paid boosts always wait for you."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link href={`/${orgSlug}/studio`} className={buttonVariants({ variant: "outline" })}>
@@ -72,6 +82,8 @@ export default function AutopilotPage() {
       />
 
       {draft && <Settings key={draft.id} agent={draft} onDone={() => { setDraft(null); refresh(); }} />}
+
+      <ScheduledPosts />
 
       {agents.isError ? (
         <ErrorState message={apiErrorMessage(agents.error, "Could not load your agents.")} onRetry={() => void agents.refetch()} />
@@ -103,6 +115,84 @@ export default function AutopilotPage() {
         </GlassPanel>
       )}
     </div>
+  );
+}
+
+const postTone: Record<string, Tone> = { scheduled: "warning", active: "info", held: "primary", vetoed: "neutral", released: "success", failed: "danger" };
+
+/** The clock for the countdowns, ticking each half minute. */
+function useNow(): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
+
+/**
+ * Posts the agents make in veto-window mode: what is being made, what is scheduled and when, with
+ * a Cancel button while the window is open. A cancel stops the post; the video stays in the Studio.
+ */
+function ScheduledPosts() {
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const qc = useQueryClient();
+  const now = useNow();
+  // Owner 2026-11-14: the approving roles cancel (and the emailed link); members see the countdown only.
+  const canCancel = useCanApprove();
+  const posts = useQuery({ queryKey: [...KEY, "posts"], queryFn: () => autopilotApi.posts(), refetchInterval: 60_000 });
+  const veto = useMutation({
+    mutationFn: (p: AutopilotPost) => autopilotApi.veto(p.version_id),
+    onSuccess: (r) => {
+      toast.success(r.message || "Cancelled. Nothing will be posted.");
+      void qc.invalidateQueries({ queryKey: [...KEY, "posts"] });
+    },
+    onError: (e) => {
+      toast.error(apiErrorMessage(e, "Could not cancel the post"));
+      void qc.invalidateQueries({ queryKey: [...KEY, "posts"] });
+    },
+  });
+  const open = openPosts(posts.data ?? []);
+  if (posts.isError || open.length === 0) return null;
+  return (
+    <GlassPanel title="Posts the agents will make">
+      <ul className="space-y-3">
+        {open.map((p) => {
+          const left = countdown(p.publish_at, now);
+          const places = [...new Set((p.jobs ?? []).map((j) => j.platform))].join(", ");
+          return (
+            <li key={p.version_id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border p-3">
+              <div className="min-w-0 space-y-1 text-sm">
+                <p className="font-medium">
+                  {p.offering}
+                  {p.agent_name && <span className="font-normal text-muted-foreground"> by {p.agent_name}</span>}
+                </p>
+                {p.state === "scheduled" && p.publish_at && (
+                  <p className="text-muted-foreground">
+                    Posts to {places || "your accounts"} on {when.format(new Date(p.publish_at))}
+                    {left && <span className="font-medium text-foreground"> ({left === "due now" ? "due now" : `in ${left}`})</span>}
+                  </p>
+                )}
+                {p.state === "active" && <p className="text-muted-foreground">The agent is making the video. You get an email before anything is posted.</p>}
+                {p.state === "held" && p.reason && <p className="text-muted-foreground">It waits for you because {p.reason}.</p>}
+                {p.caption && <p className="line-clamp-2 text-xs text-muted-foreground">{p.caption}</p>}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <ToneBadge tone={postTone[p.state] ?? "neutral"}>{postStateLabel(p.state)}</ToneBadge>
+                <Link href={`/${orgSlug}/studio/${p.brief_id}`} className={buttonVariants({ size: "sm", variant: "ghost" })}>
+                  Open
+                </Link>
+                {canCancel && isCancellable(p, now) && (
+                  <Button size="sm" variant="outline" disabled={veto.isPending} onClick={() => veto.mutate(p)}>
+                    <Ban /> Cancel this post
+                  </Button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </GlassPanel>
   );
 }
 
@@ -175,6 +265,13 @@ function AgentCard({ agent: a, onEdit, onChange }: { agent: AutopilotAgent; onEd
                 {cfg.cadence === "weekly" ? `Every ${WEEKDAYS[cfg.weekday]}` : "Every day"} at {cfg.time}, {offerings.length} product{offerings.length === 1 ? "" : "s"}, up to {cfg.monthly_credit_ceiling} credits a month
               </p>
             )}
+            {cfg && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {cfg.approval_mode === "auto_publish"
+                  ? `Posts a finished video ${cfg.veto_hours ?? 4} hours after your heads-up email, unless you cancel it.`
+                  : "Waits for your approval of each ad."}
+              </p>
+            )}
             {a.last_run_at && <p className="mt-1 text-xs text-muted-foreground">Last run {when.format(new Date(a.last_run_at))}</p>}
             {latest.data?.status === "skipped" && (
               <p className="mt-1 text-xs text-muted-foreground">
@@ -234,11 +331,22 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const [credits, setCredits] = useState(cfg?.monthly_credit_ceiling ?? 100);
   const [newItems, setNewItems] = useState(cfg?.new_item_drafts ?? false);
   const [acctIDs, setAcctIDs] = useState<string[]>(cfg?.connected_account_ids ?? []);
+  const [mode, setMode] = useState<ApprovalMode>(cfg?.approval_mode ?? "approve_each");
+  const [vetoHours, setVetoHours] = useState<number | null>(cfg?.veto_hours ?? null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const list = accounts.data ?? [];
+  const autoPublish = useQuery({ queryKey: [...KEY, "auto-publish"], queryFn: autopilotApi.autoPublish, retry: false });
+  const veto = autoPublish.data;
+  const hours = clampVetoHours(vetoHours ?? veto?.default_veto_hours ?? 4, veto);
+  const vetoBlocked = mode === "auto_publish" && !canSaveVetoWindow(veto, acceptTerms);
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
+      // The terms are accepted first, so the save that follows is allowed.
+      if (mode === "auto_publish" && acceptTerms && !veto?.terms_accepted) {
+        await autopilotApi.setAutoPublish({ accept_terms: true });
+      }
       const chosen = list.filter((a) => acctIDs.includes(a.id));
       return autopilotApi.save(
         agent.id,
@@ -254,6 +362,8 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           platforms: [...new Set(chosen.map((a) => a.platform))],
           connected_account_ids: acctIDs,
           monthly_credit_ceiling: credits,
+          approval_mode: mode,
+          ...(mode === "auto_publish" ? { veto_hours: hours } : {}),
         },
         picked,
       );
@@ -348,9 +458,67 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           ))}
         </fieldset>
 
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">Before a video is posted</legend>
+          <label className="flex min-h-11 items-start gap-3 text-sm">
+            <input type="radio" name="ap-mode" className="mt-1" checked={mode === "approve_each"} onChange={() => setMode("approve_each")} />
+            <span>
+              Wait for my approval of each ad
+              <span className="block text-xs text-muted-foreground">Drafts wait in the Studio. Nothing is posted until you approve it.</span>
+            </span>
+          </label>
+          <label className="flex min-h-11 items-start gap-3 text-sm has-[:disabled]:opacity-60">
+            <input
+              type="radio"
+              name="ap-mode"
+              className="mt-1"
+              checked={mode === "auto_publish"}
+              disabled={!canOfferVetoWindow(veto)}
+              onChange={() => setMode("auto_publish")}
+            />
+            <span>
+              Publish after a veto window
+              <span className="block text-xs text-muted-foreground">
+                {canOfferVetoWindow(veto)
+                  ? "The agent finishes the video and emails you what it will post, where and when, with a link to cancel. It posts when the window ends unless you cancel. Paid boosts always wait for your approval."
+                  : "Not included in your plan."}
+              </span>
+            </span>
+          </label>
+          {mode === "auto_publish" && veto && (
+            <div className="space-y-3 rounded-lg border border-border p-3">
+              <Field label="Veto window in hours" htmlFor="ap-veto" hint={`${veto.min_veto_hours} to ${veto.max_veto_hours} hours. The default is ${veto.default_veto_hours}.`}>
+                <Input
+                  id="ap-veto"
+                  type="number"
+                  min={veto.min_veto_hours}
+                  max={veto.max_veto_hours}
+                  value={vetoHours ?? veto.default_veto_hours}
+                  onChange={(e) => setVetoHours(Number(e.target.value))}
+                  onBlur={() => setVetoHours(hours)}
+                />
+              </Field>
+              {!veto.terms_accepted && (
+                <div className="space-y-2 text-sm">
+                  <p className="font-medium">Autopilot terms</p>
+                  <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+                    {veto.terms.map((t) => (
+                      <li key={t}>{t}</li>
+                    ))}
+                  </ul>
+                  <label className="flex min-h-11 items-center gap-3">
+                    <Checkbox checked={acceptTerms} onCheckedChange={(on) => setAcceptTerms(on === true)} aria-label="I accept the Autopilot terms" />
+                    I accept the Autopilot terms
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+        </fieldset>
+
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="flex flex-wrap gap-2">
-          <Button disabled={save.isPending || picked.length === 0 || acctIDs.length === 0} onClick={() => { setError(null); save.mutate(); }}>
+          <Button disabled={save.isPending || picked.length === 0 || acctIDs.length === 0 || vetoBlocked} onClick={() => { setError(null); save.mutate(); }}>
             {save.isPending ? "Saving..." : "Save settings"}
           </Button>
           <Button variant="ghost" onClick={onDone}>Cancel</Button>
