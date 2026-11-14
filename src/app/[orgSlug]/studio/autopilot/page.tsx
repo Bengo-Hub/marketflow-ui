@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Bot, Play, Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
@@ -13,9 +13,19 @@ import { Switch } from "@/components/ui/switch";
 import { EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
 import { useCanApprove, useOfferingSearch } from "@/hooks/use-creative";
 import { usePublishAccounts } from "@/hooks/use-publishing";
-import { autopilotApi, WEEKDAYS, type AutopilotAgent, type AutopilotConfig, type AutopilotPost } from "@/lib/api/autopilot";
+import {
+  autopilotApi,
+  autopilotPlanRefusal,
+  WEEKDAYS,
+  type AutopilotAgent,
+  type AutopilotConfig,
+  type AutopilotPlan,
+  type AutopilotPlanRefusal,
+  type AutopilotPost,
+} from "@/lib/api/autopilot";
 import type { Offering } from "@/lib/api/creative";
 import { apiErrorMessage } from "@/lib/api/errors";
+import { canCreateAgents, canSwitchOn, planSummary, refusalText, showUpgrade, upgradeHref } from "@/lib/studio/autopilot-plan";
 import {
   canOfferVetoWindow,
   canSaveVetoWindow,
@@ -42,11 +52,50 @@ function snapshot(o: Offering): Record<string, unknown> {
   return Object.fromEntries(Object.entries({ source, source_id, type, name, sku, description, price, photo_urls }).filter(([, v]) => v !== undefined && v !== ""));
 }
 
+const PLAN_KEY = [...KEY, "plan"];
+
+/**
+ * Shows a refused plan check (owner 2026-11-14: 403 not in the plan, 402 over the agent limit, 503
+ * plan unknown) with an Upgrade action, or the API's message for any other error.
+ */
+function usePlanErrorToast() {
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const router = useRouter();
+  return (e: unknown, fallback: string) => {
+    const r = autopilotPlanRefusal(e);
+    if (!r) {
+      toast.error(apiErrorMessage(e, fallback));
+      return;
+    }
+    toast.error(refusalText(r), r.code === "plan_unavailable" ? undefined : { action: { label: "Upgrade", onClick: () => router.push(upgradeHref(orgSlug, r.upgradePath)) } });
+  };
+}
+
+/** The plan's Autopilot allowance: agents on against the limit, with an upgrade link when needed. */
+function PlanBanner({ plan }: { plan: AutopilotPlan | undefined }) {
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const text = planSummary(plan);
+  if (!text) return null;
+  return (
+    <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
+      <p className="text-muted-foreground">{text}</p>
+      {showUpgrade(plan) && (
+        <Link href={upgradeHref(orgSlug, plan?.upgrade_path)} className={buttonVariants({ size: "sm" })}>
+          Upgrade your plan
+        </Link>
+      )}
+    </div>
+  );
+}
+
 export default function AutopilotPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const qc = useQueryClient();
   const agents = useQuery({ queryKey: KEY, queryFn: autopilotApi.list });
   const templates = useQuery({ queryKey: ["agent-templates"], queryFn: autopilotApi.templates, retry: false });
+  // The plan's allowance; an error leaves the page usable and the API still checks every change.
+  const plan = useQuery({ queryKey: PLAN_KEY, queryFn: autopilotApi.plan, retry: false });
+  const planToast = usePlanErrorToast();
   const refresh = () => void qc.invalidateQueries({ queryKey: KEY });
   const create = useMutation({
     mutationFn: () => autopilotApi.create("Weekly ads"),
@@ -63,10 +112,11 @@ export default function AutopilotPage() {
       setDraft(a);
       refresh();
     },
-    onError: (e) => toast.error(apiErrorMessage(e, "Could not hire the template")),
+    onError: (e) => planToast(e, "Could not hire the template"),
   });
   const [draft, setDraft] = useState<AutopilotAgent | null>(null);
   const list = agents.data ?? [];
+  const mayCreate = canCreateAgents(plan.data);
 
   return (
     <div className="space-y-6">
@@ -79,12 +129,14 @@ export default function AutopilotPage() {
             <Link href={`/${orgSlug}/studio`} className={buttonVariants({ variant: "outline" })}>
               Back to Studio
             </Link>
-            <Button disabled={create.isPending} onClick={() => create.mutate()}>
+            <Button disabled={create.isPending || !mayCreate} onClick={() => create.mutate()}>
               <Plus /> New agent
             </Button>
           </div>
         }
       />
+
+      <PlanBanner plan={plan.data} />
 
       {draft && <Settings key={draft.id} agent={draft} onDone={() => { setDraft(null); refresh(); }} />}
 
@@ -99,7 +151,7 @@ export default function AutopilotPage() {
       ) : (
         <div className="space-y-3">
           {list.map((a) => (
-            <AgentCard key={a.id} agent={a} onEdit={() => setDraft(a)} onChange={refresh} />
+            <AgentCard key={a.id} agent={a} plan={plan.data} onEdit={() => setDraft(a)} onChange={refresh} />
           ))}
         </div>
       )}
@@ -111,7 +163,7 @@ export default function AutopilotPage() {
               <div key={t.id} className="flex flex-col gap-2 rounded-lg border border-border p-3">
                 <p className="text-sm font-medium">{t.name}</p>
                 <p className="flex-1 text-sm text-muted-foreground">{t.description}</p>
-                <Button size="sm" variant="outline" disabled={hire.isPending} onClick={() => hire.mutate(t.id)}>
+                <Button size="sm" variant="outline" disabled={hire.isPending || (t.kind === "ad_autopilot" && !mayCreate)} onClick={() => hire.mutate(t.id)}>
                   Hire
                 </Button>
               </div>
@@ -265,20 +317,26 @@ function DryRunPreview({ agentId }: { agentId: string }) {
   );
 }
 
-function AgentCard({ agent: a, onEdit, onChange }: { agent: AutopilotAgent; onEdit: () => void; onChange: () => void }) {
+function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent; plan: AutopilotPlan | undefined; onEdit: () => void; onChange: () => void }) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const cfg = a.metadata?.autopilot;
   const offerings = a.metadata?.autopilot_offerings ?? [];
   const latest = useQuery({ queryKey: [...KEY, a.id, "latest-run"], queryFn: () => autopilotApi.latestRun(a.id), enabled: !!cfg });
   const versions = a.metadata?.versions ?? [];
+  const planToast = usePlanErrorToast();
   const setActive = useMutation({
     mutationFn: (on: boolean) => autopilotApi.setActive(a.id, on),
     onSuccess: (_d, on) => {
       toast.success(on ? "Agent switched on" : "Agent switched off");
       onChange();
     },
-    onError: (e) => toast.error(apiErrorMessage(e, "Could not change the agent")),
+    onError: (e) => {
+      planToast(e, "Could not change the agent");
+      onChange();
+    },
   });
+  // A switched-off agent cannot go on past the plan's limit; one that is on can always go off.
+  const blockedOn = !a.is_active && !canSwitchOn(plan);
   const run = useMutation({
     mutationFn: () => autopilotApi.runNow(a.id),
     onSuccess: () => toast.success("Drafting now. You will get an email when it is ready."),
@@ -326,8 +384,19 @@ function AgentCard({ agent: a, onEdit, onChange }: { agent: AutopilotAgent; onEd
               </p>
             )}
           </div>
-          <Switch checked={a.is_active} disabled={setActive.isPending || !cfg} onCheckedChange={(v: boolean) => setActive.mutate(v)} aria-label={`Switch ${a.name} on or off`} />
+          <Switch checked={a.is_active} disabled={setActive.isPending || !cfg || blockedOn} onCheckedChange={(v: boolean) => setActive.mutate(v)} aria-label={`Switch ${a.name} on or off`} />
         </div>
+        {cfg && blockedOn && plan && (
+          <p className="text-xs text-muted-foreground">
+            {plan.included
+              ? `Your plan allows ${plan.limit} agent${plan.limit === 1 ? "" : "s"} on at once. Switch another off, or `
+              : "Autopilot agents are not in your plan. "}
+            <Link href={upgradeHref(orgSlug, plan.upgrade_path)} className="font-medium text-primary hover:underline">
+              {plan.included ? "upgrade for more" : "Upgrade to MarketFlow Lite or higher"}
+            </Link>
+            .
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" disabled={run.isPending || !cfg} onClick={() => run.mutate()}>
             <Play /> Draft one now
@@ -375,6 +444,9 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const [vetoHours, setVetoHours] = useState<number | null>(cfg?.veto_hours ?? null);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A plan refusal (not in the plan, over the limit) gets an upgrade link under the message.
+  const [refusal, setRefusal] = useState<AutopilotPlanRefusal | null>(null);
+  const { orgSlug } = useParams<{ orgSlug: string }>();
   const list = accounts.data ?? [];
   const autoPublish = useQuery({ queryKey: [...KEY, "auto-publish"], queryFn: autopilotApi.autoPublish, retry: false });
   const veto = autoPublish.data;
@@ -416,7 +488,9 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
       onDone();
     },
     onError: (e) => {
-      setError(apiErrorMessage(e, "Could not save the settings"));
+      const r = autopilotPlanRefusal(e);
+      setRefusal(r);
+      setError(r ? refusalText(r) : apiErrorMessage(e, "Could not save the settings"));
       // A newer terms version may have been published (409 terms_changed): show it, to be read
       // and accepted again.
       if (acceptTerms) {
@@ -592,8 +666,13 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
         )}
 
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {refusal && refusal.code !== "plan_unavailable" && (
+          <Link href={upgradeHref(orgSlug, refusal.upgradePath)} className={buttonVariants({ size: "sm", variant: "outline" })}>
+            Upgrade your plan
+          </Link>
+        )}
         <div className="flex flex-wrap gap-2">
-          <Button disabled={save.isPending || picked.length === 0 || acctIDs.length === 0 || vetoBlocked} onClick={() => { setError(null); save.mutate(); }}>
+          <Button disabled={save.isPending || picked.length === 0 || acctIDs.length === 0 || vetoBlocked} onClick={() => { setError(null); setRefusal(null); save.mutate(); }}>
             {save.isPending ? "Saving..." : "Save settings"}
           </Button>
           <Button variant="ghost" onClick={onDone}>Cancel</Button>

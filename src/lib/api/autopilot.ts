@@ -140,7 +140,52 @@ export interface DryRun {
   ads_within_ceiling: number;
 }
 
+/**
+ * The plan's Autopilot allowance (owner 2026-11-14): marketflow_autopilot from MarketFlow Lite up,
+ * max_autopilot_agents switched on at once (Lite 1, Growth 3, Pro 10, Business unlimited).
+ */
+export interface AutopilotPlan {
+  included: boolean;
+  /** The plan could not be read just now: nothing can be switched on until it can. */
+  unknown?: boolean;
+  /** The platform owner's tenant: no plan limits. */
+  exempt?: boolean;
+  /** -1 is unlimited. */
+  limit: number;
+  active: number;
+  can_activate: boolean;
+  /** Where the owner upgrades, for example /settings/billing. */
+  upgrade_path: string;
+}
+
+/** A refusal from the plan gate: 403 autopilot_not_in_plan, 402 autopilot_limit_reached or 503 plan_unavailable. */
+export interface AutopilotPlanRefusal {
+  code: "autopilot_not_in_plan" | "autopilot_limit_reached" | "plan_unavailable";
+  message: string;
+  limit?: number;
+  active?: number;
+  upgradePath: string;
+}
+
+const planCodes = ["autopilot_not_in_plan", "autopilot_limit_reached", "plan_unavailable"];
+
+/** Reads a plan refusal out of an API error, or null when the error is something else. */
+export function autopilotPlanRefusal(err: unknown): AutopilotPlanRefusal | null {
+  const data = (err as { response?: { data?: { code?: string; error?: string; details?: Record<string, unknown> } } })?.response?.data;
+  if (!data?.code || !planCodes.includes(data.code)) return null;
+  const d = data.details ?? {};
+  return {
+    code: data.code as AutopilotPlanRefusal["code"],
+    message: data.error ?? "",
+    limit: typeof d.limit === "number" ? d.limit : undefined,
+    active: typeof d.active === "number" ? d.active : undefined,
+    upgradePath: typeof d.upgrade_path === "string" ? d.upgrade_path : "/settings/billing",
+  };
+}
+
 export const autopilotApi = {
+  /** The plan's Autopilot allowance and how many agents are switched on. */
+  plan: () => apiClient.get<AutopilotPlan>(`${base}/autopilot/plan`).then((r) => r.data),
   dryRun: (id: string) => apiClient.get<DryRun>(`${base}/custom/${id}/autopilot/dry-run`).then((r) => r.data),
   latestRun: (id: string) =>
     apiClient.get<{ data: AgentRun[] | null }>(`${base}/custom/${id}/runs`, { params: { limit: 1 } }).then((r) => r.data.data?.[0] ?? null),
