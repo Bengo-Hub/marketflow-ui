@@ -21,11 +21,26 @@ import {
 } from "@/hooks/use-video-ads";
 import { kes } from "@/lib/api/billing";
 import { IN_PROGRESS, mainAsset, STATUS_LABEL, type CreativeVersion } from "@/lib/api/creative";
-import { SHOT_LABEL, VIDEO_KINDS, videoParts, type EndCard, type ScriptScene, type Shot, type VideoScript } from "@/lib/api/video-ads";
+import {
+  SHOT_LABEL,
+  VIDEO_KINDS,
+  videoParts,
+  type EndCard,
+  type ScriptScene,
+  type Shot,
+  type Speaker,
+  type VideoScript,
+} from "@/lib/api/video-ads";
 import { adLeadUrl } from "@/lib/urls";
 
 const SHOTS: Shot[] = ["presenter", "product_clip", "b_roll", "owner_footage", "end_card"];
 const PRESENTER_LIMIT = 200;
+/** Who reads a line of a casual ad; "Main voice" keeps the ad's single voice for it. */
+const SPEAKERS: { value: Speaker; label: string }[] = [
+  { value: "female", label: "Woman" },
+  { value: "male", label: "Man" },
+  { value: "", label: "Main voice" },
+];
 
 /** One video ad version: its script, storyboard, price, progress and the finished video. */
 export function VideoAdCard({
@@ -115,6 +130,16 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
     setScenes((list) => list.map((s, j) => (j === i ? { ...s, ...patch } : s)));
     setDirty(true);
   };
+  // Casual (UGC) ads may be read by a man and a woman taking turns. Every presenter scene shows
+  // the same actor, so a presenter line's voice changes them all together.
+  const casual = parts.delivery === "ugc";
+  const setSpeaker = (i: number, speaker: Speaker) => {
+    setScenes((list) => {
+      const presenterLine = list[i]?.shot === "presenter";
+      return list.map((s, j) => (j === i || (presenterLine && s.shot === "presenter") ? { ...s, speaker } : s));
+    });
+    setDirty(true);
+  };
   const script: VideoScript = { ...(parts.script ?? { scenes: [] }), scenes };
   const stillFor = (id: string) => parts.storyboard?.stills.find((s) => s.scene_id === id);
   const q = quote.data;
@@ -171,6 +196,23 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
                   <Field label="Voice-over" htmlFor={`vo-${version.id}-${i}`} error={over ? `A presenter scene says at most ${PRESENTER_LIMIT} characters` : null}>
                     <Textarea id={`vo-${version.id}-${i}`} rows={2} value={s.voiceover} onChange={(e) => change(i, { voiceover: e.target.value })} />
                   </Field>
+                  {casual && s.voiceover.trim() !== "" && (
+                    <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={`Scene ${i + 1} voice`}>
+                      <span className="text-xs text-muted-foreground">Read by</span>
+                      {SPEAKERS.map((sp) => (
+                        <button
+                          key={sp.value || "one"}
+                          type="button"
+                          role="radio"
+                          aria-checked={(s.speaker ?? "") === sp.value}
+                          onClick={() => setSpeaker(i, sp.value)}
+                          className={`min-h-9 rounded-full border px-3 text-xs ${(s.speaker ?? "") === sp.value ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                        >
+                          {sp.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <Field label="On-screen caption" htmlFor={`cap-${version.id}-${i}`}>
                     <Input id={`cap-${version.id}-${i}`} maxLength={120} value={s.caption} onChange={(e) => change(i, { caption: e.target.value })} />
                   </Field>
@@ -283,6 +325,19 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
   );
 }
 
+/** Which voices read a finished casual ad, and why one voice read it when two were written. */
+function VoicesUsed({ version }: { version: CreativeVersion }) {
+  const parts = videoParts(version);
+  const { female, male } = parts.voicesUsed;
+  if (!female && !male && !parts.twoVoiceNote) return null;
+  return (
+    <p className="text-sm text-muted-foreground">
+      {female && male ? `Read by two voices: ${female} and ${male}.` : null}
+      {parts.twoVoiceNote ? ` ${parts.twoVoiceNote}` : null}
+    </p>
+  );
+}
+
 /** The finished video: the player, approve, change scenes, discard. */
 function Finished({
   briefId,
@@ -328,6 +383,7 @@ function Finished({
       ) : (
         <p className="text-sm text-muted-foreground">The video file is no longer stored.</p>
       )}
+      <VoicesUsed version={version} />
       {!archived && (
         <div className="flex flex-wrap gap-2">
           {ready && canApprove && (

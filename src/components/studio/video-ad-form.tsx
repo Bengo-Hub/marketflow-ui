@@ -8,9 +8,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, Field, GlassPanel } from "@/components/ui-kit";
-import { useCreateVideoAd, useVoices } from "@/hooks/use-video-ads";
+import { useAdTemplates, useCreateVideoAd, useVoices } from "@/hooks/use-video-ads";
 import { FORMATS, type CreativeBrief, type PosterFormat } from "@/lib/api/creative";
-import { DELIVERIES, VIDEO_KINDS, type Delivery, type VideoKind } from "@/lib/api/video-ads";
+import { DELIVERIES, VIDEO_KINDS, templateKind, templatesFor, type Delivery, type VideoKind } from "@/lib/api/video-ads";
 
 const LENGTHS = [15, 30, 45, 60] as const;
 const MAX_PHOTOS = 8;
@@ -32,6 +32,8 @@ function links(text: string, max: number) {
 export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
   const create = useCreateVideoAd(brief.id);
   const voices = useVoices();
+  const adTemplates = useAdTemplates();
+  const [approach, setApproach] = useState("");
   const offerPhotos = (brief.offering?.photo_urls ?? []).filter((u) => /^https?:\/\//.test(u));
   const [kind, setKind] = useState<VideoKind>("template");
   const [format, setFormat] = useState<PosterFormat>("1080x1920");
@@ -50,6 +52,10 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
   const musicBlocked = musicURL !== "" && (!musicURL.startsWith("https://") || !musicLicensed);
   const presenter = kind !== "template";
   const hint = VIDEO_KINDS.find((k) => k.value === kind)?.hint;
+  const fitting = templatesFor(adTemplates.data?.templates ?? [], kind, delivery);
+  // A pick that no longer suits the type or delivery falls back to the writer's choice.
+  const chosen = fitting.find((t) => t.key === approach);
+  const defaultName = fitting.find((t) => t.key === adTemplates.data?.defaults[templateKind(kind, delivery)])?.name;
 
   return (
     <GlassPanel title="New video ad">
@@ -69,6 +75,7 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
             footage_urls: clipList,
             music_url: musicURL || undefined,
             music_licensed: musicURL ? musicLicensed : undefined,
+            approach: chosen?.key,
           });
         }}
       >
@@ -91,6 +98,22 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
         </Field>
         <Field label="Delivery" hint="How the voice reads: an advert, casual, for kids, a story or an explainer.">
           <CapsuleTabs label="Delivery" options={DELIVERIES} value={delivery} onChange={setDelivery} />
+        </Field>
+        <Field
+          label="Approach"
+          hint={
+            chosen
+              ? chosen.when_to_use
+              : `Leave on Best fit and the writer picks one from your brief${defaultName ? ` (usually "${defaultName}")` : ""}.` +
+                (delivery === "ugc" ? " Casual ads can be read by a man and a woman taking turns." : "")
+          }
+        >
+          <SearchableCombobox
+            options={[{ value: "", label: "Best fit for my brief" }, ...fitting.map((t) => ({ value: t.key, label: t.name }))]}
+            value={chosen ? approach : ""}
+            onChange={(v: string) => setApproach(v)}
+            placeholder={adTemplates.isLoading ? "Loading approaches..." : "Best fit for my brief"}
+          />
         </Field>
         <Field label="Voice" hint="Leave empty to pick the best voice for the delivery.">
           <SearchableCombobox
