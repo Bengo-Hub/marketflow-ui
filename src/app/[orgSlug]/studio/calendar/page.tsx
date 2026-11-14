@@ -4,12 +4,15 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { CalendarClock, CalendarDays, ExternalLink, RotateCcw, X } from "lucide-react";
+import { DeleteFromPlatform } from "@/components/studio/delete-from-platform";
 import { toLocalInput } from "@/components/studio/publish-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
+import { useMyAccess } from "@/hooks/use-access";
 import { useCancelPost, useMovePost, usePublishAccounts, usePublishJobs, useRetryPost } from "@/hooks/use-publishing";
+import { isRestricted } from "@/lib/access/role-access";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { JOB_STATUS_LABEL, PLATFORM_LABEL, type JobStatus, type PublishJob } from "@/lib/api/publishing";
 
@@ -22,6 +25,7 @@ const TONE: Record<JobStatus, Tone> = {
   published: "success",
   failed: "danger",
   cancelled: "neutral",
+  deleted_on_platform: "neutral",
 };
 
 const dayFmt = new Intl.DateTimeFormat("en-KE", { weekday: "long", day: "numeric", month: "long" });
@@ -151,8 +155,11 @@ function JobRow({ job: j, account }: { job: PublishJob; account?: string }) {
   const [confirm, setConfirm] = useState(false);
   const [moving, setMoving] = useState(false);
   const [openedAt] = useState(() => Date.now());
-  const canCancel = j.status === "pending" || j.status === "uploading";
-  const canMove = j.status === "pending" && new Date(j.planned_at).getTime() > openedAt;
+  // The app reviewer opens the calendar only to delete a post (owner 2026-11-14); the API refuses
+  // it cancel, move and retry, so those buttons stay hidden for it.
+  const restricted = isRestricted(useMyAccess().data);
+  const canCancel = !restricted && (j.status === "pending" || j.status === "uploading");
+  const canMove = !restricted && j.status === "pending" && new Date(j.planned_at).getTime() > openedAt;
   return (
     <div className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center">
       <div className="min-w-0 flex-1 space-y-1">
@@ -168,6 +175,11 @@ function JobRow({ job: j, account }: { job: PublishJob; account?: string }) {
             {j.error}
           </p>
         )}
+        {j.status === "deleted_on_platform" && j.deleted_at && (
+          <p className="text-sm text-muted-foreground">
+            Deleted from {PLATFORM_LABEL[j.platform]} on {dayFmt.format(new Date(j.deleted_at))} at {timeFmt.format(new Date(j.deleted_at))}
+          </p>
+        )}
       </div>
       <div className="flex shrink-0 gap-2">
         {j.status === "published" && j.permalink && (
@@ -175,7 +187,8 @@ function JobRow({ job: j, account }: { job: PublishJob; account?: string }) {
             <ExternalLink /> View
           </a>
         )}
-        {j.status === "failed" && (
+        <DeleteFromPlatform job={j} />
+        {j.status === "failed" && !restricted && (
           <Button variant="outline" size="sm" disabled={retry.isPending} onClick={() => retry.mutate(j.id)}>
             <RotateCcw /> Try again
           </Button>

@@ -52,6 +52,21 @@ export function useSchedulePost() {
 export const useCancelPost = () => useJobAction(publishingApi.cancel, "Post cancelled", "Could not cancel the post");
 export const useRetryPost = () => useJobAction(publishingApi.retry, "Trying the post again", "Could not retry the post");
 
+/**
+ * Deletes a published post from its platform (owner 2026-11-14). The dialog shows a refusal or a
+ * platform error inline (a refusal carries the platform's steps), so no toast on failure.
+ */
+export function useDeleteFromPlatform() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => publishingApi.deleteFromPlatform(id),
+    onSuccess: () => {
+      toast.success("Post deleted from the platform");
+      void qc.invalidateQueries({ queryKey: ["publish-jobs"] });
+    },
+  });
+}
+
 export function useMovePost() {
   const qc = useQueryClient();
   return useMutation({

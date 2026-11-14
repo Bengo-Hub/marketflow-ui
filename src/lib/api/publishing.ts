@@ -9,7 +9,7 @@ import { apiClient } from "./client";
 const base = "/api/v1/publishing";
 
 export type Platform = "facebook" | "instagram" | "youtube" | "tiktok";
-export type JobStatus = "pending" | "uploading" | "processing" | "published" | "failed" | "cancelled";
+export type JobStatus = "pending" | "uploading" | "processing" | "published" | "failed" | "cancelled" | "deleted_on_platform";
 
 export interface PublishAccount {
   id: string;
@@ -19,6 +19,11 @@ export interface PublishAccount {
   enabled: boolean;
   /** A permission is missing; the account has to be connected again. */
   needs_reconnect: boolean;
+  /**
+   * The account can post but was connected before MarketFlow asked to delete posts; reconnecting
+   * grants it (owner 2026-11-14).
+   */
+  needs_reconnect_to_delete?: boolean;
 }
 
 export interface PublishJob {
@@ -33,6 +38,17 @@ export interface PublishJob {
   error?: string;
   attempts: number;
   published_at?: string;
+  /**
+   * A published post the platform's API lets MarketFlow delete, with the account's current
+   * permissions (owner 2026-11-14). When false on a published post, the reason and the
+   * platform's own steps say how to delete it there.
+   */
+  can_delete_on_platform?: boolean;
+  delete_unavailable_reason?: string;
+  delete_steps?: string[];
+  delete_help_url?: string;
+  deleted_at?: string;
+  deleted_by?: string;
 }
 
 export interface ScheduleInput {
@@ -58,6 +74,8 @@ export const publishingApi = {
   cancel: (id: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/cancel`).then((r) => r.data),
   retry: (id: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/retry`).then((r) => r.data),
   move: (id: string, scheduledAt: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/move`, { scheduled_at: scheduledAt }).then((r) => r.data),
+  /** Deletes a published post from its platform; repeating it answers the same job. */
+  deleteFromPlatform: (id: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/delete-from-platform`).then((r) => r.data),
 };
 
 export const PLATFORM_LABEL: Record<Platform, string> = {
@@ -74,6 +92,7 @@ export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
   published: "Posted",
   failed: "Failed",
   cancelled: "Cancelled",
+  deleted_on_platform: "Deleted from platform",
 };
 
 /** Caption limits the platforms document; the server checks them again before posting. */

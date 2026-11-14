@@ -12,6 +12,7 @@ import { Field, ToneBadge } from "@/components/ui-kit";
 import { usePublishAccounts, useSchedulePost } from "@/hooks/use-publishing";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { CAPTION_LIMIT, PLATFORM_LABEL, type PublishAccount } from "@/lib/api/publishing";
+import { reconnectToDeleteHint } from "@/lib/studio/delete-from-platform";
 
 /** The local date and time a datetime-local input shows, for a Date. */
 export function toLocalInput(d: Date) {
@@ -117,6 +118,8 @@ export function PublishDialog({
                     <ToneBadge tone="neutral">Coming soon</ToneBadge>
                   ) : a.needs_reconnect ? (
                     <ToneBadge tone="warning">Reconnect</ToneBadge>
+                  ) : reconnectToDeleteHint(a) ? (
+                    <span className="text-xs text-muted-foreground">{reconnectToDeleteHint(a)}</span>
                   ) : null}
                 </label>
               );
