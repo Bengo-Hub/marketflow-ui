@@ -1,5 +1,6 @@
 import { apiClient } from "./client";
 import type { PublicMetadata } from "./public";
+import type { BusinessTypeOption } from "@/lib/business-types";
 
 /** GET/PATCH /api/v1/tenant/profile (marketflow-api tenant.Handler). */
 export interface TenantProfile {
@@ -24,6 +25,8 @@ export interface TenantProfileUpdate {
   flp_store_code?: string;
   flp_language?: string;
   country?: string;
+  /** A key from GET /api/v1/tenant/profile/business-types; sent only when the owner changes it. */
+  business_type?: string;
   /** Merged into the stored metadata; reserved keys (brand context, switches) are ignored by the API. */
   metadata?: Partial<PublicMetadata> & {
     /** Sprint 23 L45 sales follow-up settings (private). */
@@ -35,4 +38,9 @@ export interface TenantProfileUpdate {
 export const tenantProfileApi = {
   get: () => apiClient.get<TenantProfile>("/api/v1/tenant/profile").then((r) => r.data),
   update: (body: TenantProfileUpdate) => apiClient.patch<TenantProfile>("/api/v1/tenant/profile", body).then((r) => r.data),
+  /** The business types an owner can pick, each with a label and description (Sprint 7 #32). */
+  businessTypes: () =>
+    apiClient
+      .get<{ business_types: BusinessTypeOption[] }>("/api/v1/tenant/profile/business-types")
+      .then((r) => r.data.business_types ?? []),
 };

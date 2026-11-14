@@ -16,6 +16,8 @@ import { apiErrorMessage } from "@/lib/api/errors";
 import { marketingOsApi, type BrandContext } from "@/lib/api/marketing-os";
 import { ActorNamesFields } from "@/components/marketing-os/actor-names-fields";
 import { BrandImagesPanel } from "@/components/media/brand-images-panel";
+import { BusinessTypePicker } from "@/components/business-type-picker";
+import { businessTypeChosen, changedBusinessType, initialBusinessType } from "@/lib/business-types";
 import { STEP_META, type BrandDraft, type StepKey } from "@/lib/api/onboarding";
 import type { TenantProfile } from "@/lib/api/tenant-profile";
 import { cn } from "@/lib/utils";
@@ -23,11 +25,13 @@ import { cn } from "@/lib/utils";
 function ProfileStep({ profile, draft, onDone }: { profile: TenantProfile; draft?: BrandDraft; onDone: () => void }) {
   const update = useUpdateTenantProfile();
   const m = profile.metadata ?? {};
+  const typeChosen = businessTypeChosen(profile.metadata);
   const [form, setForm] = useState({
     tagline: (m.tagline as string) ?? "",
     bio: (m.bio as string) ?? "",
     contact_email: (m.contact_email as string) || draft?.profile.contact_email || "",
     whatsapp_number: profile.whatsapp_number || draft?.profile.whatsapp_number || "",
+    business_type: initialBusinessType(profile.business_type, typeChosen),
   });
   const logo = !(m.logo_url as string) ? draft?.profile.logo_url : undefined;
   return (
@@ -38,6 +42,7 @@ function ProfileStep({ profile, draft, onDone }: { profile: TenantProfile; draft
         update.mutate(
           {
             whatsapp_number: form.whatsapp_number.trim() || undefined,
+            business_type: changedBusinessType(profile.business_type, form.business_type, typeChosen),
             metadata: {
               tagline: form.tagline.trim(),
               bio: form.bio.trim(),
@@ -49,6 +54,9 @@ function ProfileStep({ profile, draft, onDone }: { profile: TenantProfile; draft
         );
       }}
     >
+      <Field label="Type of business" hint="Your ads, posts and assistant follow the advertising rules for this type.">
+        <BusinessTypePicker name="ob-business-type" value={form.business_type} onChange={(business_type) => setForm({ ...form, business_type })} />
+      </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Tagline" htmlFor="ob-tag" hint="One line under your name"><Input id="ob-tag" maxLength={120} value={form.tagline} onChange={(e) => setForm({ ...form, tagline: e.target.value })} placeholder="Fresh groceries, delivered the same day" /></Field>
         <Field label="Contact email" htmlFor="ob-mail"><Input id="ob-mail" type="email" inputMode="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} /></Field>
