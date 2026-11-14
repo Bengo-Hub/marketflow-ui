@@ -9,6 +9,8 @@ import {
 import { WhatsAppIcon } from "@/components/public-profile/whatsapp-icon";
 import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, PageHeader, StatCard } from "@/components/ui-kit";
 import { LeadTrendChart, SourceBars } from "@/components/dashboard/charts";
+import { CampaignROIPanel } from "@/components/dashboard/campaign-roi";
+import { ReportDownload } from "@/components/dashboard/report-download";
 import { SetupCard } from "@/components/onboarding/setup-card";
 import { useDashboard, useProfileMetrics } from "@/hooks/use-analytics";
 import { useTenantProfile } from "@/hooks/use-tenant-profile";
@@ -47,6 +49,8 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Leads, conversations and follow-ups across your business."
         actions={
+          <>
+          <ReportDownload days={days} />
           <CapsuleTabs<`${DashboardDays}`>
             label="Period"
             value={`${days}`}
@@ -57,6 +61,7 @@ export default function DashboardPage() {
               { value: "90", label: "90 days" },
             ]}
           />
+          </>
         }
       />
 
@@ -101,6 +106,8 @@ export default function DashboardPage() {
         <StatCard label="Active campaigns" icon={<Megaphone />} loading={loading} value={d ? nf.format(d.campaigns.active) : "0"} />
         <StatCard label="Leads in follow-up sequences" icon={<Repeat />} loading={loading} value={d ? nf.format(d.nurture.active_enrollments) : "0"} />
       </div>
+
+      <CampaignROIPanel orgSlug={orgSlug} days={days} />
 
       {/* Only Forever tenants have a MarketFlow public page; others' public face is their own site. */}
       {isFLP && (
