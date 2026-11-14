@@ -29,7 +29,12 @@ export interface VideoAdInput {
   /** Optional music bed (https). music_licensed must confirm the right to use it in ads. */
   music_url?: string;
   music_licensed?: boolean;
+  /** The ad template the script follows (GET /creative/ad-templates); empty lets the writer choose. */
+  approach?: string;
 }
+
+/** Who reads a line in a two-voice casual (UGC) ad; empty is the ad's one voice. */
+export type Speaker = "" | "male" | "female";
 
 export interface ScriptScene {
   id: string;
@@ -39,6 +44,7 @@ export interface ScriptScene {
   voiceover: string;
   caption: string;
   duration_s?: number;
+  speaker?: Speaker;
 }
 
 export interface VideoScript {
@@ -46,6 +52,43 @@ export interface VideoScript {
   hooks?: string[];
   scenes: ScriptScene[];
   cta?: string;
+  /** The ad template the writer followed. */
+  approach?: string;
+}
+
+/** One ad template from marketflow-ai's library (the list is data, never hard-coded here). */
+export interface AdTemplate {
+  key: string;
+  name: string;
+  when_to_use: string;
+  /** The video kinds it suits: template, presenter, ugc. */
+  kinds: string[];
+  two_voice: boolean;
+  /** Facts it needs before it can be used: real_reviews, founder_story. */
+  requires?: string[];
+}
+
+export interface AdTemplateList {
+  templates: AdTemplate[];
+  defaults: Record<string, string>;
+}
+
+/** The template library's kind for a video: a casual (UGC) delivery, a presenter, or photos. */
+export function templateKind(kind: VideoKind, delivery: Delivery): "ugc" | "presenter" | "template" {
+  if (delivery === "ugc") return "ugc";
+  return kind === "template" ? "template" : "presenter";
+}
+
+/** The templates that suit a video, in library order. */
+export function templatesFor(list: AdTemplate[], kind: VideoKind, delivery: Delivery): AdTemplate[] {
+  const k = templateKind(kind, delivery);
+  return list.filter((t) => t.kinds.includes(k));
+}
+
+/** A script uses two voices when its spoken lines name both a male and a female speaker. */
+export function isTwoVoice(scenes: ScriptScene[]): boolean {
+  const who = new Set(scenes.filter((s) => s.voiceover.trim() !== "" && s.speaker).map((s) => s.speaker));
+  return who.has("male") && who.has("female");
 }
 
 export interface EndCard {
@@ -118,6 +161,10 @@ export function videoParts(v: CreativeVersion) {
     findings?: Finding[];
     scene_cache?: unknown[];
     photo_urls?: string[];
+    delivery?: Delivery;
+    /** A two-voice ad's voices by speaker (male, female). */
+    voices_used?: Partial<Record<"male" | "female", string>>;
+    two_voice_note?: string;
   };
   return {
     script: copy.script,
@@ -128,6 +175,9 @@ export function videoParts(v: CreativeVersion) {
     storyboardError: meta.storyboard_error,
     findings: meta.findings ?? [],
     photos: meta.photo_urls ?? [],
+    delivery: meta.delivery ?? "ad",
+    voicesUsed: meta.voices_used ?? {},
+    twoVoiceNote: meta.two_voice_note ?? "",
   };
 }
 
@@ -143,6 +193,8 @@ export const videoAdsApi = {
   revision: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/revision`).then((r) => r.data),
   voices: () =>
     aiClient.get<{ voices: Voice[]; deliveries: DeliveryOption[] }>("/api/v1/os/creative/voices").then((r) => r.data),
+  adTemplates: () =>
+    apiClient.get<AdTemplateList>(`${base}/ad-templates`).then((r) => ({ templates: r.data.templates ?? [], defaults: r.data.defaults ?? {} })),
 };
 
 export const VIDEO_KINDS: { value: VideoKind; label: string; hint: string }[] = [

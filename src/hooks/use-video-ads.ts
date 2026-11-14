@@ -11,6 +11,11 @@ export function useVoices() {
   return useQuery({ queryKey: ["creative-voices"], queryFn: videoAdsApi.voices, staleTime: 10 * 60_000, retry: 1 });
 }
 
+/** The ad templates for the new video ad form (from marketflow-ai's template library). */
+export function useAdTemplates() {
+  return useQuery({ queryKey: ["creative-ad-templates"], queryFn: videoAdsApi.adTemplates, staleTime: 15 * 60_000, retry: 1 });
+}
+
 /** The live price of rendering a script now (the scene cache counted) and the balance. */
 export function useVideoAdQuote(versionId: string, enabled: boolean) {
   return useQuery({
