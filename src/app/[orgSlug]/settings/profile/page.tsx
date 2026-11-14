@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ErrorState, Field, GlassPanel, PageHeader } from "@/components/ui-kit";
 import { FeaturedProductsCurator } from "@/components/public-profile/offerings-editor";
 import { AIFieldButton } from "@/components/marketing-os/ai-field-button";
+import { BusinessTypePicker } from "@/components/business-type-picker";
+import { businessTypeChosen, changedBusinessType, initialBusinessType } from "@/lib/business-types";
 import { usePublicLink } from "@/hooks/use-public-link";
 import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import type { Offering, PublicMetadata, Socials } from "@/lib/api/public";
@@ -93,6 +95,7 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
   const save = useUpdateTenantProfile();
   const [prefill] = useState(() => prefillFrom(data, draft));
   const filled = prefill.filled;
+  const typeChosen = businessTypeChosen(data.metadata);
   const [form, setForm] = useState<Required<Omit<TenantProfileUpdate, "metadata">>>({
     name: data.name ?? "",
     whatsapp_number: prefill.whatsapp,
@@ -100,6 +103,7 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
     flp_store_code: data.flp_store_code ?? "",
     flp_language: data.flp_language ?? "",
     country: data.country ?? "",
+    business_type: initialBusinessType(data.business_type, typeChosen),
   });
   const [meta, setMeta] = useState<Meta>(prefill.meta);
 
@@ -135,6 +139,8 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
     const socials = Object.fromEntries(Object.entries(meta.socials).filter(([, v]) => v && v.trim()));
     save.mutate({
       ...form,
+      // Sent only when changed, so a legacy stored value never blocks a profile save.
+      business_type: changedBusinessType(data.business_type, form.business_type, typeChosen),
       // Offerings are only the Forever tenant's seeded list (shown, hidden, ordered); nothing
       // else writes them, so other tenants never send a list.
       metadata: isFLP ? { ...meta, socials } : { ...withoutOfferings(meta), socials },
@@ -191,6 +197,10 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
           Your page has everything it needs.
         </div>
       )}
+
+      <GlassPanel title="Type of business" description="Your ads, captions, posts and assistant follow the advertising rules for this type.">
+        <BusinessTypePicker name="pf-business-type" value={form.business_type} onChange={(business_type) => setForm({ ...form, business_type })} />
+      </GlassPanel>
 
       <GlassPanel title="About you" description="The top of your public page.">
         <div className="grid gap-5 md:grid-cols-2">

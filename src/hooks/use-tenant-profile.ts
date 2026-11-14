@@ -15,6 +15,15 @@ export function useTenantProfile() {
   });
 }
 
+/** The business types an owner can pick; the list changes only with a release. */
+export function useBusinessTypes() {
+  return useQuery({
+    queryKey: ["business-types"],
+    queryFn: tenantProfileApi.businessTypes,
+    staleTime: 60 * 60_000,
+  });
+}
+
 export function useUpdateTenantProfile() {
   const qc = useQueryClient();
   return useMutation({
