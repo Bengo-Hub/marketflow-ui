@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   APP_REVIEWER,
   canConnectIntegration,
+  canDeleteFromPlatform,
   canPublish,
   filterNavGroups,
   isRestricted,
@@ -64,7 +65,7 @@ describe("filterNavGroups", () => {
 
 describe("pageAllowed", () => {
   it("opens the reviewer's pages and their detail pages", () => {
-    for (const p of ["", "/", "/dashboard", "/studio", "/studio/abc", "/leads", "/leads/abc", "/inbox", "/campaigns", "/campaigns/abc", "/settings/integrations"]) {
+    for (const p of ["", "/", "/dashboard", "/studio", "/studio/abc", "/studio/calendar", "/leads", "/leads/abc", "/inbox", "/campaigns", "/campaigns/abc", "/settings/integrations"]) {
       expect(pageAllowed(p, reviewer), p).toBe(true);
     }
   });
@@ -73,7 +74,7 @@ describe("pageAllowed", () => {
     for (const p of [
       "/team", "/contacts", "/contacts/abc", "/chat", "/funnels", "/crm/deals", "/settings", "/settings/team",
       "/settings/billing", "/settings/audit", "/settings/agents", "/settings/custom-fields", "/studio/autopilot",
-      "/studio/calendar", "/studio/research", "/onboarding", "/leadsx", "/dashboardx",
+      "/studio/research", "/onboarding", "/leadsx", "/dashboardx",
     ]) {
       expect(pageAllowed(p, reviewer), p).toBe(false);
     }
@@ -98,6 +99,14 @@ describe("isRestricted, canPublish and canConnectIntegration", () => {
     expect(canPublish(reviewer)).toBe(true);
     expect(canPublish(viewer)).toBe(false);
     expect(canPublish(access("", { platform_owner: true }))).toBe(true);
+  });
+
+  it("lets the approving roles and the reviewer delete a post from the platform, not viewers", () => {
+    expect(canDeleteFromPlatform(admin)).toBe(true);
+    expect(canDeleteFromPlatform(member)).toBe(true);
+    expect(canDeleteFromPlatform(reviewer)).toBe(true);
+    expect(canDeleteFromPlatform(viewer)).toBe(false);
+    expect(canDeleteFromPlatform(undefined)).toBe(false);
   });
 
   it("keeps connecting an integration to admins, and Meta to the reviewer", () => {

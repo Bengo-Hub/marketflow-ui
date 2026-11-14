@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/creative";
 import { useAuthStore } from "@/store/auth-store";
 import { useMyAccess } from "./use-access";
+import { canDeleteFromPlatform } from "@/lib/access/role-access";
 
 export function useBriefs(status: "active" | "archived", page: number, limit: number) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -69,6 +70,16 @@ export function useCanApprove(): boolean {
   if (platformOwner) return true;
   if (!access.data) return !access.isSuccess; // unknown yet: show it and let the API decide
   return access.data.roles.some((r) => r === "marketflow_admin" || r === "fbo_owner");
+}
+
+/**
+ * Delete from platform (owner 2026-11-14): the approving roles, plus the Meta app reviewer, who
+ * must be able to show instagram_manage_contents in App Review. The API checks the same roles.
+ */
+export function useCanDeleteFromPlatform(): boolean {
+  const canApprove = useCanApprove();
+  const access = useMyAccess();
+  return canApprove || canDeleteFromPlatform(access.data);
 }
 
 export function useCreateBrief() {

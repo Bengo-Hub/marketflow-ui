@@ -24,8 +24,9 @@ export interface MyAccess {
 const RESTRICTED_PAGES: Record<string, { open: string[]; closed: string[] }> = {
   [APP_REVIEWER]: {
     open: ["/dashboard", "/studio", "/leads", "/inbox", "/campaigns", "/settings/integrations"],
-    // Studio pages that are not about an ad: autopilot, the posting calendar, market research.
-    closed: ["/studio/autopilot", "/studio/calendar", "/studio/research"],
+    // Studio pages that are not about an ad: autopilot and market research. The posting calendar
+    // is open (owner 2026-11-14): the reviewer deletes a post from it for instagram_manage_contents.
+    closed: ["/studio/autopilot", "/studio/research"],
   },
 };
 
@@ -74,6 +75,14 @@ export function canPublish(access: Access): boolean {
   if (!access) return false;
   if (access.platform_owner) return true;
   return access.roles.some((r) => r === ROLE_ADMIN || r === ROLE_MEMBER || r === APP_REVIEWER);
+}
+
+/**
+ * Delete a published post from its platform (owner 2026-11-14): the approving roles and the app
+ * reviewer, who shows instagram_manage_contents in App Review. Mirrors marketflow-api's CanDelete.
+ */
+export function canDeleteFromPlatform(access: Access): boolean {
+  return canPublish(access);
 }
 
 /**
