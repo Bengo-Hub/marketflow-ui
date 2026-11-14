@@ -19,9 +19,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function MarketingTeamPage() {
   const params = useParams();
   const orgSlug = params?.orgSlug as string;
-  const [tab, setTab] = useState("ask");
+  const search = useSearchParams();
+  // A shared link to a filtered Templates view (?tab=templates&goal=...) opens that tab.
+  const [tab, setTab] = useState(search?.get("tab") === "templates" ? "templates" : "ask");
   // The Research page opens this with a brief ready to review. Nothing runs until the owner sends it.
-  const [draft, setDraft] = useState(useSearchParams()?.get("brief") ?? "");
+  const [draft, setDraft] = useState(search?.get("brief") ?? "");
 
   const teamQ = useQuery({ queryKey: ["os-team", orgSlug], queryFn: marketingOsApi.team, staleTime: 60_000 });
   const members = teamQ.data?.members ?? [];

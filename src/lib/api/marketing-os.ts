@@ -261,6 +261,41 @@ export interface Template {
   playbook?: string;
   category: string;
   source: string;
+  /** Facets of a playbook starter (marketflow-ai template_facets.yaml); curated prompts have none. */
+  specialist?: string;
+  goal?: string;
+  output?: string;
+  language?: string;
+  channels?: string[];
+  inputs?: string[];
+  /** YYYY-MM-DD the template was added. */
+  added?: string;
+  /** Registry tier and its credit price for a media template; no credits means it uses chat turns. */
+  tier?: string;
+  credits?: number;
+  /** The library's recommended order, from 1. */
+  rank?: number;
+}
+
+/** One value of a template facet and the label the gallery shows. */
+export interface FacetOption {
+  key: string;
+  label: string;
+}
+
+/** The template gallery's filter values and labels, from marketflow-ai's data. */
+export interface TemplateFacets {
+  goals: FacetOption[];
+  outputs: FacetOption[];
+  languages: FacetOption[];
+  channels: FacetOption[];
+  inputs: FacetOption[];
+  specialists: FacetOption[];
+}
+
+export interface TemplateLibrary {
+  templates: Template[];
+  facets: TemplateFacets | null;
 }
 
 /** One stage of a running request, streamed by /os/ask. */
@@ -372,6 +407,13 @@ export const marketingOsApi = {
     aiClient
       .get<{ templates: Template[] }>("/api/v1/os/library/templates", { params: { q, category, limit: 30 } })
       .then((r) => r.data.templates ?? []),
+  /** Templates with their facets and the facet labels; q also searches the curated prompts. */
+  templateLibrary: (q = "") =>
+    aiClient
+      .get<{ templates: Template[] | null; facets?: TemplateFacets }>("/api/v1/os/library/templates", {
+        params: { q, limit: 100 },
+      })
+      .then((r): TemplateLibrary => ({ templates: r.data.templates ?? [], facets: r.data.facets ?? null })),
 
   overrides: () =>
     apiClient.get<{ members: MemberOverride[] }>("/api/v1/agents/team").then((r) => r.data.members ?? []),
