@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  ChevronRight, CreditCard, Handshake, Palette, PlugZap, Quote, Rocket, ScrollText, Settings, SlidersHorizontal, UserCircle, UsersRound, Workflow,
+  ChevronRight, CreditCard, Handshake, Palette, PlugZap, Quote, Rocket, ScrollText, Settings, ShieldCheck, SlidersHorizontal, UserCircle, UsersRound, Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader, ToneBadge } from "@/components/ui-kit";
 import { useChecklist } from "@/hooks/use-onboarding";
+import { useTenantProfile } from "@/hooks/use-tenant-profile";
+import { filterByBusinessType } from "@/lib/access/business-type-nav";
 
-type Tile = { href: string; title: string; desc: string; icon: LucideIcon };
+type Tile = { href: string; title: string; desc: string; icon: LucideIcon; businessType?: string };
 
 const GROUPS: { title: string; tiles: Tile[] }[] = [
   {
@@ -19,6 +21,13 @@ const GROUPS: { title: string; tiles: Tile[] }[] = [
       { href: "/settings/profile", title: "Public profile", desc: "Your public page: story, products, contacts and booking.", icon: UserCircle },
       { href: "/settings/marketing-context", title: "Brand context", desc: "Who you sell to, what you sell and how you sound.", icon: Palette },
       { href: "/settings/testimonials", title: "Testimonials", desc: "Customer stories shown on your public page.", icon: Quote },
+      {
+        href: "/settings/ppb-approvals",
+        title: "PPB approvals",
+        desc: "The Pharmacy and Poisons Board approval reference of each medicine you advertise.",
+        icon: ShieldCheck,
+        businessType: "pharmacy",
+      },
     ],
   },
   {
@@ -44,11 +53,17 @@ export default function SettingsPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const checklist = useChecklist();
   const c = checklist.data;
+  // PPB approvals is a pharmacy's tile only.
+  const profile = useTenantProfile();
+  const groups = filterByBusinessType(
+    GROUPS.map((g) => ({ ...g, items: g.tiles })),
+    profile.data?.business_type,
+  ).map((g) => ({ title: g.title, tiles: g.items }));
 
   return (
     <div className="space-y-8">
       <PageHeader icon={<Settings />} title="Settings" description="Everything about your business in MarketFlow. Platform-wide keys are managed by Codevertex and never shown here." />
-      {GROUPS.map((g) => (
+      {groups.map((g) => (
         <section key={g.title} aria-labelledby={`grp-${g.title}`}>
           <h2 id={`grp-${g.title}`} className="mb-3 font-display text-base font-semibold">{g.title}</h2>
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

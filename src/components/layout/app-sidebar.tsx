@@ -19,8 +19,10 @@ import {
   Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
   Briefcase, Activity, CheckSquare, ChevronDown, LogOut, UsersRound, Filter,
   SlidersHorizontal, Workflow, Palette, UserCircle, CreditCard, PlugZap, Quote,
-  ScrollText, Gauge, KeyRound, Cog, Receipt, ImageIcon, Inbox, Plug, Gift,
+  ScrollText, Gauge, KeyRound, Cog, Receipt, ImageIcon, Inbox, Plug, Gift, ShieldCheck,
 } from "lucide-react";
+import { useTenantProfile } from "@/hooks/use-tenant-profile";
+import { filterByBusinessType } from "@/lib/access/business-type-nav";
 import { useTheme } from "next-themes";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
 import { useMyAccess } from "@/hooks/use-access";
@@ -32,6 +34,8 @@ interface NavItem {
   href: string;
   /** Subscription feature code required to open this item. */
   feature?: string;
+  /** Shown only to this business type (business-type-nav.ts). */
+  businessType?: string;
 }
 
 interface NavGroup {
@@ -80,6 +84,7 @@ export const navGroups: NavGroup[] = [
       { label: "Team members", icon: UsersRound, href: "/settings/team" },
       { label: "Integrations", icon: PlugZap, href: "/settings/integrations" },
       { label: "Custom fields", icon: SlidersHorizontal, href: "/settings/custom-fields" },
+      { label: "PPB approvals", icon: ShieldCheck, href: "/settings/ppb-approvals", businessType: "pharmacy" },
       { label: "Agents", icon: Workflow, href: "/settings/agents" },
       { label: "Billing", icon: CreditCard, href: "/settings/billing" },
       { label: "Invite and earn", icon: Gift, href: "/settings/invite" },
@@ -208,7 +213,9 @@ export function AppSidebar() {
   const dark = resolvedTheme === "dark";
   // A restricted role (the Meta App Review account) sees only the pages it may use.
   const { data: access } = useMyAccess();
-  const groups = filterNavGroups(navGroups, access);
+  // Pharmacy-only items (PPB approvals) show once the profile says the business is a pharmacy.
+  const profile = useTenantProfile();
+  const groups = filterByBusinessType(filterNavGroups(navGroups, access), profile.data?.business_type);
 
   function isGroupInitiallyOpen(group: NavGroup): boolean {
     if (!group.defaultCollapsed) return true;

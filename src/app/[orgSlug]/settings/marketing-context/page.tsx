@@ -15,6 +15,7 @@ import { ErrorState, Field, GlassPanel, ListEditor, PageHeader, ToneBadge } from
 import { BrandInterview } from "@/components/marketing-os/brand-interview";
 import { AIFieldButton } from "@/components/marketing-os/ai-field-button";
 import { ActorNamesFields } from "@/components/marketing-os/actor-names-fields";
+import { AILabelPanel } from "@/components/marketing-os/ai-label-panel";
 import { BrandImagesPanel } from "@/components/media/brand-images-panel";
 import { brandFormValues, mergeItems } from "@/lib/brand-form";
 import { useBrandDraft } from "@/hooks/use-onboarding";
@@ -246,6 +247,8 @@ function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string })
       >
         <BrandImagesPanel />
       </GlassPanel>
+
+      <AILabelPanel />
 
       {dirty && (
         <div className="glass-strong fixed inset-x-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex items-center justify-between gap-3 rounded-2xl p-3 shadow-lift md:sticky md:inset-x-auto md:bottom-4">

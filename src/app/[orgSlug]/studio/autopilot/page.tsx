@@ -19,9 +19,11 @@ import { apiErrorMessage } from "@/lib/api/errors";
 import {
   canOfferVetoWindow,
   canSaveVetoWindow,
+  cancellableJobs,
   clampVetoHours,
   countdown,
   isCancellable,
+  needsTermsAcceptance,
   openPosts,
   postStateLabel,
   type ApprovalMode,
@@ -152,6 +154,20 @@ function ScheduledPosts() {
       void qc.invalidateQueries({ queryKey: [...KEY, "posts"] });
     },
   });
+  // Owner 2026-11-14: one account's post can be cancelled on its own; the others still go out.
+  const vetoJob = useMutation({
+    mutationFn: ({ versionId, jobId }: { versionId: string; jobId: string }) => autopilotApi.vetoJob(versionId, jobId),
+    onSuccess: (r) => {
+      toast.success(r.message || "Cancelled on this account.");
+      void qc.invalidateQueries({ queryKey: [...KEY, "posts"] });
+    },
+    onError: (e) => {
+      toast.error(apiErrorMessage(e, "Could not cancel the post on this account"));
+      void qc.invalidateQueries({ queryKey: [...KEY, "posts"] });
+    },
+  });
+  const accounts = usePublishAccounts(!!canCancel);
+  const accountName = (id?: string) => accounts.data?.find((a) => a.id === id)?.display_name;
   const open = openPosts(posts.data ?? []);
   if (posts.isError || open.length === 0) return null;
   return (
@@ -176,6 +192,27 @@ function ScheduledPosts() {
                 {p.state === "active" && <p className="text-muted-foreground">The agent is making the video. You get an email before anything is posted.</p>}
                 {p.state === "held" && p.reason && <p className="text-muted-foreground">It waits for you because {p.reason}.</p>}
                 {p.caption && <p className="line-clamp-2 text-xs text-muted-foreground">{p.caption}</p>}
+                {canCancel && cancellableJobs(p, now).length > 0 && (
+                  <ul className="flex flex-wrap gap-2 pt-1" aria-label="Cancel on one account">
+                    {cancellableJobs(p, now).map((j) => {
+                      const name = accountName(j.connected_account_id);
+                      const label = name ? `${j.platform} (${name})` : j.platform;
+                      return (
+                        <li key={j.id}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={vetoJob.isPending || veto.isPending}
+                            onClick={() => vetoJob.mutate({ versionId: p.version_id, jobId: j.id })}
+                            aria-label={`Cancel the post on ${label} only`}
+                          >
+                            <Ban /> Not on {label}
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <ToneBadge tone={postTone[p.state] ?? "neutral"}>{postStateLabel(p.state)}</ToneBadge>
@@ -344,7 +381,7 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const save = useMutation({
     mutationFn: async () => {
       // The terms are accepted first, so the save that follows is allowed.
-      if (mode === "auto_publish" && acceptTerms && !veto?.terms_accepted) {
+      if (mode === "auto_publish" && acceptTerms && needsTermsAcceptance(veto)) {
         await autopilotApi.setAutoPublish({ accept_terms: true });
       }
       const chosen = list.filter((a) => acctIDs.includes(a.id));
@@ -498,9 +535,15 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
                   onBlur={() => setVetoHours(hours)}
                 />
               </Field>
-              {!veto.terms_accepted && (
+              {needsTermsAcceptance(veto) && (
                 <div className="space-y-2 text-sm">
-                  <p className="font-medium">Autopilot terms</p>
+                  <p className="font-medium">{veto.new_terms_pending ? "New Autopilot terms" : "Autopilot terms"}</p>
+                  {veto.new_terms_pending && veto.terms_effective_at && (
+                    <p className="text-muted-foreground">
+                      These apply from {when.format(new Date(veto.terms_effective_at))}. Accept them before then, or posts waiting in a veto
+                      window are cancelled and every video waits for your approval.
+                    </p>
+                  )}
                   <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
                     {veto.terms.map((t) => (
                       <li key={t}>{t}</li>

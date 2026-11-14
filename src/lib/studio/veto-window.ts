@@ -1,4 +1,4 @@
-import type { AutopilotPost, AutoPublishStatus } from "@/lib/api/autopilot";
+import type { AutopilotPost, AutoPublishStatus, VetoJob } from "@/lib/api/autopilot";
 
 /**
  * Veto window (Sprint 20, owner 2026-11-14): an autopilot agent may post a finished video by itself
@@ -17,6 +17,25 @@ export function canOfferVetoWindow(status: AutoPublishStatus | undefined): boole
 /** Saving the veto window needs the plan and the current terms. */
 export function canSaveVetoWindow(status: AutoPublishStatus | undefined, acceptingTerms: boolean): boolean {
   return !!status?.plan_allows && (status.terms_accepted || acceptingTerms);
+}
+
+/**
+ * The terms are shown for acceptance when they were never accepted, or when a new version comes
+ * into force on its effective date (owner 2026-11-14: 14 days after it is announced).
+ */
+export function needsTermsAcceptance(status: AutoPublishStatus | undefined): boolean {
+  return !!status && (!status.terms_accepted || !!status.new_terms_pending);
+}
+
+/**
+ * Owner 2026-11-14: an owner or admin may cancel one account's post at a time. Offered only while
+ * the window is open and more than one account's post still waits; with one left, the main
+ * Cancel button does the same.
+ */
+export function cancellableJobs(post: Pick<AutopilotPost, "state" | "publish_at" | "jobs">, now: Date): VetoJob[] {
+  if (post.state !== "scheduled" || !isCancellable(post, now)) return [];
+  const waiting = (post.jobs ?? []).filter((j) => j.status === "pending");
+  return waiting.length > 1 ? waiting : [];
 }
 
 /** Keeps the hours a whole number inside the allowed range; anything unreadable is the default. */

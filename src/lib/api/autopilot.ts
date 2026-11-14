@@ -31,6 +31,14 @@ export interface AutoPublishStatus {
   plan_allows: boolean;
   terms_accepted: boolean;
   terms_version: string;
+  /** When terms_version applies (RFC 3339), when a date is set. */
+  terms_effective_at?: string;
+  /**
+   * The tenant runs on an earlier accepted version until terms_effective_at. Owner 2026-11-14: it
+   * should accept the new terms before then, or its waiting posts are cancelled and every video
+   * waits for approval.
+   */
+  new_terms_pending?: boolean;
   accepted_at?: string;
   can_auto_publish: boolean;
   hold_categories: string[];
@@ -43,6 +51,7 @@ export interface AutoPublishStatus {
 /** One scheduled or finished post of a publishing job, as the calendar shows it. */
 export interface VetoJob {
   id: string;
+  connected_account_id?: string;
   platform: string;
   status: string;
   planned_at: string;
@@ -151,6 +160,9 @@ export const autopilotApi = {
       .get<{ data: AutopilotPost[] | null }>(`${base}/autopilot/posts`, { params: agentId ? { agent_id: agentId } : undefined })
       .then((r) => r.data.data ?? []),
   veto: (versionId: string) => apiClient.post<VetoResult>(`${base}/autopilot/posts/${versionId}/veto`).then((r) => r.data),
+  /** Cancels the post on one account only; the other accounts still get it (owner 2026-11-14). */
+  vetoJob: (versionId: string, jobId: string) =>
+    apiClient.post<VetoResult>(`${base}/autopilot/posts/${versionId}/jobs/${jobId}/veto`).then((r) => r.data),
 };
 
 export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

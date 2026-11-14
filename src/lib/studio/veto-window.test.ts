@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { AutopilotPost, AutoPublishStatus } from "@/lib/api/autopilot";
-import { canOfferVetoWindow, canSaveVetoWindow, clampVetoHours, countdown, isCancellable, openPosts, postStateLabel } from "./veto-window";
+import {
+  canOfferVetoWindow,
+  canSaveVetoWindow,
+  cancellableJobs,
+  clampVetoHours,
+  countdown,
+  isCancellable,
+  needsTermsAcceptance,
+  openPosts,
+  postStateLabel,
+} from "./veto-window";
 
 const status = (over: Partial<AutoPublishStatus> = {}): AutoPublishStatus => ({
   plan_allows: true,
@@ -88,5 +98,29 @@ describe("openPosts", () => {
   it("labels states in plain words", () => {
     expect(postStateLabel("held")).toBe("Waiting for your approval");
     expect(postStateLabel("unknown")).toBe("unknown");
+  });
+});
+
+// Owner 2026-11-14: a new terms version is shown for acceptance before its effective date.
+describe("needsTermsAcceptance", () => {
+  it("asks when the terms were never accepted or a new version is pending", () => {
+    expect(needsTermsAcceptance(undefined)).toBe(false);
+    expect(needsTermsAcceptance(status())).toBe(true);
+    expect(needsTermsAcceptance(status({ terms_accepted: true }))).toBe(false);
+    expect(needsTermsAcceptance(status({ terms_accepted: true, new_terms_pending: true }))).toBe(true);
+  });
+});
+
+// Owner 2026-11-14: one account's post can be cancelled while others still wait.
+describe("cancellableJobs", () => {
+  const job = (id: string, s = "pending") => ({ id, platform: "facebook", status: s, planned_at: "2026-11-14T12:00:00Z" });
+  it("offers each waiting account while more than one waits and the window is open", () => {
+    const p = post({ publish_at: "2026-11-14T12:00:00Z", jobs: [job("a"), job("b"), job("c", "cancelled")] });
+    expect(cancellableJobs(p, now).map((j) => j.id)).toEqual(["a", "b"]);
+  });
+  it("offers nothing with one account left, after the window or before scheduling", () => {
+    expect(cancellableJobs(post({ publish_at: "2026-11-14T12:00:00Z", jobs: [job("a"), job("b", "cancelled")] }), now)).toEqual([]);
+    expect(cancellableJobs(post({ publish_at: "2026-11-14T09:00:00Z", jobs: [job("a"), job("b")] }), now)).toEqual([]);
+    expect(cancellableJobs(post({ state: "active", jobs: [job("a"), job("b")] }), now)).toEqual([]);
   });
 });

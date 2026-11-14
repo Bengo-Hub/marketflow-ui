@@ -8,6 +8,7 @@ import { funnelUrl } from "@/lib/urls";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { PosterForm } from "@/components/studio/poster-form";
+import { PPBApprovalCard } from "@/components/studio/ppb-approval-card";
 import { VersionCard } from "@/components/studio/version-card";
 import { VideoAdCard } from "@/components/studio/video-ad-card";
 import { VideoAdForm } from "@/components/studio/video-ad-form";
@@ -105,6 +106,9 @@ export default function AdPage() {
           </p>
         </GlassPanel>
       )}
+
+      {/* A pharmacy's medicine ad needs its PPB advert approval reference before it can be approved. */}
+      {!archived && <PPBApprovalCard briefId={b.id} canApprove={canApprove && !restricted} />}
 
       <div className={cn("grid grid-cols-1 gap-6", !restricted && "lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]")}>
         {/* On a phone the posters to review come first once there are some. */}

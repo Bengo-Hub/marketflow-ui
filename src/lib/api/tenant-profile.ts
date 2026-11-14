@@ -32,6 +32,8 @@ export interface TenantProfileUpdate {
     /** Sprint 23 L45 sales follow-up settings (private). */
     sales_auto_reply?: boolean;
     sales_handoff_value?: number | null;
+    /** The owner's AI label choice (owner 2026-11-14); unset means on. */
+    ai_label?: "on" | "off";
   };
 }
 
