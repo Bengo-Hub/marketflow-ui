@@ -16,6 +16,17 @@ export function useDashboard(days: DashboardDays) {
   });
 }
 
+/** What each campaign brought back (Sprint 7 #54); cached by the API for a minute. */
+export function useCampaignROI(days: DashboardDays) {
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  return useQuery({
+    queryKey: ["analytics", "roi", orgSlug, days],
+    queryFn: () => analyticsApi.roi(days),
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useProfileMetrics(days: DashboardDays) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   return useQuery({
