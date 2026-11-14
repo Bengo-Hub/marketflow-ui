@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, MULTIPART } from "./client";
 
 /** One brand image as marketflow-api shows it: a private file behind a link that expires in minutes. */
 export interface BrandImage {
@@ -30,8 +30,7 @@ export const brandImagesApi = {
   upload: (file: Blob, name: string) => {
     const form = new FormData();
     form.append("file", file, name);
-    // Axios sets multipart/form-data with the boundary itself for FormData bodies.
-    return apiClient.post<BrandImage>("/api/v1/tenant/brand-images", form).then((r) => r.data);
+    return apiClient.post<BrandImage>("/api/v1/tenant/brand-images", form, MULTIPART).then((r) => r.data);
   },
   remove: (id: string) => apiClient.delete(`/api/v1/tenant/brand-images/${encodeURIComponent(id)}`).then(() => undefined),
 };

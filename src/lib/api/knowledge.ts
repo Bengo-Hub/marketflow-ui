@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, MULTIPART } from "./client";
 import type { Paginated } from "./types";
 
 export const KB_CATEGORIES = ["product", "faq", "business_opportunity", "compliance", "custom"] as const;
@@ -72,7 +72,6 @@ export const knowledgeApi = {
   importCsv: (file: File) => {
     const form = new FormData();
     form.append("file", file);
-    // Axios sets multipart/form-data with the boundary itself for FormData bodies.
-    return apiClient.post<KbImportResult>("/api/v1/knowledge/entries/import", form).then((r) => r.data);
+    return apiClient.post<KbImportResult>("/api/v1/knowledge/entries/import", form, MULTIPART).then((r) => r.data);
   },
 };

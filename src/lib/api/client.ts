@@ -11,6 +11,14 @@ export const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+/**
+ * Request options for a FormData upload. The clients default to a JSON Content-Type, and axios 1.x
+ * turns a FormData body sent as JSON into a JSON object, so the server got no multipart form
+ * ("send a multipart form with a file of at most 2 MB"). Naming multipart keeps the FormData as
+ * it is, and the browser then sets the type with its boundary.
+ */
+export const MULTIPART = { headers: { "Content-Type": "multipart/form-data" } } as const;
+
 // AI API client (marketflow-ai)
 export const aiClient = axios.create({
   baseURL: AI_API_URL,

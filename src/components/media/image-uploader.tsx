@@ -9,8 +9,11 @@ import {
   checkImageDimensions,
   checkImageSize,
   checkImageType,
+  fitDimensions,
   formatBytes,
   imageCountLabel,
+  JPEG_QUALITIES,
+  SIZE_HEADROOM,
   type ImageLimits,
 } from "@/lib/media/image-checks";
 import { cn } from "@/lib/utils";
@@ -42,17 +45,31 @@ async function dimensions(file: Blob): Promise<{ width: number; height: number; 
   return { width: bitmap.width, height: bitmap.height, bitmap };
 }
 
-/** Draws a WebP picture onto a canvas and saves it as a JPEG, which the server accepts. */
-async function toJpeg(bitmap: ImageBitmap): Promise<Blob> {
+const CONVERT_FAILED = "This browser could not prepare the picture. Save it as a JPEG and try again.";
+
+/**
+ * Draws a picture at the given size and saves it as a JPEG (which the server accepts), lowering
+ * the quality until it fits under the size cap with some headroom.
+ */
+async function toJpeg(bitmap: ImageBitmap, width: number, height: number, maxBytes: number): Promise<Blob> {
   const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("This browser could not convert the picture. Save it as a JPEG and try again.");
-  ctx.drawImage(bitmap, 0, 0);
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
-  if (!blob) throw new Error("This browser could not convert the picture. Save it as a JPEG and try again.");
-  return blob;
+  if (!ctx) throw new Error(CONVERT_FAILED);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  // A transparent PNG gets a white background rather than black.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  let last: Blob | null = null;
+  for (const q of JPEG_QUALITIES) {
+    last = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", q));
+    if (!last) throw new Error(CONVERT_FAILED);
+    if (last.size <= maxBytes * SIZE_HEADROOM) return last;
+  }
+  return last!;
 }
 
 /**
@@ -78,12 +95,17 @@ export function ImageUploader({ images, min, max, limits, onUpload, onDelete, la
       throw new Error("This picture could not be opened. Try another file.");
     }
     try {
-      const sizeError = checkImageDimensions(read.width, read.height, limits);
-      if (sizeError) throw new Error(sizeError);
-      const blob = file.type === "image/webp" ? await toJpeg(read.bitmap) : file;
+      // Pictures are resized to what the server expects (owner, 2026-11-14): a slightly small one
+      // is enlarged to the minimum, a very large one reduced; only a far too small one is refused.
+      const fit = fitDimensions(read.width, read.height, limits);
+      if (fit.error) throw new Error(fit.error);
+      const keep = !fit.resized && file.type !== "image/webp" && file.size <= limits.maxBytes * SIZE_HEADROOM;
+      const blob = keep ? file : await toJpeg(read.bitmap, fit.width, fit.height, limits.maxBytes);
       const tooBig = checkImageSize(blob.size, limits);
       if (tooBig) throw new Error(tooBig);
-      const name = file.type === "image/webp" ? file.name.replace(/\.webp$/i, "") + ".jpg" : file.name;
+      const sizeError = checkImageDimensions(fit.width, fit.height, limits);
+      if (sizeError) throw new Error(sizeError);
+      const name = keep ? file.name : file.name.replace(/\.(webp|png|jpe?g)$/i, "") + ".jpg";
       return { blob, name };
     } finally {
       read.bitmap.close();
@@ -132,7 +154,8 @@ export function ImageUploader({ images, min, max, limits, onUpload, onDelete, la
           {imageCountLabel(images.length, min, max)}
         </p>
         <p className="text-xs text-muted-foreground">
-          JPEG, PNG or WebP, up to {formatBytes(limits.maxBytes)}, at least {limits.minShortSide} px on the shorter side.
+          JPEG, PNG or WebP. Pictures are resized for you to at least {limits.minShortSide} px on the shorter side and under{" "}
+          {formatBytes(limits.maxBytes)}.
         </p>
       </div>
 

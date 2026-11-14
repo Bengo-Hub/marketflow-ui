@@ -1,7 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { checkImageDimensions, checkImageSize, checkImageType, formatBytes, imageCountLabel } from "./image-checks";
+import { checkImageDimensions, checkImageSize, checkImageType, fitDimensions, formatBytes, imageCountLabel, MAX_LONG_SIDE } from "./image-checks";
 
 const limits = { maxBytes: 2 * 1024 * 1024, minShortSide: 1024 };
+
+describe("resizing before upload", () => {
+  it("enlarges a slightly small picture to the minimum short side", () => {
+    expect(fitDimensions(1200, 800, limits)).toEqual({ width: 1536, height: 1024, resized: true });
+    expect(fitDimensions(800, 1200, limits)).toEqual({ width: 1024, height: 1536, resized: true });
+  });
+  it("refuses a picture too small to enlarge well", () => {
+    expect(fitDimensions(600, 400, limits).error).toMatch(/too small to enlarge well/);
+  });
+  it("keeps a picture that already fits", () => {
+    expect(fitDimensions(1600, 1200, limits)).toEqual({ width: 1600, height: 1200, resized: false });
+  });
+  it("reduces a very large picture but never below the minimum short side", () => {
+    const big = fitDimensions(6000, 4000, limits);
+    expect(big.resized).toBe(true);
+    expect(Math.max(big.width, big.height)).toBe(MAX_LONG_SIDE);
+    expect(Math.min(big.width, big.height)).toBeGreaterThanOrEqual(limits.minShortSide);
+    const panorama = fitDimensions(8000, 1100, limits);
+    expect(panorama.height).toBeGreaterThanOrEqual(limits.minShortSide);
+  });
+});
 
 describe("image checks before upload", () => {
   it("accepts JPEG, PNG and WebP only", () => {
