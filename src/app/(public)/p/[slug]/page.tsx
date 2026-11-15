@@ -8,6 +8,7 @@ import { AppCanvas } from "@/components/ui-kit";
 import { FlpOpportunity } from "@/components/public-profile/flp-sections";
 import { ProfileAvatar } from "@/components/public-profile/profile-avatar";
 import { ProfileTracker } from "@/components/public-profile/profile-tracker";
+import { SupportForm } from "@/components/public-profile/support-form";
 import { VideoFacade } from "@/components/public-profile/video-facade";
 import { WhatsAppIcon } from "@/components/public-profile/whatsapp-icon";
 import { flpJoinUrl, flpShopUrl, jsonLd, offeringHref, safeUrl, videoEmbed, whatsAppLink } from "@/components/public-profile/links";
@@ -55,8 +56,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function PublicProfilePage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PublicProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
   const { slug } = await params;
+  // ?tab=support opens the support request form at the top of the page.
+  const supportTab = (await searchParams).tab === "support";
   // On a business's own domain only its own page is shown (proxy.ts sets the header).
   const domainTenant = (await headers()).get(DOMAIN_TENANT_HEADER);
   if (!domainAllows(domainTenant, slug)) notFound();
@@ -142,6 +151,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       </header>
 
       <main id="main" className="mx-auto max-w-5xl space-y-16 px-4 py-14 sm:px-6">
+        {supportTab && <SupportSection slug={profile.slug} name={v.name} />}
+
         {v.offerings.length > 0 && (
           <section aria-labelledby="offerings">
             <div className="flex flex-wrap items-end justify-between gap-3">
@@ -226,6 +237,14 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           <section className="rounded-[1.75rem] bg-primary px-6 py-10 text-primary-foreground sm:px-10">
             <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{contactTitle}</h2>
             <p className="mt-2 max-w-xl opacity-90">Send a message and I will get back to you, or ask the assistant in the corner of this page.</p>
+            {!supportTab && (
+              <p className="mt-2 max-w-xl text-sm opacity-90">
+                Need help with an order?{" "}
+                <a href="?tab=support#support" data-track="cta_click" data-track-meta='{"cta":"support"}' className="font-semibold underline">
+                  Open a support request
+                </a>
+              </p>
+            )}
             <div className="mt-6 flex flex-wrap gap-2.5">
               {v.wa && (
                 <a href={v.wa} target="_blank" rel="noreferrer" data-track="whatsapp_click" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-primary">
@@ -266,6 +285,19 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         data-email={v.email ?? undefined}
       />
     </div>
+  );
+}
+
+/** The support tab: a request that opens a ticket in the business's helpdesk (ticketing). */
+function SupportSection({ slug, name }: { slug: string; name: string }) {
+  return (
+    <section id="support" aria-labelledby="support-title" className="scroll-mt-6">
+      <h2 id="support-title" className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Get support from {name}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Tell me what you need help with. You get a ticket number and every reply by email.</p>
+      <div className="mt-6">
+        <SupportForm tenantSlug={slug} businessName={name} />
+      </div>
+    </section>
   );
 }
 
