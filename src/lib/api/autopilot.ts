@@ -46,6 +46,53 @@ export function clampStopDays(days: number): number {
   return Math.min(Math.round(days), STOP_CPL_MAX_DAYS);
 }
 
+/** The longest run of one paid ad, as the API checks it (MaxPeriodDays). */
+export const MAX_PERIOD_DAYS = 90;
+
+/** The paid budget and end date of an agent, as the settings form holds them. */
+export interface PaidBudget {
+  paid: boolean;
+  per_ad_budget: number;
+  period_days: number;
+  monthly_ad_ceiling: number;
+  /** YYYY-MM-DD, or "" for none. */
+  end_date: string;
+}
+
+/** True for a real calendar day written YYYY-MM-DD, the only form the API reads. */
+export function isISODate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const t = new Date(Date.UTC(y, mo - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d;
+}
+
+/**
+ * The problems the API's AutopilotConfig.Validate would refuse in the paid budget and the end
+ * date, in the same order, so the form can say so before saving. Budgets are whole amounts in the
+ * ad account's currency (the API reads them as integers). Empty means it would be accepted.
+ */
+export function paidBudgetProblems(b: PaidBudget): string[] {
+  const out: string[] = [];
+  if (b.paid) {
+    if (!(b.per_ad_budget > 0) || !(b.monthly_ad_ceiling > 0)) {
+      out.push("A paid agent needs a budget per ad and a monthly ad ceiling.");
+    } else if (!Number.isInteger(b.per_ad_budget) || !Number.isInteger(b.monthly_ad_ceiling)) {
+      out.push("Use whole amounts for the budget per ad and the monthly ad ceiling.");
+    } else if (b.per_ad_budget > b.monthly_ad_ceiling) {
+      out.push("The budget per ad is above the monthly ad ceiling.");
+    }
+    if (!Number.isInteger(b.period_days) || b.period_days < 1 || b.period_days > MAX_PERIOD_DAYS) {
+      out.push(`Each ad runs for 1 to ${MAX_PERIOD_DAYS} days.`);
+    }
+  }
+  if (b.end_date !== "" && !isISODate(b.end_date)) {
+    out.push("The end date must be a real date.");
+  }
+  return out;
+}
+
 /** Whether the tenant may use the veto window, and the terms it accepts. */
 export interface AutoPublishStatus {
   plan_allows: boolean;

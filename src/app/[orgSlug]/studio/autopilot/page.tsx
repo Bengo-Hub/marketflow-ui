@@ -13,10 +13,13 @@ import { Switch } from "@/components/ui/switch";
 import { EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
 import { useCanApprove, useOfferingSearch } from "@/hooks/use-creative";
 import { usePublishAccounts } from "@/hooks/use-publishing";
+import { useAdAccounts } from "@/hooks/use-ads";
 import {
   autopilotApi,
   autopilotPlanRefusal,
   clampStopDays,
+  MAX_PERIOD_DAYS,
+  paidBudgetProblems,
   STOP_CPL_DEFAULT_DAYS,
   STOP_CPL_MAX_DAYS,
   WEEKDAYS,
@@ -48,6 +51,9 @@ import { HoldCategoriesEditor } from "@/components/studio/hold-categories-editor
 const KEY = ["autopilot-agents"];
 const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
 const inputClass = "min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm";
+const amount = new Intl.NumberFormat("en-KE", { maximumFractionDigits: 0 });
+/** A number input's value: empty or unreadable is 0, which the checks then refuse. */
+const num = (v: string) => (v.trim() === "" || !Number.isFinite(Number(v)) ? 0 : Number(v));
 
 /** The brief keeps a snapshot of the offering; the catalogue stays its owner. */
 function snapshot(o: Offering): Record<string, unknown> {
@@ -366,6 +372,12 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
                 {cfg.cadence === "weekly" ? `Every ${WEEKDAYS[cfg.weekday]}` : "Every day"} at {cfg.time}, {offerings.length} product{offerings.length === 1 ? "" : "s"}, up to {cfg.monthly_credit_ceiling} credits a month
               </p>
             )}
+            {cfg?.paid && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Paid ads: {amount.format(cfg.per_ad_budget ?? 0)} per ad over {cfg.period_days} day{cfg.period_days === 1 ? "" : "s"}, at most {amount.format(cfg.monthly_ad_ceiling ?? 0)} a month on your ad account.
+              </p>
+            )}
+            {cfg?.end_date && <p className="mt-1 text-xs text-muted-foreground">Last day: {cfg.end_date}</p>}
             {cfg && (
               <p className="mt-1 text-xs text-muted-foreground">
                 {cfg.approval_mode === "auto_publish"
@@ -381,6 +393,12 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
                   <>
                     Your AI credits are low. <Link href={`/${orgSlug}/settings/billing`} className="font-medium text-primary hover:underline">Buy credits</Link> and it runs again on its next schedule.
                   </>
+                ) : latest.data?.trace?.skip === "ad_ceiling" ? (
+                  "Its ads reached this month's ad ceiling. It makes paid ads again next month, or sooner if you raise the ceiling in Settings."
+                ) : latest.data?.trace?.skip === "ad_funds" ? (
+                  "Your ad account could not pay for the next ad. Add funds on Meta and it runs again on its next schedule."
+                ) : latest.data?.trace?.skip === "ended" ? (
+                  "Its last day has passed. Set a later last day in Settings to carry on."
                 ) : (
                   "It runs again on its next schedule."
                 )}
@@ -432,6 +450,7 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
 }
 
 function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void }) {
+  const { orgSlug } = useParams<{ orgSlug: string }>();
   const cfg = agent.metadata?.autopilot;
   const catalogue = useOfferingSearch("");
   const accounts = usePublishAccounts();
@@ -446,6 +465,20 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const [stopCPL, setStopCPL] = useState(cfg?.stop_cpl ?? 0);
   const [stopDays, setStopDays] = useState(cfg?.stop_cpl_days ?? STOP_CPL_DEFAULT_DAYS);
   const [acctIDs, setAcctIDs] = useState<string[]>(cfg?.connected_account_ids ?? []);
+  // Paid ads (Sprint 20). Budgets are whole amounts in the ad account's currency.
+  const [paid, setPaid] = useState(cfg?.paid ?? false);
+  const [perAd, setPerAd] = useState(cfg?.per_ad_budget ?? 0);
+  const [periodDays, setPeriodDays] = useState(cfg?.period_days ?? 7);
+  const [adCeiling, setAdCeiling] = useState(cfg?.monthly_ad_ceiling ?? 0);
+  const [endDate, setEndDate] = useState(cfg?.end_date ?? "");
+  // The Meta ad account a paid run checks lives among connected_account_ids; organic posting skips it.
+  const adAccounts = useAdAccounts(paid);
+  const adIDs = new Set((adAccounts.data ?? []).map((a) => a.connected_account_id));
+  const [adChoice, setAdChoice] = useState<string | null>(null);
+  const adAcct = adChoice ?? (adAccounts.data ?? []).find((a) => acctIDs.includes(a.connected_account_id))?.connected_account_id ?? "";
+  const chosenAd = adAccounts.data?.find((a) => a.connected_account_id === adAcct);
+  const postIDs = acctIDs.filter((id) => !adIDs.has(id));
+  const budgetProblems = paidBudgetProblems({ paid, per_ad_budget: perAd, period_days: periodDays, monthly_ad_ceiling: adCeiling, end_date: endDate });
   const [mode, setMode] = useState<ApprovalMode>(cfg?.approval_mode ?? "approve_each");
   const [vetoHours, setVetoHours] = useState<number | null>(cfg?.veto_hours ?? null);
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -468,11 +501,11 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
         // The version shown is sent back, so a version published meanwhile is not accepted unread.
         await autopilotApi.setAutoPublish({ accept_terms: true, terms_version: veto?.terms_version });
       }
-      const chosen = list.filter((a) => acctIDs.includes(a.id));
+      const chosen = list.filter((a) => postIDs.includes(a.id));
       return autopilotApi.save(
         agent.id,
         {
-          // Settings this form does not show (paid budget, end date) are kept as saved.
+          // Settings this form does not show (languages, video tiers, anything added later) are kept as saved.
           ...(cfg ?? {}),
           offering_ids: picked.map((o) => String(o.source_id)),
           objective,
@@ -483,7 +516,14 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           weekday,
           time,
           platforms: [...new Set(chosen.map((a) => a.platform))],
-          connected_account_ids: acctIDs,
+          connected_account_ids: paid && adAcct ? [...postIDs, adAcct] : postIDs,
+          paid,
+          // Kept while paid is off, so switching it back on restores them; the API checks them only when paid.
+          per_ad_budget: perAd,
+          period_days: periodDays,
+          monthly_ad_ceiling: adCeiling,
+          // undefined drops the key, so clearing the date removes it.
+          end_date: endDate || undefined,
           monthly_credit_ceiling: credits,
           approval_mode: mode,
           veto_hours: mode === "auto_publish" ? hours : undefined,
@@ -592,6 +632,65 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
             </Field>
           )}
         </div>
+
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium">Paid ads</legend>
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <Checkbox checked={paid} onCheckedChange={(on) => setPaid(on === true)} aria-label="Make paid ads" />
+            <span>
+              Make paid ads
+              <span className="block text-xs text-muted-foreground">
+                Before each draft the agent checks your Meta ad account can pay for the ad and that this month&apos;s ad spend stays within your ceiling. The money goes from you to Meta, and each boost still waits for your approval.
+              </span>
+            </span>
+          </label>
+          {paid && (
+            <div className="space-y-3 rounded-lg border border-border p-3">
+              <Field label="Meta ad account that pays" htmlFor="ap-ad-account">
+                <select id="ap-ad-account" className={inputClass} value={adAcct} onChange={(e) => setAdChoice(e.target.value)} disabled={adAccounts.isLoading}>
+                  <option value="">{adAccounts.isLoading ? "Loading..." : "Choose an ad account"}</option>
+                  {(adAccounts.data ?? []).map((a) => (
+                    <option key={a.connected_account_id} value={a.connected_account_id}>
+                      {`${a.name}${a.currency ? ` (${a.currency})` : ""}${a.problem ? `: ${a.problem}` : ""}`}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {adAccounts.isSuccess && adAccounts.data.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No Meta ad account is connected. Connect one in <Link href={`/${orgSlug}/settings/integrations`} className="font-medium text-primary hover:underline">Integrations</Link>, or every paid run is skipped.
+                </p>
+              )}
+              {adAccounts.isSuccess && adAccounts.data.length > 0 && !adAcct && (
+                <p className="text-sm text-muted-foreground">Without an ad account every paid run is skipped and you get an email.</p>
+              )}
+              {adAccounts.isError && <p className="text-sm text-destructive">{apiErrorMessage(adAccounts.error, "Could not load your ad accounts")}</p>}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Field label="Budget per ad" htmlFor="ap-per-ad" hint={chosenAd?.currency ? `In ${chosenAd.currency}, for the whole run of the ad.` : "In your ad account's currency, for the whole run of the ad."}>
+                  <Input id="ap-per-ad" type="number" min={1} step={1} value={perAd || ""} onChange={(e) => setPerAd(num(e.target.value))} />
+                </Field>
+                <Field label="Days each ad runs" htmlFor="ap-period" hint={`1 to ${MAX_PERIOD_DAYS} days.`}>
+                  <Input id="ap-period" type="number" min={1} max={MAX_PERIOD_DAYS} step={1} value={periodDays || ""} onChange={(e) => setPeriodDays(num(e.target.value))} />
+                </Field>
+                <Field label="Most ad spend a month" htmlFor="ap-ad-ceiling" hint="Checked against what the agent's ads really spent this month.">
+                  <Input id="ap-ad-ceiling" type="number" min={1} step={1} value={adCeiling || ""} onChange={(e) => setAdCeiling(num(e.target.value))} />
+                </Field>
+              </div>
+            </div>
+          )}
+        </fieldset>
+
+        <Field label="Last day the agent runs" htmlFor="ap-end-date" hint="Optional. Leave it empty to keep running.">
+          <Input id="ap-end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </Field>
+
+        {budgetProblems.length > 0 && (
+          <ul role="alert" className="list-disc space-y-1 pl-5 text-sm text-destructive">
+            {budgetProblems.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        )}
 
         <label className="flex min-h-11 items-center gap-3 text-sm">
           <Checkbox checked={newItems} onCheckedChange={(on) => setNewItems(on === true)} aria-label="Draft an ad when a new product is added" />
@@ -705,7 +804,8 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           </Link>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button disabled={save.isPending || picked.length === 0 || acctIDs.length === 0 || vetoBlocked} onClick={() => { setError(null); setRefusal(null); save.mutate(); }}>
+          <Button disabled={save.isPending || picked.length === 0 || postIDs.length === 0 || budgetProblems.length > 0 || vetoBlocked} onClick={() => { setError(null); setRefusal(null); save.mutate(); }}>
+
             {save.isPending ? "Saving..." : "Save settings"}
           </Button>
           <Button variant="ghost" onClick={onDone}>Cancel</Button>
