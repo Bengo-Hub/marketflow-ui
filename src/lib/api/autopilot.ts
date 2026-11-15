@@ -24,6 +24,26 @@ export interface AutopilotConfig {
   approval_mode?: "approve_each" | "auto_publish";
   /** The veto window in hours, for auto_publish. */
   veto_hours?: number;
+  /** Paid agents: each run first checks the Meta ad account can fund per_ad_budget for period_days. */
+  paid?: boolean;
+  per_ad_budget?: number;
+  period_days?: number;
+  monthly_ad_ceiling?: number;
+  /** The CPL stop: boosts of this agent's videos pause when a lead costs more than this. 0 or unset is off. */
+  stop_cpl?: number;
+  /** The days the CPL stop judges, today included (1 to 14, default 3). */
+  stop_cpl_days?: number;
+  end_date?: string;
+}
+
+/** The CPL stop's window limits, as the API checks them. */
+export const STOP_CPL_DEFAULT_DAYS = 3;
+export const STOP_CPL_MAX_DAYS = 14;
+
+/** Clamps the CPL stop's window to 1..14 days; anything unreadable is the default. */
+export function clampStopDays(days: number): number {
+  if (!Number.isFinite(days) || days < 1) return STOP_CPL_DEFAULT_DAYS;
+  return Math.min(Math.round(days), STOP_CPL_MAX_DAYS);
 }
 
 /** Whether the tenant may use the veto window, and the terms it accepts. */
