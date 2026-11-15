@@ -90,6 +90,10 @@ export interface OSSettings {
   reference_ads?: ReferenceAd[];
   /** What customers in this market complain about; ads answer them only with true facts. At most 20. */
   customer_complaints?: string[];
+  /** Contact profiles from the business's own records (on unless switched off). */
+  contact_enrichment?: boolean;
+  /** Also read the public home page of a contact's company account (off unless switched on). */
+  contact_enrichment_web?: boolean;
 }
 
 export interface ComplaintTheme {

@@ -16,6 +16,7 @@ import { BrandInterview } from "@/components/marketing-os/brand-interview";
 import { AIFieldButton } from "@/components/marketing-os/ai-field-button";
 import { ActorNamesFields } from "@/components/marketing-os/actor-names-fields";
 import { AILabelPanel } from "@/components/marketing-os/ai-label-panel";
+import { ContactProfilesPanel } from "@/components/marketing-os/contact-profiles-panel";
 import { BrandImagesPanel } from "@/components/media/brand-images-panel";
 import { brandFormValues, mergeItems } from "@/lib/brand-form";
 import { useBrandDraft } from "@/hooks/use-onboarding";
@@ -314,6 +315,7 @@ export default function MarketingContextPage() {
           />
         </div>
       </GlassPanel>
+      <ContactProfilesPanel settings={settingsQ.data} loading={settingsQ.isLoading} orgSlug={orgSlug} />
       {settingsQ.isSuccess && <CompetitorsPanel key={(settingsQ.data?.competitors ?? []).join("|")} saved={settingsQ.data?.competitors ?? []} orgSlug={orgSlug} />}
       {settingsQ.isSuccess && (
         <MarketResearchPanel

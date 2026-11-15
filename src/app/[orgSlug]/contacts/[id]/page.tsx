@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { WhatsAppIcon } from "@/components/public-profile/whatsapp-icon";
 import { ActivityTimeline } from "@/components/crm/activity-timeline";
 import { CustomFieldsPanel } from "@/components/crm/custom-fields-panel";
+import { ContactProfilePanel } from "@/components/crm/contact-profile-panel";
 import { CapsuleTabs, ConfirmDialog, ErrorState, Field, GlassPanel, StatCard, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
 import { useContact360, useDeleteContact, useUpdateContact } from "@/hooks/use-contacts";
 import { CONTACT_TYPES, contactName, type Contact, type ContactUpdate } from "@/lib/api/contacts";
@@ -139,6 +140,7 @@ export default function ContactDetailPage() {
 
           <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
             <div className="space-y-6">
+              <ContactProfilePanel metadata={c.metadata} />
               <GlassPanel title="Purchases" description="From POS and online orders">
                 <SummaryList data={d.order_summary} />
               </GlassPanel>

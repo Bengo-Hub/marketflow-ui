@@ -12,6 +12,8 @@ export const SEGMENT_FIELDS = {
   has_email: { label: "Has an email", ops: ["eq"], kind: "bool" },
   subscribed_sms: { label: "Accepts marketing SMS", ops: ["eq"], kind: "bool" },
   subscribed_email: { label: "Accepts marketing email", ops: ["eq"], kind: "bool" },
+  /** Set by the contact enricher from the business's own records (metadata.enrichment.segment). */
+  enrichment_segment: { label: "Customer status", ops: ["eq"], kind: "choice", choices: ["active_customer", "lapsed_customer", "in_pipeline", "engaged", "quiet"] },
 } as const;
 
 export type SegmentField = keyof typeof SEGMENT_FIELDS;
