@@ -32,7 +32,7 @@ export function ContactProfilesPanel({ settings, loading, orgSlug }: { settings?
           <div>
             <p className="text-sm font-medium">Fill in contact profiles</p>
             <p className="text-xs text-muted-foreground">
-              Each contact gets a short profile from your own records: how they found you, their orders and payments, open deals and the company you linked them to. It updates when a contact is added or changed and once a week after that. Nobody is looked up on the internet, and it uses no AI credits.
+              Each contact gets a short profile from your own records: how they found you, their orders and payments, open deals and the company you linked them to. It updates when a contact is added or changed, when something new lands on their timeline, and once a week after that. Nobody is looked up on the internet, and it uses no AI credits. Turning this off removes the stored profiles.
             </p>
           </div>
           <Switch checked={on} disabled={busy} onCheckedChange={(v: boolean) => save.mutate({ contact_enrichment: v })} aria-label="Fill in contact profiles" />
@@ -41,7 +41,7 @@ export function ContactProfilesPanel({ settings, loading, orgSlug }: { settings?
           <div>
             <p className="text-sm font-medium">Add company descriptions from their websites</p>
             <p className="text-xs text-muted-foreground">
-              For contacts linked to a company, reads the title and description of the website you saved on that company. Only the company&apos;s own home page is read.
+              For contacts linked to a company, reads the title and description of the website you saved on that company. Only the company&apos;s own home page is read. Turning this off removes the stored descriptions.
             </p>
           </div>
           <Switch checked={web} disabled={busy || !on} onCheckedChange={(v: boolean) => save.mutate({ contact_enrichment_web: v })} aria-label="Add company descriptions from their websites" />
