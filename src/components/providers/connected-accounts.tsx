@@ -11,6 +11,7 @@ const kinds: Record<string, string> = {
   instagram_business: "Instagram",
   meta_ad_account: "Ad account",
   tiktok_advertiser: "TikTok advertiser",
+  youtube_channel: "YouTube channel",
 };
 
 function Picture({ account }: { account: ConnectedAccount }) {

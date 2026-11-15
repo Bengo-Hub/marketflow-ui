@@ -5,6 +5,7 @@ const providerNames: Record<string, string> = {
   meta: "Facebook / Instagram",
   google: "Google Calendar",
   tiktok: "TikTok for Business",
+  youtube: "YouTube",
 };
 
 const reasons: Record<string, (name: string) => string> = {
@@ -16,6 +17,11 @@ const reasons: Record<string, (name: string) => string> = {
   oauth_not_configured: (n) => `${n} is not set up on MarketFlow yet. Please contact Codevertex support.`,
   no_refresh_token: (n) =>
     `${n} did not grant offline access. Remove MarketFlow from your Google account's third-party access, then connect again.`,
+  missing_scope: (n) =>
+    `${n} needs both permissions on Google's screen: uploading videos, and managing the videos MarketFlow posts. Click Connect and leave both ticked.`,
+  no_channel: () =>
+    "That Google account has no YouTube channel yet. Create the channel on YouTube, or pick the Google account or brand account that owns it, then connect again.",
+  channel_read_failed: () => "YouTube did not say which channel you picked. Please connect again in a few minutes.",
 };
 
 /** Text for a failed connect, or null when the page did not come back with an error. */

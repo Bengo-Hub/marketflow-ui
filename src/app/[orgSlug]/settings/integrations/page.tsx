@@ -89,6 +89,12 @@ export default function IntegrationsPage() {
       {params.get("tiktok") === "connected" && (
         <Banner ok text="TikTok for Business connected. You can now run TikTok campaigns." />
       )}
+      {params.get("youtube") === "connected" && (
+        <Banner
+          ok
+          text={`YouTube channel connected${params.get("channel") ? `: ${params.get("channel")}` : ""}. Approved videos can now be posted to it as Shorts.`}
+        />
+      )}
       {/* Failure banners: the callback returns ?<provider>=error&reason=<code>. */}
       {connectProviders.map((p) => {
         const text = params.get(p) === "error" ? connectErrorText(p, params.get("reason") ?? "") : null;

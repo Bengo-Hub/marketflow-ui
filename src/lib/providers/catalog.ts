@@ -598,6 +598,38 @@ const schedulingProviders: ProviderDef[] = [
   },
 ];
 
+// ── Social publishing (platform OAuth client; channels are per-tenant) ────
+// Saved as ProviderSetting youtube/oauth; marketflow-api reads it in
+// internal/integrations/google. Each business then connects its own channel under
+// /settings/integrations, and the refresh token is kept on that channel's row.
+
+const publishingProviders: ProviderDef[] = [
+  {
+    id: "oauth",
+    type: "youtube",
+    name: "YouTube",
+    description:
+      "Google OAuth client for posting Shorts to each business's own YouTube channel. It asks for youtube.upload and youtube.force-ssl only. In Google Cloud Console add the redirect URL below to the web client and enable the YouTube Data API v3.",
+    scope: "platform",
+    logoSlug: "youtube",
+    logoColor: "FF0000",
+    brandColor: "#FF0000",
+    docsUrl: "https://console.cloud.google.com/apis/credentials",
+    capabilities: { test: true },
+    fields: [
+      { key: "client_id", label: "Client ID", type: "text", required: true, help: "OAuth 2.0 Client ID (…apps.googleusercontent.com)" },
+      { key: "client_secret", label: "Client secret", type: "password", secret: true, required: true },
+      {
+        key: "redirect_url",
+        label: "OAuth redirect URL",
+        type: "url",
+        required: true,
+        default: "https://marketflowapi.codevertexafrica.com/api/v1/integrations/youtube/callback",
+      },
+    ],
+  },
+];
+
 // Email / SMS / WhatsApp / Push providers are NOT defined here — notifications-api
 // owns every messaging channel for every SSO-integrated service. MarketFlow
 // dispatches via notifications-api's HTTP + NATS interface (see
@@ -660,6 +692,16 @@ export const tenantIntegrations: {
     brandColor: "#25F4EE",
     requiresPlatformConfig: "tiktok_ads",
     authorizePath: "/api/v1/integrations/tiktok/authorize",
+  },
+  {
+    id: "youtube",
+    name: "YouTube",
+    description: "Post approved videos as Shorts to your own YouTube channel.",
+    logoSlug: "youtube",
+    logoColor: "FF0000",
+    brandColor: "#FF0000",
+    requiresPlatformConfig: "youtube",
+    authorizePath: "/api/v1/integrations/youtube/authorize",
   },
   {
     id: "linkedin_ads",
@@ -832,6 +874,12 @@ export const providerCatalog: ProviderCategory[] = [
     label: "Scheduling",
     description: "Google Calendar integration defaults.",
     providers: schedulingProviders,
+  },
+  {
+    id: "publishing",
+    label: "Social publishing",
+    description: "OAuth clients for posting to each business's own channels.",
+    providers: publishingProviders,
   },
   // Messaging (Email / SMS / WhatsApp / Push) is centrally configured in
   // notifications-api. Use the deep-link at /platform/messaging.

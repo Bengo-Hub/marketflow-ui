@@ -11,6 +11,11 @@ describe("connectErrorText", () => {
     expect(connectErrorText("tiktok", "token_exchange_failed")).toMatch(/TikTok/);
     expect(connectErrorText("google", "weird")).toMatch(/Google Calendar/);
   });
+  it("explains the reasons a YouTube connect returns with", () => {
+    expect(connectErrorText("youtube", "missing_scope")).toMatch(/leave both ticked/);
+    expect(connectErrorText("youtube", "no_channel")).toMatch(/no YouTube channel/);
+    expect(connectErrorText("youtube", "token_exchange_failed")).toMatch(/YouTube could not be connected/);
+  });
   it("returns null when there is no error", () => {
     expect(connectErrorText("meta", null)).toBeNull();
   });
