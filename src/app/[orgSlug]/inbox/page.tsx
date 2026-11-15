@@ -3,19 +3,16 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Eye, EyeOff, Inbox, MessageCircle, Reply, Trash2, UserPlus } from "lucide-react";
-import { toast } from "sonner";
+import { Check, Eye, EyeOff, Inbox, Mail, MessageCircle, Reply, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
-import { useInbox, useInboxDelete, useInboxHandled, useInboxHide, useInboxPromote, useInboxReply } from "@/hooks/use-inbox";
+import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
+import { AutoReplySettings } from "@/components/inbox/auto-reply-settings";
+import { useInbox, useInboxDelete, useInboxHandled, useInboxHide, useInboxPrivateReply, useInboxPromote, useInboxReply } from "@/hooks/use-inbox";
 import { useIsRestricted, useMyAccess } from "@/hooks/use-access";
 import { canModerate } from "@/lib/inbox/moderation";
 import { apiErrorMessage } from "@/lib/api/errors";
-import { INTENT_LABEL, MAX_AUTO_REPLY, MAX_REPLY, type InboxFilter, type InboxItem } from "@/lib/api/inbox";
-import { marketingOsApi } from "@/lib/api/marketing-os";
+import { INTENT_LABEL, MAX_REPLY, type InboxFilter, type InboxItem } from "@/lib/api/inbox";
 
 type View = "buyers" | "open" | "all";
 
@@ -95,9 +92,13 @@ function Row({ item: it }: { item: InboxItem }) {
   const moderate = canModerate(it, access);
   const hide = useInboxHide();
   const remove = useInboxDelete();
+  const privateReply = useInboxPrivateReply();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [open, setOpen] = useState(false);
+  // Which reply box is open: a public reply (or a DM answer), or the comment's private message.
+  const [mode, setMode] = useState<"public" | "private" | null>(null);
   const [text, setText] = useState("");
+  const toggle = (m: "public" | "private") => setMode((cur) => (cur === m ? null : m));
+  const sending = mode === "private" ? privateReply : reply;
   return (
     <div className="space-y-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -117,11 +118,19 @@ function Row({ item: it }: { item: InboxItem }) {
       )}
       <div className="flex flex-wrap gap-2">
         {it.can_reply ? (
-          <Button size="sm" variant="outline" onClick={() => setOpen((o) => !o)}>
-            <Reply /> Reply
+          <Button size="sm" variant="outline" onClick={() => toggle("public")}>
+            <Reply /> {it.kind === "comment" ? "Reply publicly" : "Reply"}
           </Button>
         ) : (
           <span className="text-xs text-muted-foreground">{it.reply_window}</span>
+        )}
+        {it.can_private_reply ? (
+          <Button size="sm" variant="outline" onClick={() => toggle("private")}>
+            <Mail /> Message privately
+          </Button>
+        ) : (
+          it.kind === "comment" &&
+          it.private_reply_window && <span className="text-xs text-muted-foreground">{it.private_reply_window}</span>
         )}
         {it.lead_id ? (
           <Link href={`/${orgSlug}/leads/${it.lead_id}`} className="text-sm font-medium text-primary hover:underline">
@@ -160,83 +169,40 @@ function Row({ item: it }: { item: InboxItem }) {
         pending={remove.isPending}
         onConfirm={() => remove.mutate(it.id, { onSuccess: () => setConfirmDelete(false) })}
       />
-      {open && (
+      {mode && (
         <div className="space-y-2">
+          {mode === "private" && (
+            <p className="text-xs text-muted-foreground">
+              Goes to their {it.platform === "instagram" ? "Instagram" : "Messenger"} inbox. You can send one private message per comment; more once they answer.
+            </p>
+          )}
           <Textarea
             rows={3}
             value={text}
             maxLength={MAX_REPLY}
-            aria-label={`Reply to ${it.sender_name || "this person"}`}
-            placeholder={it.kind === "dm" ? "Your message" : "Your public reply under the comment"}
+            aria-label={`${mode === "private" ? "Private message" : "Reply"} to ${it.sender_name || "this person"}`}
+            placeholder={mode === "private" ? "Your private message" : it.kind === "dm" ? "Your message" : "Your public reply under the comment"}
             onChange={(e) => setText(e.target.value)}
           />
           <Button
             size="sm"
-            disabled={reply.isPending || !text.trim()}
-            onClick={() => reply.mutate({ id: it.id, text: text.trim() }, { onSuccess: () => { setText(""); setOpen(false); } })}
+            disabled={sending.isPending || !text.trim()}
+            onClick={() =>
+              sending.mutate(
+                { id: it.id, text: text.trim() },
+                {
+                  onSuccess: () => {
+                    setText("");
+                    setMode(null);
+                  },
+                },
+              )
+            }
           >
-            {reply.isPending ? "Sending..." : "Send"}
+            {sending.isPending ? "Sending..." : "Send"}
           </Button>
         </div>
       )}
     </div>
-  );
-}
-
-/** The automatic answer to buyers. Saving it on with a message is the owner's approval of that message. */
-function AutoReplySettings() {
-  const { orgSlug } = useParams<{ orgSlug: string }>();
-  const qc = useQueryClient();
-  const settings = useQuery({ queryKey: ["os-settings", orgSlug], queryFn: marketingOsApi.settings });
-  const [draft, setDraft] = useState<string | null>(null);
-  const text = draft ?? settings.data?.inbox_reply_text ?? "";
-  const save = useMutation({
-    mutationFn: (s: { inbox_auto_reply: boolean; inbox_reply_text: string }) => marketingOsApi.saveSettings(s),
-    onSuccess: (saved) => {
-      qc.setQueryData(["os-settings", orgSlug], saved);
-      setDraft(null);
-      toast.success(saved.inbox_auto_reply ? "Automatic replies are on" : "Automatic replies saved and off");
-    },
-    onError: (e) => toast.error(apiErrorMessage(e, "Could not save the automatic reply")),
-  });
-  const on = settings.data?.inbox_auto_reply ?? false;
-  return (
-    <GlassPanel>
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <p className="text-sm font-medium">Answer buyers automatically</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              When someone asks about a price, delivery or stock, they get your message below. One automatic answer per person a day; complaints and anything unclear wait for you.
-            </p>
-          </div>
-          <Switch
-            checked={on}
-            disabled={settings.isLoading || save.isPending || !text.trim()}
-            onCheckedChange={(v: boolean) => save.mutate({ inbox_auto_reply: v, inbox_reply_text: text })}
-            aria-label="Answer buyers automatically"
-          />
-        </div>
-        <Field
-          label="Your message"
-          htmlFor="auto-reply-text"
-          hint={`${text.length} of ${MAX_AUTO_REPLY}. {{booking_link}} and {{profile_link}} become your links.`}
-        >
-          <Textarea
-            id="auto-reply-text"
-            rows={3}
-            maxLength={MAX_AUTO_REPLY}
-            value={text}
-            placeholder="Thanks for asking! See prices and order here: {{profile_link}}"
-            onChange={(e) => setDraft(e.target.value)}
-          />
-        </Field>
-        {draft !== null && (
-          <Button size="sm" disabled={save.isPending} onClick={() => save.mutate({ inbox_auto_reply: on && !!text.trim(), inbox_reply_text: text })}>
-            Save message
-          </Button>
-        )}
-      </div>
-    </GlassPanel>
   );
 }
