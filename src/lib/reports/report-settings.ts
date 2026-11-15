@@ -24,7 +24,11 @@ export function reportSettingsFrom(meta: Record<string, unknown> | undefined): R
 }
 
 /** The metadata patch that saves the settings; null clears the amount and an empty footer. */
-export function reportSettingsPatch(s: ReportSettings) {
+export function reportSettingsPatch(s: ReportSettings): {
+  weekly_report: "on" | "off";
+  average_sale_value: number | null;
+  email_footer: string | null;
+} {
   const footer = s.emailFooter.replace(/\s+/g, " ").trim();
   return {
     weekly_report: s.weeklyReport ? "on" : "off",

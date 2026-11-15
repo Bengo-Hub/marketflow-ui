@@ -485,7 +485,6 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const [error, setError] = useState<string | null>(null);
   // A plan refusal (not in the plan, over the limit) gets an upgrade link under the message.
   const [refusal, setRefusal] = useState<AutopilotPlanRefusal | null>(null);
-  const { orgSlug } = useParams<{ orgSlug: string }>();
   const list = accounts.data ?? [];
   const autoPublish = useQuery({ queryKey: [...KEY, "auto-publish"], queryFn: autopilotApi.autoPublish, retry: false });
   const veto = autoPublish.data;
