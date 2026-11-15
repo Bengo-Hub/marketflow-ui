@@ -13,7 +13,16 @@ import { Switch } from "@/components/ui/switch";
 import { EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
 import { useCanApprove, useOfferingSearch } from "@/hooks/use-creative";
 import { usePublishAccounts } from "@/hooks/use-publishing";
-import { autopilotApi, WEEKDAYS, type AutopilotAgent, type AutopilotConfig, type AutopilotPost } from "@/lib/api/autopilot";
+import {
+  autopilotApi,
+  clampStopDays,
+  STOP_CPL_DEFAULT_DAYS,
+  STOP_CPL_MAX_DAYS,
+  WEEKDAYS,
+  type AutopilotAgent,
+  type AutopilotConfig,
+  type AutopilotPost,
+} from "@/lib/api/autopilot";
 import type { Offering } from "@/lib/api/creative";
 import { apiErrorMessage } from "@/lib/api/errors";
 import {
@@ -370,6 +379,9 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const [objective, setObjective] = useState<AutopilotConfig["objective"]>(cfg?.objective ?? "whatsapp");
   const [credits, setCredits] = useState(cfg?.monthly_credit_ceiling ?? 100);
   const [newItems, setNewItems] = useState(cfg?.new_item_drafts ?? false);
+  // The CPL stop (Sprint 20): 0 is off.
+  const [stopCPL, setStopCPL] = useState(cfg?.stop_cpl ?? 0);
+  const [stopDays, setStopDays] = useState(cfg?.stop_cpl_days ?? STOP_CPL_DEFAULT_DAYS);
   const [acctIDs, setAcctIDs] = useState<string[]>(cfg?.connected_account_ids ?? []);
   const [mode, setMode] = useState<ApprovalMode>(cfg?.approval_mode ?? "approve_each");
   const [vetoHours, setVetoHours] = useState<number | null>(cfg?.veto_hours ?? null);
@@ -394,6 +406,8 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
       return autopilotApi.save(
         agent.id,
         {
+          // Settings this form does not show (paid budget, end date) are kept as saved.
+          ...(cfg ?? {}),
           offering_ids: picked.map((o) => String(o.source_id)),
           objective,
           new_item_drafts: newItems,
@@ -406,7 +420,9 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           connected_account_ids: acctIDs,
           monthly_credit_ceiling: credits,
           approval_mode: mode,
-          ...(mode === "auto_publish" ? { veto_hours: hours } : {}),
+          veto_hours: mode === "auto_publish" ? hours : undefined,
+          stop_cpl: stopCPL > 0 ? stopCPL : 0,
+          stop_cpl_days: stopCPL > 0 ? clampStopDays(stopDays) : undefined,
         },
         picked,
       );
@@ -484,6 +500,29 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           <Field label="Most AI credits a month" htmlFor="ap-credits" hint="The agent stops drafting for the month once it reaches this.">
             <Input id="ap-credits" type="number" min={1} max={5000} value={credits} onChange={(e) => setCredits(Number(e.target.value))} />
           </Field>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field
+            label="Pause boosts when a lead costs more than"
+            htmlFor="ap-stop-cpl"
+            hint="For boosts of this agent's videos. Leave at 0 for no limit. You get an email when a boost is paused."
+          >
+            <Input id="ap-stop-cpl" type="number" min={0} value={stopCPL} onChange={(e) => setStopCPL(Math.max(0, Number(e.target.value) || 0))} />
+          </Field>
+          {stopCPL > 0 && (
+            <Field label="Judged over the last days" htmlFor="ap-stop-days" hint={`1 to ${STOP_CPL_MAX_DAYS} days, today included. A boost is judged once it has run that long.`}>
+              <Input
+                id="ap-stop-days"
+                type="number"
+                min={1}
+                max={STOP_CPL_MAX_DAYS}
+                value={stopDays}
+                onChange={(e) => setStopDays(Number(e.target.value))}
+                onBlur={() => setStopDays(clampStopDays(stopDays))}
+              />
+            </Field>
+          )}
         </div>
 
         <label className="flex min-h-11 items-center gap-3 text-sm">
