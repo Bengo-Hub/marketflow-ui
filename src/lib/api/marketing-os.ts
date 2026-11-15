@@ -79,6 +79,11 @@ export interface OSSettings {
   /** Social inbox auto reply (Sprint 22): answers buyer comments and DMs with inbox_reply_text. */
   inbox_auto_reply?: boolean;
   inbox_reply_text?: string;
+  /** The tenant's own confidence bars (0 to 1); null keeps the defaults (0.55 to tag, 0.7 to answer). */
+  inbox_intent_threshold?: number | null;
+  inbox_auto_reply_threshold?: number | null;
+  /** The public line under a comment whose answer went as a private message; empty uses the default. */
+  inbox_comment_prompt?: string;
   /** Competitor names, domains or Google advertiser ids for the weekly ad scan (Sprint 24). */
   competitors?: string[];
   /** Ads the owner saw working, with notes on why (Find, Flip, Fix). At most 20. */

@@ -33,6 +33,11 @@ export interface InboxItem {
   deleted_at?: string;
   /** A live Facebook Page or Instagram comment, so it can be hidden or deleted. */
   can_moderate?: boolean;
+  /** A Facebook or Instagram comment that can still get its one private message (within 7 days). */
+  can_private_reply?: boolean;
+  /** Why a private message can no longer be sent, when it cannot. */
+  private_reply_window?: string;
+  private_replied_at?: string;
 }
 
 export interface InboxPage {
@@ -53,6 +58,8 @@ export const inboxApi = {
       .get<InboxPage>(base, { params: { kind: f.kind, intent: f.intent, open: f.open ? "true" : undefined, cursor, limit: 30 } })
       .then((r) => r.data),
   reply: (id: string, text: string) => apiClient.post<InboxItem>(`${base}/${id}/reply`, { text }).then((r) => r.data),
+  /** The one private message a comment allows, sent to the commenter's inbox within 7 days. */
+  privateReply: (id: string, text: string) => apiClient.post<InboxItem>(`${base}/${id}/private-reply`, { text }).then((r) => r.data),
   handled: (id: string) => apiClient.post<InboxItem>(`${base}/${id}/handled`).then((r) => r.data),
   promote: (id: string) => apiClient.post<{ lead_id: string }>(`${base}/${id}/promote`).then((r) => r.data),
   /** Hide or unhide a Facebook Page or Instagram comment on the business's own post. */
@@ -76,3 +83,5 @@ export const INTENT_LABEL: Record<string, string> = {
 
 export const MAX_REPLY = 1000;
 export const MAX_AUTO_REPLY = 500;
+export const MAX_COMMENT_PROMPT = 200;
+export const DEFAULT_COMMENT_PROMPT = "Thanks for asking. I have sent you the details in a private message.";

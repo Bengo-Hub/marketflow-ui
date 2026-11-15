@@ -30,7 +30,13 @@ function useInboxAction<A>(fn: (a: A) => Promise<unknown>, ok: string, fail: str
 
 export const useInboxReply = () =>
   useInboxAction(({ id, text }: { id: string; text: string }) => inboxApi.reply(id, text), "Reply sent", "Could not send the reply");
-export const useInboxHandled = () => useInboxAction(inboxApi.handled, "Marked as handled", "Could not mark it handled");
+export const useInboxPrivateReply = () =>
+  useInboxAction(
+    ({ id, text }: { id: string; text: string }) => inboxApi.privateReply(id, text),
+    "Private message sent",
+    "Could not send the private message",
+  );
+export const useInboxHandled =() => useInboxAction(inboxApi.handled, "Marked as handled", "Could not mark it handled");
 export const useInboxPromote = () => useInboxAction(inboxApi.promote, "Added to your leads", "Could not add the lead");
 export const useInboxHide = () =>
   useInboxAction(({ id, hidden }: { id: string; hidden: boolean }) => inboxApi.hide(id, hidden), "Comment updated", "Could not change the comment");
