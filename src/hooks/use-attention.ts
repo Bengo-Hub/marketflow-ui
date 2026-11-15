@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import { accountsNeedingReconnect, integrationsApi } from "@/lib/api/integrations";
 import { suggestionsApi } from "@/lib/api/suggestions";
 import { tasksApi } from "@/lib/api/tasks";
 import { rows } from "@/lib/api/types";
@@ -34,8 +35,9 @@ export interface AttentionMeeting {
 }
 
 /**
- * What needs the user today, for the header bell: overdue tasks, meetings in the next 24 hours and
- * the agents' open suggestions. Polls every two minutes while the app is open.
+ * What needs the user today, for the header bell: overdue tasks, meetings in the next 24 hours,
+ * the agents' open suggestions and connected accounts that are expiring or stopped working.
+ * Polls every two minutes while the app is open.
  */
 export function useAttention(enabled: boolean) {
   return useQuery({
@@ -46,18 +48,21 @@ export function useAttention(enabled: boolean) {
     queryFn: async () => {
       const now = new Date();
       const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      const [overdue, meetings, suggestions] = await Promise.allSettled([
+      const [overdue, meetings, suggestions, integrations] = await Promise.allSettled([
         tasksApi.list({ overdue: "true", limit: "10" }),
         apiClient.get("/api/v1/meetings", {
           params: { status: "scheduled", date_from: now.toISOString(), date_to: tomorrow.toISOString(), limit: 10 },
         }),
         suggestionsApi.list(),
+        integrationsApi.list(),
       ]);
       return {
         tasks: overdue.status === "fulfilled" ? rows<AttentionTask>(overdue.value.data) : [],
         meetings: meetings.status === "fulfilled" ? rows<AttentionMeeting>(meetings.value.data) : [],
         suggestions: suggestions.status === "fulfilled" ? rows<Suggestion>(suggestions.value.data) : [],
-        failed: [overdue, meetings, suggestions].every((r) => r.status === "rejected"),
+        reconnect:
+          integrations.status === "fulfilled" ? accountsNeedingReconnect(integrations.value.integrations) : [],
+        failed: [overdue, meetings, suggestions, integrations].every((r) => r.status === "rejected"),
       };
     },
   });

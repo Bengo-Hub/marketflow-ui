@@ -1,15 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Megaphone } from "lucide-react";
+import { AlertTriangle, Megaphone } from "lucide-react";
+import { needsReconnect, reconnectLabel, type ConnectedAccount } from "@/lib/api/integrations";
 
-export type ConnectedAccount = {
-  type: string;
-  external_id: string;
-  name: string;
-  picture_url?: string;
-  default?: boolean;
-};
+export type { ConnectedAccount } from "@/lib/api/integrations";
 
 const kinds: Record<string, string> = {
   facebook_page: "Facebook Page",
@@ -46,31 +41,52 @@ function Picture({ account }: { account: ConnectedAccount }) {
   );
 }
 
-/** The accounts a tenant connected through one provider, recognisable at a glance. */
+/**
+ * The accounts a tenant connected through one provider, recognisable at a glance. An account that
+ * is expiring or stopped working says so on its row; the card offers the reconnect.
+ */
 export function ConnectedAccounts({ accounts }: { accounts: ConnectedAccount[] }) {
   if (!accounts.length) return null;
   return (
     <ul className="divide-y rounded-md border bg-muted/30">
-      {accounts.map((a) => (
-        <li key={`${a.type}:${a.external_id}`} className="flex items-center gap-3 px-3 py-2">
-          <Picture account={a} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="truncate text-sm font-medium">
-                {a.type === "instagram_business" ? `@${a.name}` : a.name || a.external_id}
-              </span>
-              {a.default && (
-                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                  Default
+      {accounts.map((a) => {
+        const attention = needsReconnect(a);
+        return (
+          <li key={`${a.type}:${a.external_id}`} className="flex items-center gap-3 px-3 py-2">
+            <Picture account={a} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-sm font-medium">
+                  {a.type === "instagram_business" ? `@${a.name}` : a.name || a.external_id}
                 </span>
+                {a.default && (
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                    Default
+                  </span>
+                )}
+                {attention && (
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                      a.health === "expired" ? "bg-destructive/10 text-destructive" : "bg-warning/15 text-warning"
+                    }`}
+                  >
+                    <AlertTriangle className="h-3 w-3" aria-hidden />
+                    {a.health === "expired" ? "Expired" : "Expiring"}
+                  </span>
+                )}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">
+                {kinds[a.type] ?? a.type} · <span className="font-mono">ID {a.external_id}</span>
+              </div>
+              {attention && (
+                <p className={`mt-0.5 text-xs ${a.health === "expired" ? "text-destructive" : "text-warning"}`}>
+                  {a.health === "expired" ? a.problem || reconnectLabel(a) : reconnectLabel(a)}
+                </p>
               )}
             </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {kinds[a.type] ?? a.type} · <span className="font-mono">ID {a.external_id}</span>
-            </div>
-          </div>
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ul>
   );
 }
