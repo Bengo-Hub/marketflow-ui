@@ -9,7 +9,8 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, User, Globe, Bell, ExternalLink, Settings, Shield, CalendarClock, ListTodo, Lightbulb, X } from "lucide-react";
+import { LogOut, User, Globe, Bell, ExternalLink, Settings, Shield, CalendarClock, ListTodo, Lightbulb, Unplug, X } from "lucide-react";
+import { reconnectLabel } from "@/lib/api/integrations";
 import { TenantSwitcher } from "@/components/layout/tenant-switcher";
 import { OutletFilter } from "@/components/layout/outlet-filter";
 import { useAttention, useDismissSuggestion } from "@/hooks/use-attention";
@@ -41,7 +42,8 @@ function AttentionBell({ orgSlug }: { orgSlug?: string }) {
   const tasks = data?.tasks ?? [];
   const meetings = data?.meetings ?? [];
   const suggestions = data?.suggestions ?? [];
-  const count = tasks.length + meetings.length + suggestions.length;
+  const reconnect = data?.reconnect ?? [];
+  const count = tasks.length + meetings.length + suggestions.length + reconnect.length;
 
   return (
     <DropdownMenu>
@@ -66,9 +68,24 @@ function AttentionBell({ orgSlug }: { orgSlug?: string }) {
             <div className="px-4 py-8 text-center">
               <Bell className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" />
               <p className="text-sm font-medium">You are all caught up</p>
-              <p className="mt-1 text-xs text-muted-foreground">Overdue tasks, today&apos;s meetings and agent suggestions show here.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Overdue tasks, today&apos;s meetings, agent suggestions and accounts to reconnect show here.
+              </p>
             </div>
           )}
+          {reconnect.map((a) => (
+            <Link
+              key={`${a.provider}:${a.type}:${a.external_id}`}
+              href={`/${orgSlug}/settings/integrations`}
+              className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-accent"
+            >
+              <Unplug className={`mt-0.5 h-4 w-4 shrink-0 ${a.health === "expired" ? "text-destructive" : "text-warning"}`} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{a.name || a.external_id}</p>
+                <p className={`text-xs ${a.health === "expired" ? "text-destructive" : "text-warning"}`}>{reconnectLabel(a)}</p>
+              </div>
+            </Link>
+          ))}
           {meetings.map((m) => (
             <Link
               key={m.id}

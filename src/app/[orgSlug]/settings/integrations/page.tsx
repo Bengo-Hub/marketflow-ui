@@ -9,18 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ProviderLogo } from "@/components/providers/provider-logo";
 import { tenantIntegrations } from "@/lib/providers/catalog";
 import { connectErrorText, connectProviders } from "@/lib/integrations/connect-result";
-import { ConnectedAccounts, type ConnectedAccount } from "@/components/providers/connected-accounts";
-import { CheckCircle2, ExternalLink } from "lucide-react";
+import { ConnectedAccounts } from "@/components/providers/connected-accounts";
+import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
 import { useMyAccess } from "@/hooks/use-access";
 import { canConnectIntegration, isRestricted } from "@/lib/access/role-access";
-
-type Integration = {
-  provider: string;
-  name: string;
-  connected: boolean;
-  fields: Record<string, string>;
-  accounts?: ConnectedAccount[];
-};
+import { integrationsApi, needsReconnect } from "@/lib/api/integrations";
 
 export default function IntegrationsPage() {
   const qc = useQueryClient();
@@ -31,10 +24,7 @@ export default function IntegrationsPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["integrations"],
-    queryFn: async () => {
-      const r = await apiClient.get<{ integrations: Integration[] }>(`/api/v1/integrations`);
-      return r.data;
-    },
+    queryFn: integrationsApi.list,
     refetchInterval: 30_000,
   });
 
@@ -110,6 +100,8 @@ export default function IntegrationsPage() {
           const existing = rowFor(it.id);
           const connected = !!existing?.connected;
           const canConnect = canConnectIntegration(access, it.authorizePath);
+          const stale = connected ? (existing?.accounts ?? []).filter(needsReconnect) : [];
+          const anyExpired = stale.some((a) => a.health === "expired");
           return (
             <div
               key={it.id}
@@ -128,6 +120,10 @@ export default function IntegrationsPage() {
                     <h3 className="truncate text-base font-semibold">{it.name}</h3>
                     {isLoading ? (
                       <Skeleton className="h-5 w-20" />
+                    ) : connected && stale.length > 0 ? (
+                      <Badge variant="outline" className={anyExpired ? "border-destructive/40 text-destructive" : "border-warning/40 text-warning"}>
+                        <AlertTriangle className="mr-1 h-3 w-3" /> {anyExpired ? "Needs reconnecting" : "Expiring soon"}
+                      </Badge>
                     ) : connected ? (
                       <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
                         <CheckCircle2 className="mr-1 h-3 w-3" /> Connected
@@ -140,6 +136,29 @@ export default function IntegrationsPage() {
                 </div>
               </div>
 
+              {stale.length > 0 && (
+                // Reconnect prompt (Sprint 16): the same connect flow refreshes every token.
+                <div
+                  role="alert"
+                  className={`flex flex-col gap-2 rounded-md border px-3 py-2 text-sm sm:flex-row sm:items-center ${
+                    anyExpired ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-warning/40 bg-warning/10 text-warning"
+                  }`}
+                >
+                  <p className="flex-1">
+                    {anyExpired
+                      ? `${stale.length === 1 ? "One account has" : `${stale.length} accounts have`} stopped working. Posts, lead reading and ads for ${stale.length === 1 ? "it" : "them"} are paused until you connect ${it.name} again.`
+                      : `${stale.length === 1 ? "One account expires" : `${stale.length} accounts expire`} soon. Connect ${it.name} again before then so nothing stops.`}
+                  </p>
+                  {canConnect ? (
+                    <Button size="sm" onClick={() => connect.mutate(it.id)} disabled={connect.isPending}>
+                      Reconnect
+                      <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                    </Button>
+                  ) : (
+                    <p className="text-xs">Ask a MarketFlow admin to reconnect.</p>
+                  )}
+                </div>
+              )}
               {connected && existing?.accounts && existing.accounts.length > 0 && (
                 <ConnectedAccounts accounts={existing.accounts} />
               )}

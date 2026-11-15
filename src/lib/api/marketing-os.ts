@@ -221,7 +221,8 @@ export interface NextAction {
 }
 
 export interface TeamResult {
-  route: "clarify" | "chat" | "quote" | "done" | "blocked";
+  /** "team": the team setup or review; the org chart is in AskResponse.answer. */
+  route: "clarify" | "chat" | "quote" | "done" | "blocked" | "team";
   spec?: TaskSpec;
   question?: string;
   plan?: CreativePlan;
@@ -305,7 +306,18 @@ export interface TeamProgress {
   label: string;
 }
 
-type AskBody = { text: string; approve_plan?: boolean; tier?: string; platforms?: string[]; playbook?: string };
+type AskBody = {
+  text: string;
+  approve_plan?: boolean;
+  tier?: string;
+  platforms?: string[];
+  playbook?: string;
+  /** The "Set up my team" button: the turn is the team setup (free the first time, even with no credits). */
+  team_setup?: boolean;
+};
+
+/** What the "Set up my team" button sends; the server routes on team_setup, the text is for the record. */
+export const TEAM_SETUP_TEXT = "Set up my marketing team";
 
 /** An error shaped like axios's, so apiError() reads it the same way. */
 function streamError(status: number, error: string) {

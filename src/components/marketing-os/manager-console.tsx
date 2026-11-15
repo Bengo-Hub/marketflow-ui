@@ -10,6 +10,7 @@ import {
   apiError,
   marketingOsApi,
   MEDIA_ACTIONS,
+  TEAM_SETUP_TEXT,
   type AskResponse,
   type BrandContext,
   type CreativePlan,
@@ -24,7 +25,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Check, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, Loader2, Users } from "lucide-react";
 import { BrandImagesRequired } from "@/components/media/brand-images-required";
 import { isBrandImagesRequired } from "@/lib/api/brand-images";
 import { cn } from "@/lib/utils";
@@ -332,8 +333,12 @@ export function ManagerConsole({
 
   const [stages, setStages] = useState<TeamProgress[]>([]);
   const ask = useMutation({
-    mutationFn: (opts: { approve?: boolean; tier?: string }) => {
+    mutationFn: (opts: { approve?: boolean; tier?: string; teamSetup?: boolean }) => {
       setStages([]);
+      if (opts.teamSetup) {
+        setSpec(null);
+        return marketingOsApi.askStream({ text: TEAM_SETUP_TEXT, team_setup: true }, (p) => setStages((s) => [...s, p]));
+      }
       return marketingOsApi.askStream(
         { text: draft.trim(), approve_plan: opts.approve, tier: opts.tier || undefined },
         (p) => setStages((s) => [...s, p]),
@@ -343,6 +348,8 @@ export function ManagerConsole({
       setRes(r);
       if (r.result.spec) setSpec(r.result.spec);
       if (r.credits_charged > 0) qc.invalidateQueries({ queryKey: ["wallet"] });
+      // The setup may switch members on or off: the Team tab reads the new roster.
+      if (r.result.route === "team") qc.invalidateQueries({ queryKey: ["os-team"] });
     },
     onError: (e) => {
       const timedOut = (e as { code?: string })?.code === "ECONNABORTED";
@@ -415,7 +422,20 @@ export function ManagerConsole({
             <span className={cn("text-xs", tooLong ? "text-destructive" : "text-muted-foreground")}>
               English or Swahili. {draft.length}/{MAX_ASK}
             </span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => ask.mutate({ teamSetup: true })}
+                disabled={busy}
+                title="Fits the team to your business and shows who does what. The first setup is free, even with no credits; a later review costs 1 credit."
+              >
+                {ask.isPending && ask.variables?.teamSetup ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <Users className="mr-1.5 h-4 w-4" />
+                )}
+                Set up my team
+              </Button>
               <Button variant="outline" onClick={() => preview.mutate()} disabled={!draft.trim() || tooLong || busy}>
                 {preview.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
                 Check first (free)
@@ -457,6 +477,18 @@ export function ManagerConsole({
             <p className="text-sm font-medium">{result.question}</p>
             <p className="text-xs text-muted-foreground">
               Add the answer to your request above and send it again. You were not charged for this question.
+            </p>
+          </div>
+        )}
+
+        {result?.route === "team" && res?.answer && (
+          // The org chart is plain text written to fit one WhatsApp message.
+          <div className="space-y-2 rounded-lg bg-muted/50 p-4">
+            <p className="whitespace-pre-wrap text-sm">{res.answer}</p>
+            <p className="text-xs text-muted-foreground">
+              {res.credits_charged > 0
+                ? `This review used ${res.credits_charged} credit.`
+                : "Free. Change names, instructions or who is on in the Team tab."}
             </p>
           </div>
         )}
