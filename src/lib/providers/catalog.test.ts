@@ -10,6 +10,6 @@ describe("tenant integrations", () => {
   });
   it("keeps the working connect flows", () => {
     const live = tenantIntegrations.filter((i) => !i.comingSoon).map((i) => i.id).sort();
-    expect(live).toEqual(["google_calendar", "meta_ads", "tiktok_ads"]);
+    expect(live).toEqual(["google_calendar", "meta_ads", "tiktok_ads", "youtube"]);
   });
 });
