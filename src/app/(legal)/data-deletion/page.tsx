@@ -30,8 +30,8 @@ export default function DataDeletionPage() {
         <h2 className="mb-2 text-base font-semibold text-foreground">Other ways to delete your data</h2>
         <p>
           You can also email{" "}
-          <a className="text-primary underline" href="mailto:info@codevertexafrica.com">
-            info@codevertexafrica.com
+          <a className="text-primary underline" href="mailto:legal@codevertexafrica.com">
+            legal@codevertexafrica.com
           </a>{" "}
           and we delete it for you. Leads and messages that people sent to a business stay with that business as its
           customer records. Read how we handle data in the{" "}
