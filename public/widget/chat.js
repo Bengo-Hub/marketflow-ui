@@ -51,13 +51,18 @@
   var tenantSlug   = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]?$/.test(_rawTenant) ? _rawTenant : 'codevertex';
 
   var businessType = (script && script.dataset.businessType) || '';
-  var primaryColor = (script && script.dataset.primaryColor) || '#EC4899';
+  // Colours go straight into the widget's CSS, so only a plain hex colour is accepted.
+  function safeColor(c, fallback) { return /^#[0-9a-fA-F]{3,8}$/.test(c || '') ? c : fallback; }
+  var primaryColor = safeColor(script && script.dataset.primaryColor, '#EC4899');
   // One brand colour unless the page names a second: a two-hue default clashed with tenant colours.
-  var accentColor  = (script && script.dataset.accentColor)  || primaryColor;
+  var accentColor  = safeColor(script && script.dataset.accentColor, primaryColor);
   var widgetTitle  = (script && script.dataset.widgetTitle)  || 'Vera';
-  var waNumber     = (script && script.dataset.whatsapp)     || '';
-  var phoneNumber  = (script && script.dataset.phone)        || '';
+  // Contact details end up in links: digits for WhatsApp, digits and + for a phone,
+  // and only an https call link (a javascript: link would run on click).
+  var waNumber     = ((script && script.dataset.whatsapp)    || '').replace(/[^0-9]/g, '');
+  var phoneNumber  = ((script && script.dataset.phone)       || '').replace(/[^0-9+]/g, '');
   var callUrl      = (script && script.dataset.callUrl)      || '';
+  if (!/^https:\/\/[^\s"'<>\\]+$/i.test(callUrl) || callUrl.length > 1000) callUrl = '';
   var emailAddress = (script && script.dataset.email)        || '';
   var subtitle     = (script && script.dataset.subtitle)     || '';
   // The business logo (Sprint 7). Only a plain https link is used; it is set as an <img> src
@@ -112,11 +117,12 @@
   var callHref = callUrl    || (phoneNumber ? 'tel:' + phoneNumber : '');
   var emailHref = emailAddress ? 'mailto:' + emailAddress : '';
 
-  // Dynamic subtitle — explicit override > niche default
-  var subtitleText = subtitle || (
+  // Dynamic subtitle — explicit override > niche default. subtitleText is HTML: the page's
+  // subtitle (the tenant's name) and the title are escaped before they go into it.
+  var subtitleText = escHTML(subtitle) || (
     businessType === 'flp'            ? 'Forever Living &middot; Online'   :
     businessType === 'codevertex'     ? 'Codevertex AI &middot; Online'    :
-    businessType === 'cafe'           ? widgetTitle + ' &middot; Online'   :
+    businessType === 'cafe'           ? escHTML(widgetTitle) + ' &middot; Online' :
     businessType === 'marketflow-crm' ? 'MarketFlow CRM &middot; Online'   :
                                         'AI Assistant &middot; Online'
   );
@@ -282,6 +288,8 @@
 }\
 .msg a{color:' + accentColor + ';text-decoration:underline;text-underline-offset:2px}\
 .msg a.bare{word-break:break-all}\
+.msg img{display:block;max-width:100%;height:auto;border-radius:8px;margin:4px 0}\
+.msg .img-off{font-style:italic;color:#6b7280}\
 .msg strong,.msg b{font-weight:600}\
 .msg em,.msg i{font-style:italic}\
 .msg p{margin:0 0 8px}\
@@ -792,7 +800,7 @@
   function showTyping(label) {
     var d = document.createElement('div');
     d.className = 'typing';
-    d.innerHTML = '<span class="typing-text">' + (label || 'Thinking') + '</span><div class="dots"><span></span><span></span><span></span></div>';
+    d.innerHTML = '<span class="typing-text">' + escHTML(label || 'Thinking') + '</span><div class="dots"><span></span><span></span><span></span></div>';
     body.appendChild(d);
     scrollBottom();
     return d;
@@ -1361,12 +1369,30 @@
   // links become anchors. Safe to call on a half-streamed answer: an
   // unfinished table or list simply renders as text until it completes.
 
-  // inline renders one line: code spans, links, bold, italic, strikethrough.
+  // Images in answers load only from our own hosts: the API host, the media host and this page.
+  // Any other image shows its label as plain text, so no request goes to a host the answer named.
+  var IMAGE_HOSTS = ['media.codevertexafrica.com'];
+  function allowedImage(url) {
+    try {
+      var u = new URL(url, window.location.href);
+      if (u.origin === window.location.origin && (u.protocol === 'https:' || u.protocol === 'http:')) return true;
+      if (u.protocol !== 'https:') return false;
+      return u.host === new URL(apiURL).host || IMAGE_HOSTS.indexOf(u.hostname) !== -1;
+    } catch (e) { return false; }
+  }
+
+  // inline renders one line: code spans, images, links, bold, italic, strikethrough.
   function inline(text) {
     var keep = [];
     function hold(html) { keep.push(html); return '\x00' + (keep.length - 1) + '\x00'; }
     var s = String(text)
       .replace(/`([^`]+)`/g, function (_, c) { return hold('<code>' + escHTML(c) + '</code>'); })
+      .replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, function (_, alt, url) {
+        if (allowedImage(url)) {
+          return hold('<img src="' + escAttr(url) + '" alt="' + escAttr(alt) + '" loading="lazy" referrerpolicy="no-referrer" />');
+        }
+        return hold('<span class="img-off">' + escHTML(alt || 'image') + '</span>');
+      })
       .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function (_, label, url) {
         return hold('<a href="' + escAttr(url) + '" target="_blank" rel="noreferrer">' + escHTML(label) + '</a>');
       })
@@ -1643,7 +1669,8 @@
       return;
     }
     if (isInjectionAttempt(q)) {
-      appendMsg('bot', md("I'm " + escHTML(widgetTitle) + " and I'm here to assist with questions about **" + escHTML(widgetTitle) + "**. I can't change my role or adopt a different persona."));
+      // md() escapes its input, so the title goes in as plain text.
+      appendMsg('bot', md("I'm " + widgetTitle + " and I'm here to assist with questions about **" + widgetTitle + "**. I can't change my role or adopt a different persona."));
       return;
     }
     msgTimestamps.push(Date.now());

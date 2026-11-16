@@ -39,6 +39,11 @@ export function useLaunchBoost() {
   });
 }
 
+/** Sends the WhatsApp code a boost over the limit needs. The dialog shows errors inline. */
+export function useBoostOtp() {
+  return useMutation({ mutationFn: (b: BoostInput) => adsApi.boostOtp(b) });
+}
+
 export function useBoostAction(fn: (id: string) => Promise<unknown>, ok: string, fail: string) {
   const qc = useQueryClient();
   return useMutation({

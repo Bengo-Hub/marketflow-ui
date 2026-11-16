@@ -52,6 +52,48 @@ export interface BoostInput {
   countries?: string[];
   age_min?: number;
   age_max?: number;
+  /** Sent with the code when a boost needs WhatsApp confirmation (see BoostOtp). */
+  otp_id?: string;
+  otp_code?: string;
+}
+
+/**
+ * A boost at or above the business's limit needs a code sent to the owner's verified WhatsApp
+ * number: POST /boosts answers 428 {error: "otp_required", threshold_kes}, POST /boosts/otp with
+ * the same body sends the code, and the boost is sent again with otp_id and otp_code.
+ */
+export interface BoostOtp {
+  otp_id: string;
+  expires_at: string;
+  channel: "whatsapp";
+  to_masked: string;
+}
+
+/** Wrong codes allowed before the owner must ask for a new one. */
+export const MAX_OTP_TRIES = 3;
+
+function errorOf(e: unknown): { status?: number; error?: unknown; threshold_kes?: unknown } {
+  const r = (e as { response?: { status?: number; data?: { error?: unknown; threshold_kes?: unknown } } })?.response;
+  return { status: r?.status, error: r?.data?.error, threshold_kes: r?.data?.threshold_kes };
+}
+
+/** The limit in KES when the boost needs a WhatsApp code first, else null. */
+export function otpRequired(e: unknown): number | null {
+  const r = errorOf(e);
+  if (r.status !== 428 || r.error !== "otp_required") return null;
+  return typeof r.threshold_kes === "number" ? r.threshold_kes : 0;
+}
+
+/** True when the owner has no verified WhatsApp number to send the code to. */
+export function noVerifiedPhone(e: unknown): boolean {
+  const r = errorOf(e);
+  return r.status === 409 && r.error === "no_verified_phone";
+}
+
+/** True when the API turned the code down (wrong or expired). */
+export function otpRejected(e: unknown): boolean {
+  const s = errorOf(e).status;
+  return s === 400 || s === 403;
 }
 
 export interface Boost {
@@ -79,6 +121,8 @@ export const adsApi = {
     apiClient.post<AdAccount>(`${base}/accounts/kes`, b).then((r) => r.data),
   quote: (b: { ad_account_connected_id: string; budget: number; days: number }) => apiClient.post<AdQuote>(`${base}/quote`, b).then((r) => r.data),
   boost: (b: BoostInput) => apiClient.post<Boost>(`${base}/boosts`, b).then((r) => r.data),
+  /** Sends the WhatsApp code for a boost over the limit; the body is the boost's own. */
+  boostOtp: (b: BoostInput) => apiClient.post<BoostOtp>(`${base}/boosts/otp`, b).then((r) => r.data),
   get: (id: string) => apiClient.get<Boost>(`${base}/boosts/${id}`).then((r) => r.data),
   paid: (id: string) => apiClient.post<Boost>(`${base}/boosts/${id}/paid`).then((r) => r.data),
   pause: (id: string) => apiClient.post<Boost>(`${base}/boosts/${id}/pause`).then((r) => r.data),

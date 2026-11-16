@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { SafeMarkdown } from "@/components/safe-markdown";
 import { toast } from "sonner";
 import {
   apiError,
@@ -268,7 +267,7 @@ function StepOutput({ step, shortlist }: { step: TeamStep; shortlist: Set<string
   if (step.text) {
     return (
       <div className="prose prose-sm dark:prose-invert max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{step.text}</ReactMarkdown>
+        <SafeMarkdown>{step.text}</SafeMarkdown>
       </div>
     );
   }
@@ -495,7 +494,7 @@ export function ManagerConsole({
 
         {(result?.route === "chat" || result?.route === "blocked") && res?.answer && (
           <div className="prose prose-sm dark:prose-invert max-w-none rounded-lg bg-muted/50 p-4">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{res.answer}</ReactMarkdown>
+            <SafeMarkdown>{res.answer}</SafeMarkdown>
           </div>
         )}
 

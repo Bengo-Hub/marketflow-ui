@@ -9,15 +9,44 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, Field, ToneBadge } from "@/components/ui-kit";
-import { useAdAccounts, useAdQuote, useBoost, useBoostAction, useLaunchBoost } from "@/hooks/use-ads";
+import { toast } from "sonner";
+import { useAdAccounts, useAdQuote, useBoost, useBoostAction, useBoostOtp, useLaunchBoost } from "@/hooks/use-ads";
 import { useIsRestricted } from "@/hooks/use-access";
 import { useDebouncedValue } from "@bengo-hub/shared-ui-lib/search";
 import { usePublishAccounts } from "@/hooks/use-publishing";
-import { adsApi, liveShortfall, metaBillingURL, STAGE_LABEL, timeAgo, type Objective } from "@/lib/api/ads";
+import {
+  adsApi,
+  liveShortfall,
+  MAX_OTP_TRIES,
+  metaBillingURL,
+  noVerifiedPhone,
+  otpRejected,
+  otpRequired,
+  STAGE_LABEL,
+  timeAgo,
+  type BoostInput,
+  type Objective,
+} from "@/lib/api/ads";
 import { apiErrorMessage } from "@/lib/api/errors";
+import { ACCOUNTS_URL } from "@/lib/urls";
 import { AUDIENCE_PRESETS, audienceFor } from "@/lib/studio/audience-presets";
 
 const money = (n: number, cur: string) => `${cur} ${n.toLocaleString("en-KE")}`;
+
+/** What to say after a wrong code: the API's reason when it is readable, then what is left. */
+export function codeErrorText(apiText: string, left: number): string {
+  // A bare error code ("invalid_otp") is not worth showing to the owner.
+  const reason = apiText && !/^[a-z0-9_]+$/.test(apiText) ? apiText : "That code did not work.";
+  const end = /[.!?]$/.test(reason) ? "" : ".";
+  if (left <= 0) return `${reason}${end} Ask for a new code to try again.`;
+  return `${reason}${end} You can try ${left} more ${left === 1 ? "time" : "times"}.`;
+}
+
+function expiryHint(at: string): string | undefined {
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return `The code works until ${d.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" })}.`;
+}
 
 /**
  * Boost an approved video on the business's own Meta ad account. The budget is paid to Meta by
@@ -82,16 +111,90 @@ export function BoostDialog({
   // M-Pesa on Meta is offered only on KES accounts.
   const hasKES = (accounts.data ?? []).some((a) => a.active && a.currency === "KES");
 
+  // A boost at or above the business's limit needs a code sent to the owner's WhatsApp. The body
+  // is kept as first sent, so the code confirms exactly that boost.
+  const sendOtp = useBoostOtp();
+  const [otp, setOtp] = useState<{ body: BoostInput; id: string; to: string; expiresAt: string; limit: number } | null>(null);
+  const [code, setCode] = useState("");
+  const [tries, setTries] = useState(0);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [needsPhone, setNeedsPhone] = useState(false);
+
   const q = quote.data;
   const blocked = !q || (q.blockers?.length ?? 0) > 0;
+
+  const requestCode = (body: BoostInput, limit: number) => {
+    setOtpError(null);
+    sendOtp.mutate(body, {
+      onSuccess: (o) => {
+        setOtp({ body, id: o.otp_id, to: o.to_masked, expiresAt: o.expires_at, limit });
+        setCode("");
+        setTries(0);
+        toast.success(`We sent a code to your WhatsApp ${o.to_masked}`);
+      },
+      onError: (e) => {
+        if (noVerifiedPhone(e)) {
+          setOtp(null);
+          setNeedsPhone(true);
+          setError(
+            `${limit > 0 ? `Boosts of ${money(limit, "KES")} or more` : "This boost"} need a code sent to your WhatsApp, and your account has no verified WhatsApp number yet. Add one in your account settings, then launch again.`,
+          );
+          return;
+        }
+        const msg = apiErrorMessage(e, "We could not send the code. Please try again.");
+        if (otp) setOtpError(msg);
+        else setError(msg);
+      },
+    });
+  };
+
   const submit = () => {
     setError(null);
+    setNeedsPhone(false);
+    const body: BoostInput = {
+      ad_account_connected_id: acct, budget, days, page_connected_id: pg, asset_id: assetId, objective, message: message.trim(), link: link || undefined,
+      privacy_url: objective === "leads" ? privacy.trim() : undefined, extra_asset_ids: extras.length ? extras : undefined, ...audienceFor(audience),
+    };
+    launch.mutate(body, {
+      onSuccess: (b) => setBoostID(b.id),
+      onError: (e) => {
+        const limit = otpRequired(e);
+        if (limit !== null) requestCode(body, limit);
+        else setError(apiErrorMessage(e, "Could not start the boost"));
+      },
+    });
+  };
+
+  const confirmCode = () => {
+    if (!otp) return;
+    setOtpError(null);
     launch.mutate(
-      { ad_account_connected_id: acct, budget, days, page_connected_id: pg, asset_id: assetId, objective, message: message.trim(), link: link || undefined,
-        privacy_url: objective === "leads" ? privacy.trim() : undefined, extra_asset_ids: extras.length ? extras : undefined, ...audienceFor(audience) },
-      { onSuccess: (b) => setBoostID(b.id), onError: (e) => setError(apiErrorMessage(e, "Could not start the boost")) },
+      { ...otp.body, otp_id: otp.id, otp_code: code },
+      {
+        onSuccess: (b) => {
+          setOtp(null);
+          setBoostID(b.id);
+        },
+        onError: (e) => {
+          if (otpRejected(e)) {
+            const used = tries + 1;
+            setTries(used);
+            setCode("");
+            setOtpError(codeErrorText(apiErrorMessage(e, ""), MAX_OTP_TRIES - used));
+            return;
+          }
+          if (otpRequired(e) !== null) {
+            // The code ran out or was used up: only a new code can go on.
+            setTries(MAX_OTP_TRIES);
+            setOtpError("That code has expired. Ask for a new code.");
+            return;
+          }
+          setOtpError(apiErrorMessage(e, "Could not start the boost"));
+        },
+      },
     );
   };
+  const outOfTries = tries >= MAX_OTP_TRIES;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -103,6 +206,32 @@ export function BoostDialog({
 
         {boostID ? (
           <BoostProgress boost={boost.data} onPaid={() => paid.mutate(boostID)} paying={paid.isPending} />
+        ) : otp ? (
+          <div className="space-y-3">
+            <p className="text-sm">
+              {otp.limit > 0 ? `Boosts of ${money(otp.limit, "KES")} or more need your go-ahead. ` : "This boost needs your go-ahead. "}
+              We sent a 6-digit code to your WhatsApp <strong>{otp.to}</strong>. Enter it to launch.
+            </p>
+            <Field label="Code from WhatsApp" htmlFor="boost-otp" hint={expiryHint(otp.expiresAt)}>
+              <Input
+                id="boost-otp"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="123456"
+                value={code}
+                disabled={outOfTries || launch.isPending}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && code.length === 6 && !outOfTries) confirmCode();
+                }}
+              />
+            </Field>
+            {otpError && <p role="alert" className="text-sm text-destructive">{otpError}</p>}
+            <Button size="sm" variant="outline" disabled={sendOtp.isPending || launch.isPending} onClick={() => requestCode(otp.body, otp.limit)}>
+              {sendOtp.isPending ? "Sending..." : "Send a new code"}
+            </Button>
+          </div>
         ) : accounts.isSuccess && accounts.data.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No Meta ad account is connected.{" "}
@@ -215,14 +344,27 @@ export function BoostDialog({
               </div>
             )}
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            {needsPhone && (
+              <a href={ACCOUNTS_URL} target="_blank" rel="noopener noreferrer" className={buttonVariants({ size: "sm", variant: "outline" })}>
+                Open account settings
+              </a>
+            )}
           </div>
         )}
 
-        {!boostID && (
+        {!boostID && otp && (
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={launch.isPending}>Cancel</Button>
-            <Button onClick={submit} disabled={launch.isPending || blocked || !pg || !message.trim() || (objective === "leads" && !privacy.trim().startsWith("https://"))}>
-              {launch.isPending ? "Starting..." : "Confirm and launch"}
+            <Button variant="outline" onClick={() => setOtp(null)} disabled={launch.isPending}>Back</Button>
+            <Button onClick={confirmCode} disabled={launch.isPending || outOfTries || code.length !== 6}>
+              {launch.isPending ? "Checking..." : "Confirm and launch"}
+            </Button>
+          </DialogFooter>
+        )}
+        {!boostID && !otp && (
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={launch.isPending || sendOtp.isPending}>Cancel</Button>
+            <Button onClick={submit} disabled={launch.isPending || sendOtp.isPending || blocked || !pg || !message.trim() || (objective === "leads" && !privacy.trim().startsWith("https://"))}>
+              {sendOtp.isPending ? "Sending code..." : launch.isPending ? "Starting..." : "Confirm and launch"}
             </Button>
           </DialogFooter>
         )}

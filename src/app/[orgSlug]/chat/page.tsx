@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { SafeMarkdown } from "@/components/safe-markdown";
 import { Check, Copy, Eraser, MessageSquare, RotateCcw, Send, Square, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,7 +66,7 @@ function Answer({ m, onRetry, onDelete, onRate }: { m: Message; onRetry: () => v
             </div>
           ) : m.content ? (
             <div className="prose prose-sm max-w-none leading-relaxed dark:prose-invert [&_a]:text-primary [&_p]:my-1.5 [&_pre]:rounded-lg [&_pre]:bg-muted">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+              <SafeMarkdown>{m.content}</SafeMarkdown>
             </div>
           ) : (
             <p className="text-muted-foreground" aria-live="polite">{phaseFor(m.meta?.intent)}...</p>
