@@ -1121,14 +1121,23 @@
     });
   }
 
-  // Integration request types and modes, as auth-api stores them.
+  // Integration request types and modes, as auth-api stores them. auth-api accepts any
+  // lowercase request_type, so a new choice needs no backend change; keep this list in step
+  // with integrationTypes in marketflow-ai (internal/rag/integration_form.go) and the
+  // request_integration tool's enum. arduino_iot is no longer offered (it read as "IoT" for
+  // everything); old prefills of it fall back to plc_automation in marketflow-ai.
   var INTEGRATION_TYPES = [
-    ['etims_integration', 'eTIMS / KRA tax fiscalization'],
-    ['truload_weighing', 'TruLoad weighing hardware/software'],
-    ['camera_systems', 'Camera systems'],
-    ['plc_automation', 'PLC automation'],
-    ['arduino_iot', 'Arduino / IoT automation'],
-    ['other_integration', 'Other'],
+    ['etims_integration', 'KRA eTIMS invoices from my POS, ERP or accounting system'],
+    ['payments_integration', 'M-Pesa, Airtel Money or card payments'],
+    ['notifications_integration', 'Sending SMS, WhatsApp or email from my system'],
+    ['sso_integration', 'Sign in with a Codevertex account (SSO)'],
+    ['api_integration', 'My app or website talking to your POS, stock or orders'],
+    ['data_import', 'Moving my products, customers or records from another system'],
+    ['printing_hardware', 'Barcode, label or receipt printers'],
+    ['truload_weighing', 'Weighbridges and number-plate cameras'],
+    ['camera_systems', 'CCTV and security cameras'],
+    ['plc_automation', 'Machines, sensors and PLCs'],
+    ['other_integration', 'Another integration, or not sure'],
   ];
   var INTEGRATION_MODES = [
     ['self_serve', 'My own developers (no fee)'],
@@ -1154,9 +1163,9 @@
     // Enforce per-session form submission limit to prevent lead/ticket spam.
     if (formSubmitCount >= FORM_SUBMIT_LIMIT) return;
 
-    // Integration interest: eTIMS, TruLoad weighing, cameras, PLCs, Arduino/IoT. These are
-    // Codevertex integrations, so the form belongs to the Codevertex assistant only. The
-    // server sends `form` with the details the visitor already typed; the visitor checks
+    // Integration interest: eTIMS, payments, messaging, SSO, APIs, printers, weighing, cameras
+    // and PLCs. These are Codevertex integrations, so the form belongs to the Codevertex
+    // assistant only. The server sends `form` with the details the visitor already typed; the visitor checks
     // them and submits, and auth-api saves the request and alerts the team.
     var codevertexWidget = mode === 'platform' || businessType === 'codevertex';
     var integrationAsked = (serverForm && serverForm.kind === 'integration') ||
@@ -1168,10 +1177,10 @@
     if (codevertexWidget && integrationAsked && !integrationSent) {
       var pre = (serverForm && serverForm.prefill) || {};
       buildForm({
-        title: 'Request an Integration',
+        title: 'Request an integration',
         submitLabel: 'Submit request →',
         fields: [
-          { name: 'request_type', type: 'select', label: 'What do you want to integrate?',
+          { name: 'request_type', type: 'select', label: 'What do you want to connect?',
             options: INTEGRATION_TYPES.map(function (p) { return p[1]; }), required: true,
             defaultValue: labelFor(INTEGRATION_TYPES, pre.request_type) },
           { name: 'name',  type: 'text',  label: 'Your name', required: true, maxLength: 120,
@@ -1202,8 +1211,8 @@
           ctl.done();
           formSubmitCount++;
           integrationSent = true;
-          appendMsg('bot', md('Thanks, **' + (data.name) + '**. Your **' + (data.request_type) +
-            '** request is in. Our team will follow up at **' + (data.email) + '**.'));
+          appendMsg('bot', md('Thanks, **' + (data.name) + '**. Your request is in (' + (data.request_type) +
+            '). Our team will reply at **' + (data.email) + '** within one business day.'));
           if (waHref) renderActionChips([{ label: '💬 WhatsApp us', href: waHref }]);
         });
       });
