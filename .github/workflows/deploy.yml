@@ -204,6 +204,9 @@ jobs:
           REGISTRY_NAMESPACE: codevertex
           VALUES_FILE_PATH: apps/marketflow-ui/values.yaml
           APP_NAME: marketflow-ui
+          # Sign-in keeps tokens out of browser storage (sso cookie session, fleet plan G11).
+          # Set to "false" and redeploy to go back to the stored-token flow.
+          NEXT_PUBLIC_COOKIE_SESSION: "true"
           SERVICE_DB_NAME: marketflow
           SERVICE_DB_USER: marketflow_user
           GIT_USER: ${{ secrets.GIT_USER || 'MarketFlow UI Bot' }}
