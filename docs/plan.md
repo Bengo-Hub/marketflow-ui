@@ -56,29 +56,26 @@ MarketFlow UI is the React/Next.js frontend for the MarketFlow CRM platform. It 
 
 ## KB Seed Data (Canonical Location)
 
-**All platform-wide KB seed data lives in:**
-- JSON: `marketflow-ui/public/kb/platform-seed.json`
-- Script: `marketflow-ui/scripts/seed-kb.ts`
+The platform knowledge base (the Codevertex entries Vera answers from for every tenant, `scope: platform`) has one source, and it lives in marketflow-api, not here:
 
-**Running the seed:**
-```bash
-# Set env vars
-export MARKETFLOW_API_URL=https://marketflowapi.codevertexafrica.com
-export MARKETFLOW_API_KEY=<INTERNAL_SERVICE_KEY>
+- JSON: `marketflow-api/internal/modules/knowledge/platform_kb.json` (embedded in the seed binary)
+- Sync: `knowledge.SyncPlatformKB`, called by `cmd/seed` (`marketflow-seed`), which `scripts/entrypoint.sh` runs on every API pod start
 
-# Preview (dry run)
-pnpm tsx scripts/seed-kb.ts --dry-run
+The old `public/kb/platform-seed.json` and `scripts/seed-kb.ts` were removed on 2026-11-17. The script posted to `/api/v1/admin/kb/entries`, a route that never existed, so nothing it held ever reached production.
 
-# Seed production
-pnpm tsx scripts/seed-kb.ts
-```
+**What the sync does on each pod start:**
+- creates an entry that is missing (matched by category and title)
+- rewrites an entry whose content, tags or metadata differ from the file, deletes its old search vectors and queues it for embedding; the worker's embed sweep re-embeds it within a minute
+- retires (marks stale, removes from search) an entry it created earlier that the file no longer has
+- never touches tenant entries or platform entries written by hand in the portal
 
-**Categories seeded (32 entries):**
-platform_overview, marketflow_crm, auth_sso, ordering_pos, finance_treasury, logistics_tracking, isp_billing, subscriptions, notifications, erp, ticketing, digitika_courses, digitika_bootcamp, pricing_plans, onboarding_howto
+**Categories (55 entries as of 2026-11-17):**
+platform_overview, marketflow_crm, auth_sso, ordering_pos, finance_treasury, logistics_tracking, isp_billing, subscriptions, notifications, erp, ticketing, digitika_courses, digitika_bootcamp, pricing_plans, onboarding_howto, product_fit, healthcare_afya, property_maskani, library, inventory, projects, custom_services
 
-**Adding new entries:**
-1. Add entries to `platform-seed.json` with `"scope": "platform"` and the appropriate category
-2. Run the seed script — it handles duplicates (409) gracefully
+**Adding or changing entries:**
+1. Edit `platform_kb.json` in marketflow-api. Each entry needs `"scope": "platform"`, a category, a title and content; `metadata.source` and `metadata.checked` record where a fact was checked and when.
+2. Ship marketflow-api. The next pod start applies the change; nothing needs running by hand.
+3. Edit an entry in the file, not in the portal: a portal edit to a seeded entry is put back to the file's words on the next start. Changing a title makes a new entry and retires the old one.
 
 ---
 
