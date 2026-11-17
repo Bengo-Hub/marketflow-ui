@@ -9,6 +9,8 @@ export interface ChatMeta {
   cached?: boolean;
   /** The conversation id (in the stream since marketflow-ai e4daad5; the plain reply always has it). */
   session_id?: string;
+  /** Marketing-law notes on the answer (signed-in people only; marketflow-ai f55bd72). */
+  review_notes?: string[];
 }
 
 export interface ChatTurn {
@@ -21,6 +23,8 @@ export interface ChatHandlers {
   onMeta?: (meta: ChatMeta) => void;
   /** The answer so far. A compliance rewrite replaces it, so always render this whole value. */
   onText: (text: string) => void;
+  /** Marketing-law notes on the finished answer: advice for the owner, sent once at the end. */
+  onReview?: (notes: string[]) => void;
 }
 
 /** Thrown for a refused or failed turn; `status` 402 means the AI credits are used up. */
@@ -76,6 +80,7 @@ async function chatPlain(orgSlug: string, turn: ChatTurn, h: ChatHandlers, signa
     );
     h.onMeta?.({ ...data.result, session_id: data.session_id });
     h.onText(data.result.response ?? "");
+    if (data.result.review_notes?.length) h.onReview?.(data.result.review_notes);
   } catch (e) {
     const err = e as { name?: string; response?: { status?: number; data?: { message?: string; error?: string } } };
     if (err.name === "CanceledError") throw new DOMException("Aborted", "AbortError");
@@ -144,7 +149,7 @@ export async function streamChat(orgSlug: string, turn: ChatTurn, h: ChatHandler
       if (!line.startsWith("data: ")) continue;
       const data = line.slice(6).trim();
       if (data === "[DONE]") return;
-      let ev: { type?: string; content?: string; data?: ChatMeta; error?: string };
+      let ev: { type?: string; content?: string; data?: ChatMeta; error?: string; notes?: unknown };
       try {
         ev = JSON.parse(data);
       } catch {
@@ -154,6 +159,7 @@ export async function streamChat(orgSlug: string, turn: ChatTurn, h: ChatHandler
       if (ev.type === "meta" && ev.data) h.onMeta?.(ev.data);
       else if (ev.type === "delta" && ev.content) h.onText((text += ev.content));
       else if (ev.type === "replace" && ev.content !== undefined) h.onText((text = ev.content));
+      else if (ev.type === "review" && Array.isArray(ev.notes)) h.onReview?.(ev.notes.filter((n): n is string => typeof n === "string"));
     }
   }
 }

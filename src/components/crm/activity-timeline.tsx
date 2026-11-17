@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { WhatsAppIcon } from "@/components/public-profile/whatsapp-icon";
+import { ReviewNotes } from "@/components/review-notes";
 import { CapsuleTabs, EmptyState, ErrorState, Field, GlassPanel, ToneBadge, humanize } from "@/components/ui-kit";
 import { useLogActivity, useTimeline } from "@/hooks/use-activities";
 import { LOGGABLE_ACTIVITY_TYPES, type Activity, type EntityType } from "@/lib/api/activities";
@@ -45,6 +46,7 @@ function Item({ a }: { a: Activity }) {
           {a.source && a.source !== "manual" && <ToneBadge tone="primary">{a.source === "agent" ? "Assistant" : humanize(a.source)}</ToneBadge>}
         </div>
         {a.body && <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{a.body}</p>}
+        <ReviewNotes notes={a.metadata?.review_notes} />
         <p className="mt-1 text-xs text-muted-foreground tabular">{when.format(new Date(a.performed_at || a.created_at))}</p>
       </div>
     </li>

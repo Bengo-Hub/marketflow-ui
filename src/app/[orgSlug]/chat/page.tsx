@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { SafeMarkdown } from "@/components/safe-markdown";
+import { ReviewNotes } from "@/components/review-notes";
 import { Check, Copy, Eraser, MessageSquare, RotateCcw, Send, Square, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +19,8 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   meta?: ChatMeta;
+  /** Marketing-law notes on this answer, shown under it (advice only). */
+  reviewNotes?: string[];
   streaming?: boolean;
   error?: { text: string; credits?: boolean };
   /** Position of this answer in the stored conversation (0-based); unset when the server never stored it. */
@@ -67,6 +70,7 @@ function Answer({ m, onRetry, onDelete, onRate }: { m: Message; onRetry: () => v
           ) : m.content ? (
             <div className="prose prose-sm max-w-none leading-relaxed dark:prose-invert [&_a]:text-primary [&_p]:my-1.5 [&_pre]:rounded-lg [&_pre]:bg-muted">
               <SafeMarkdown>{m.content}</SafeMarkdown>
+              {!m.streaming && <ReviewNotes notes={m.reviewNotes} />}
             </div>
           ) : (
             <p className="text-muted-foreground" aria-live="polite">{phaseFor(m.meta?.intent)}...</p>
@@ -147,6 +151,7 @@ export default function ChatPage() {
             patch(aid, { meta });
           },
           onText: (content) => patch(aid, { content }),
+          onReview: (reviewNotes) => patch(aid, { reviewNotes }),
         },
         controller.signal,
       );

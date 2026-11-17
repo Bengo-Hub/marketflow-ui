@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { SafeMarkdown } from "@/components/safe-markdown";
+import { ReviewNotes } from "@/components/review-notes";
 import { toast } from "sonner";
 import {
   apiError,
@@ -496,6 +497,7 @@ export function ManagerConsole({
         {(result?.route === "chat" || result?.route === "blocked") && res?.answer && (
           <div className="prose prose-sm dark:prose-invert max-w-none rounded-lg bg-muted/50 p-4">
             <SafeMarkdown>{res.answer}</SafeMarkdown>
+            <ReviewNotes notes={res.answer_review_notes} />
           </div>
         )}
 

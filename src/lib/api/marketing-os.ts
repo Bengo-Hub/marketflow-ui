@@ -246,6 +246,8 @@ export interface AskResponse {
   run_id: string;
   result: TeamResult;
   answer?: string;
+  /** Marketing-law notes on answer (advice; marketflow-ai f55bd72). */
+  answer_review_notes?: string[];
   credits_charged: number;
 }
 

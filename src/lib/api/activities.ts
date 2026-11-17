@@ -21,6 +21,8 @@ export interface Activity {
   external_ref?: string | null;
   performed_at?: string | null;
   created_at: string;
+  /** review_notes: the assistant's marketing-law notes on its own WhatsApp reply (advice). */
+  metadata?: { review_notes?: string[] } | null;
 }
 
 /** POST /api/v1/activities. The API rejects unknown fields, so only these keys may be sent. */
