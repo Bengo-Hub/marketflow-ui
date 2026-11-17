@@ -282,15 +282,16 @@ function StepOutput({ step, shortlist }: { step: TeamStep; shortlist: Set<string
 function useElapsed(active: boolean): number {
   const [secs, setSecs] = useState(0);
   useEffect(() => {
-    if (!active) {
-      setSecs(0);
-      return;
-    }
+    if (!active) return;
     const started = Date.now();
     const id = setInterval(() => setSecs(Math.floor((Date.now() - started) / 1000)), 1000);
-    return () => clearInterval(id);
+    // Reset when the work stops, in the cleanup rather than the effect body (no cascading render).
+    return () => {
+      clearInterval(id);
+      setSecs(0);
+    };
   }, [active]);
-  return secs;
+  return active ? secs : 0;
 }
 
 /** What the owner sees while the team works, so a long request never looks frozen. */
