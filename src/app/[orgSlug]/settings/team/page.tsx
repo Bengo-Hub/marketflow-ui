@@ -53,7 +53,7 @@ function NewAccountNotice({ result, onDone }: { result: InviteResult; onDone: ()
       ) : (
         <div className="space-y-3 text-sm">
           <p><span className="font-medium">{result.email}</span> did not have a Codevertex account, so one was made.</p>
-          <p>They got an email with a link to set their own password (valid for 72 hours). If it does not arrive, ask them to check spam or use "Forgot password" on the sign-in page.</p>
+          <p>They got an email with a link to set their own password (valid for 72 hours). If it does not arrive, ask them to check spam or use &ldquo;Forgot password&rdquo; on the sign-in page.</p>
         </div>
       )}
       <DialogFooter><Button onClick={onDone}>Done</Button></DialogFooter>

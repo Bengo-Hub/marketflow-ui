@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuthStore } from '@/store/auth-store';
-import { attachOutletIdGetter } from '@/lib/api/client';
+import { attachOutletIdGetter, currentAccessToken } from '@/lib/api/client';
 import { useOutletFilterStore } from '@/store/outlet-filter';
 import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronDown, Store, X } from 'lucide-react';
@@ -52,7 +52,7 @@ export function OutletFilter({ className }: { className?: string }) {
 
   const { data: fetched = [] } = useQuery<OutletListItem[]>({
     queryKey: ['outlet_list', slug],
-    queryFn: () => fetchOutlets(session?.accessToken ?? '', slug),
+    queryFn: async () => fetchOutlets((await currentAccessToken()) ?? '', slug),
     enabled: canFilter && !!session?.accessToken && !!slug && !user?.isPlatformOwner,
     staleTime: 5 * 60_000,
   });

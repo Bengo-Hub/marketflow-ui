@@ -1,7 +1,7 @@
 import { revokeServerSession as sharedRevokeServerSession } from '@bengo-hub/shared-ui-lib/auth';
 
 import { API_URL as MF_API_URL, AUTH_API_URL as SSO_BASE_URL } from "@/lib/urls";
-const CLIENT_ID = process.env.NEXT_PUBLIC_SSO_CLIENT_ID || "marketflow-ui";
+export const CLIENT_ID = process.env.NEXT_PUBLIC_SSO_CLIENT_ID || "marketflow-ui";
 
 // ── PKCE Helpers ──────────────────────────────────────────────────────────
 

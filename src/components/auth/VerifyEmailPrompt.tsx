@@ -2,6 +2,7 @@
 
 import { VerifyEmailBanner, type EmailVerificationState } from '@bengo-hub/shared-ui-lib/auth';
 import { useAuthStore } from '@/store/auth-store';
+import { currentAccessToken } from '@/lib/api/client';
 import { AUTH_API_URL as AUTH_BASE } from '@/lib/urls';
 
 // auth-api (SSO) hosts the authenticated verify endpoints. The embedded OTP dialog calls them
@@ -9,7 +10,7 @@ import { AUTH_API_URL as AUTH_BASE } from '@/lib/urls';
 // origins), so the user never leaves the app to verify.
 
 async function postVerify(path: string, body: unknown): Promise<void> {
-  const token = useAuthStore.getState().session?.accessToken;
+  const token = await currentAccessToken();
   const res = await fetch(`${AUTH_BASE}${path}`, {
     method: 'POST',
     headers: {

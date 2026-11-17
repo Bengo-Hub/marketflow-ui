@@ -36,4 +36,4 @@ const pwaConfig = withPWA({
   },
 });
 
-export default pwaConfig(nextConfig as any);
+export default pwaConfig(nextConfig);

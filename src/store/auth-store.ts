@@ -15,9 +15,19 @@ import {
   revokeServerSession,
 } from "@/lib/auth/pkce";
 import { apiClient, aiClient } from "@/lib/api/client";
+import { isCookieSessionEnabled, scrubStoredTokens } from "@/lib/auth/session-mode";
+
+const AUTH_STORAGE_KEY = "marketflow-auth";
+
+// Cookie session: tokens stored by the old flow are dropped before the store loads.
+if (isCookieSessionEnabled()) scrubStoredTokens(AUTH_STORAGE_KEY);
 
 type AuthStatus = "idle" | "loading" | "syncing" | "authenticated" | "unauthenticated" | "error";
 
+/**
+ * The signed-in tokens. With the cookie session this is an in-memory mirror of the access token
+ * (refreshToken is always empty and the object is never persisted).
+ */
 interface Session {
   accessToken: string;
   refreshToken: string;
@@ -54,6 +64,7 @@ export const useAuthStore = create<AuthState>()(
       error: null,
 
       initialize: async () => {
+        if (isCookieSessionEnabled()) return initializeFromCookie();
         const { session, user } = get();
         if (!session?.accessToken) {
           set({ status: "unauthenticated" });
@@ -118,6 +129,7 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           const tokens = await exchangeCodeForTokens({ code, codeVerifier: verifier, redirectUri: callbackUrl });
+          if (isCookieSessionEnabled()) return await startFromCallback(tokens.refresh_token);
 
           const session: Session = {
             accessToken: tokens.access_token,
@@ -152,7 +164,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Profile fetch failed after retries but tokens are valid
           set({ status: "authenticated", lastAuthenticatedAt: Date.now() });
-        } catch (err) {
+        } catch {
           set({ status: "error", error: "Sign-in failed. Please try again." });
         }
       },
@@ -160,8 +172,14 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         // Capture the token BEFORE clearing local state so we can revoke the
         // backend session (Redis session_token keys + DB sessions).
-        const token = get().session?.accessToken;
-        await revokeServerSession(token);
+        if (isCookieSessionEnabled()) {
+          // Revokes this session, clears the sso cookie and signs out the other tabs.
+          const { endCookieSession } = await import("@/lib/auth/cookie-session");
+          await endCookieSession();
+        } else {
+          const token = get().session?.accessToken;
+          await revokeServerSession(token);
+        }
 
         get().syncTenantToStorage(null);
         set({
@@ -174,7 +192,7 @@ export const useAuthStore = create<AuthState>()(
         });
         delete apiClient.defaults.headers.common.Authorization;
         delete aiClient.defaults.headers.common.Authorization;
-        try { localStorage.removeItem("marketflow-auth"); } catch {}
+        try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch {}
         try { sessionStorage.clear(); } catch {}
         const returnTo = encodeURIComponent(window.location.origin);
         window.location.href = buildLogoutUrl(
@@ -203,15 +221,19 @@ export const useAuthStore = create<AuthState>()(
       isPlatformOwner: () => get().user?.isPlatformOwner ?? false,
     }),
     {
-      name: "marketflow-auth",
+      name: AUTH_STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        session: state.session,
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
+      // The cookie session persists the profile only; the tokens stay in memory.
+      partialize: (state) =>
+        isCookieSessionEnabled()
+          ? { user: state.user, isAuthenticated: state.isAuthenticated }
+          : {
+              session: state.session,
+              user: state.user,
+              isAuthenticated: state.isAuthenticated,
+            },
       onRehydrateStorage: () => (state) => {
-        if (state?.session?.accessToken) {
+        if (state?.session?.accessToken && !isCookieSessionEnabled()) {
           apiClient.defaults.headers.common.Authorization = `Bearer ${state.session.accessToken}`;
           aiClient.defaults.headers.common.Authorization = `Bearer ${state.session.accessToken}`;
         }
@@ -222,3 +244,93 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+/**
+ * Cookie session start-up. The access token is not stored, so a stored profile gets its first
+ * token through the sso cookie (one refresh) before the app counts as signed in. A refused cookie
+ * signs out through the session's onChange (lib/auth/cookie-session.ts).
+ */
+async function initializeFromCookie(): Promise<void> {
+  const { user, isAuthenticated } = useAuthStore.getState();
+  if (!user && !isAuthenticated) {
+    useAuthStore.setState({ status: "unauthenticated" });
+    return;
+  }
+  useAuthStore.setState({ status: "loading" });
+
+  const { getCookieSession } = await import("@/lib/auth/cookie-session");
+  const token = await getCookieSession().getAccessToken();
+  const now = useAuthStore.getState();
+  if (now.status === "unauthenticated") return; // refused: onChange signed out already
+
+  if (!token) {
+    // auth-api unreachable. A known profile carries on and the API calls ask for a token again;
+    // without one there is nothing to show, so the layouts send the person to sign in.
+    useAuthStore.setState(
+      now.user
+        ? { status: "authenticated", isAuthenticated: true, lastAuthenticatedAt: Date.now() }
+        : { status: "unauthenticated", isAuthenticated: false },
+    );
+    return;
+  }
+
+  if (now.user) {
+    useAuthStore.setState({ status: "authenticated", isAuthenticated: true, lastAuthenticatedAt: Date.now() });
+    return;
+  }
+
+  // No profile yet (another person signed in elsewhere and this page reloaded): load it.
+  try {
+    const freshUser = await fetchProfile(token);
+    useAuthStore.getState().syncTenantToStorage(freshUser);
+    useAuthStore.setState({
+      user: freshUser,
+      status: "authenticated",
+      isAuthenticated: true,
+      lastAuthenticatedAt: Date.now(),
+    });
+  } catch {
+    useAuthStore.setState({ status: "unauthenticated", user: null, isAuthenticated: false });
+  }
+}
+
+/**
+ * Cookie session sign-in, after the code exchange: the refresh token goes to auth-api's cookie
+ * and is dropped here, and the access token stays in memory. Neither is persisted.
+ */
+async function startFromCallback(refreshToken: string | undefined): Promise<void> {
+  if (!refreshToken) {
+    useAuthStore.setState({ status: "error", error: "Sign-in failed. Please try again." });
+    return;
+  }
+  // A new sign-in replaces whoever was stored, so the new user id is not taken for a switch.
+  useAuthStore.getState().syncTenantToStorage(null);
+  useAuthStore.setState({ user: null, isAuthenticated: false });
+
+  const { startCookieSession } = await import("@/lib/auth/cookie-session");
+  const outcome = await startCookieSession(refreshToken);
+  if (!("token" in outcome)) {
+    useAuthStore.setState({ status: "error", error: "Sign-in failed. Please try again." });
+    return;
+  }
+
+  // Fetch profile with retry (JIT sync may take a moment)
+  for (let attempts = 0; attempts < 5; attempts++) {
+    try {
+      const user = await fetchProfile(outcome.token);
+      useAuthStore.getState().syncTenantToStorage(user);
+      useAuthStore.setState({
+        user,
+        status: "authenticated",
+        isAuthenticated: true,
+        lastAuthenticatedAt: Date.now(),
+      });
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+
+  // Profile fetch failed after retries but the session is valid
+  useAuthStore.setState({ status: "authenticated", isAuthenticated: true, lastAuthenticatedAt: Date.now() });
+}

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useSubscriptionStore } from "@/store/subscription";
 import { fetchSubscriptionInfo } from "@/lib/auth/subscription";
+import { currentAccessToken } from "@/lib/api/client";
 
 /** The unverified payload of a JWT, or {} when it cannot be read. */
 function tokenClaims(token?: string | null): { billing_mode?: string; is_demo?: boolean; sub_exempt?: boolean } {
@@ -66,7 +67,8 @@ export function useSubscription() {
     }
 
     fetchedRef.current = true;
-    fetchSubscriptionInfo(tenantId, tenantSlug ?? "", session.accessToken)
+    currentAccessToken()
+      .then((token) => fetchSubscriptionInfo(tenantId, tenantSlug ?? "", token ?? ""))
       .then((info) => {
         if (!info || !tenantSlug) return;
         useSubscriptionStore.getState().setFromRaw(
@@ -96,7 +98,8 @@ export function useSubscription() {
         lastHiddenAt.current = null;
         if (awayMs >= REFRESH_AFTER_MS && tenantId && tenantSlug && session?.accessToken) {
           fetchedRef.current = false;
-          fetchSubscriptionInfo(tenantId, tenantSlug, session.accessToken)
+          currentAccessToken()
+            .then((token) => fetchSubscriptionInfo(tenantId, tenantSlug, token ?? ""))
             .then((info) => {
               if (!info) return;
               useSubscriptionStore.getState().setFromRaw(

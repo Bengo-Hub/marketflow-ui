@@ -9,12 +9,30 @@ import { ReactNode, useEffect, useState } from "react";
 import { BrandTheme } from "@/components/brand/brand-theme";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { attachOutletIdGetter } from "@/lib/api/client";
+import { isCookieSessionEnabled } from "@/lib/auth/session-mode";
 import { watchSessionInOtherTabs } from "@/lib/auth/token-refresh";
 import { useOutletFilterStore } from "@/store/outlet-filter";
 
-/** Picks up a session another tab renewed, so this tab never sends a rotated-away token. */
-function SessionSync() {
-  useEffect(() => watchSessionInOtherTabs(), []);
+/**
+ * Stored-token flow: picks up a session another tab renewed, so this tab never sends a
+ * rotated-away token. Cookie session: opens the session at once so tokens other tabs share
+ * arrive from the start, and empties the query cache when the signed-in person goes or changes.
+ */
+function SessionSync({ queryClient }: { queryClient: QueryClient }) {
+  useEffect(() => {
+    if (!isCookieSessionEnabled()) return watchSessionInOtherTabs();
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    void import("@/lib/auth/cookie-session").then(({ getCookieSession, onSessionReset }) => {
+      if (cancelled) return;
+      getCookieSession();
+      stop = onSessionReset(() => queryClient.clear());
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [queryClient]);
   return null;
 }
 
@@ -70,7 +88,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <BrandTheme>
           <TooltipProvider>
             <OutletInit />
-            <SessionSync />
+            <SessionSync queryClient={queryClient} />
             <OfflineBar availableOffline={["View cached data"]} disabledOffline={["Edits", "Campaigns"]} />
             {children}
           </TooltipProvider>

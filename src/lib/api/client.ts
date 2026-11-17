@@ -1,5 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import type { RefreshOutcome } from "@bengo-hub/shared-ui-lib/auth";
 
+import { isCookieSessionEnabled } from "@/lib/auth/session-mode";
 import { AI_API_URL, API_URL } from "@/lib/urls";
 
 // Service addresses live in lib/urls.ts; re-exported for existing imports.
@@ -117,6 +119,58 @@ export function setAccessToken(token: string) {
   aiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
 }
 
+/** Takes the token off both API clients (and so off subscriptionsClient and the streams). */
+export function clearAccessToken() {
+  delete apiClient.defaults.headers.common.Authorization;
+  delete aiClient.defaults.headers.common.Authorization;
+}
+
+/**
+ * The Authorization header for a call made outside the axios clients (the SSE streams, the
+ * Treasury wallet). With the cookie session a fresh page has no token yet, so this waits for the
+ * first one. Without it, it is the header the clients already carry.
+ */
+export async function authorizationHeader(): Promise<string | undefined> {
+  if (isCookieSessionEnabled()) {
+    const { cookieAccessToken } = await import("@/lib/auth/cookie-session");
+    const token = await cookieAccessToken();
+    return token ? `Bearer ${token}` : undefined;
+  }
+  const auth = aiClient.defaults.headers.common.Authorization;
+  return typeof auth === "string" ? auth : undefined;
+}
+
+/**
+ * The access token for a direct fetch to another service. With the cookie session it waits for a
+ * token that is not about to run out; without it, it is the stored session's token as before.
+ */
+export async function currentAccessToken(): Promise<string | null> {
+  if (isCookieSessionEnabled()) {
+    const { cookieAccessToken } = await import("@/lib/auth/cookie-session");
+    return cookieAccessToken();
+  }
+  const { useAuthStore } = await import("@/store/auth-store");
+  return useAuthStore.getState().session?.accessToken ?? null;
+}
+
+type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
+
+/**
+ * Cookie session only: every request waits for the in-memory token, so the first call after a
+ * reload is sent after the one refresh instead of without a token. A retry carries its own token.
+ */
+const attachCookieToken = async (config: RetriableConfig) => {
+  if (!isCookieSessionEnabled() || config._retried) return config;
+  const { cookieAccessToken } = await import("@/lib/auth/cookie-session");
+  const token = await cookieAccessToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+};
+
+apiClient.interceptors.request.use(attachCookieToken);
+aiClient.interceptors.request.use(attachCookieToken);
+subscriptionsClient.interceptors.request.use(attachCookieToken);
+
 // 401 callback: replaces the default sign-out after auth-api refuses the session.
 let on401Callback: (() => void) | null = null;
 export function setOn401(cb: () => void) {
@@ -138,18 +192,25 @@ function signOutAfterRefusal() {
 }
 
 // Response interceptor: handle 401 with the shared cross-tab-safe token refresh.
-const handle401 = async (error: AxiosError & { config?: InternalAxiosRequestConfig & { _retried?: boolean } }) => {
+const handle401 = async (error: AxiosError & { config?: RetriableConfig }) => {
   const cfg = error.config;
   if (error.response?.status !== 401 || !cfg || cfg._retried) return Promise.reject(error);
 
-  // Signed out already (public pages): there is no session to refresh or end.
-  const { useAuthStore } = await import("@/store/auth-store");
-  if (!useAuthStore.getState().session) return Promise.reject(error);
-
   const sent = cfg.headers?.Authorization;
   const failedToken = typeof sent === "string" ? sent.replace(/^Bearer\s+/i, "") : null;
-  const { refreshAccessToken } = await import("@/lib/auth/token-refresh");
-  const outcome = await refreshAccessToken(failedToken);
+  let outcome: RefreshOutcome;
+  if (isCookieSessionEnabled()) {
+    // The token is in memory only, so a signed-in tab is known by its stored profile.
+    const { hasStoredProfile, refreshCookieSession } = await import("@/lib/auth/cookie-session");
+    if (!hasStoredProfile()) return Promise.reject(error);
+    outcome = await refreshCookieSession(failedToken);
+  } else {
+    // Signed out already (public pages): there is no session to refresh or end.
+    const { useAuthStore } = await import("@/store/auth-store");
+    if (!useAuthStore.getState().session) return Promise.reject(error);
+    const { refreshAccessToken } = await import("@/lib/auth/token-refresh");
+    outcome = await refreshAccessToken(failedToken);
+  }
 
   if ("token" in outcome) {
     // A token another tab saved is adopted the same way as one this tab refreshed.

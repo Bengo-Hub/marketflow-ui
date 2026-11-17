@@ -1,4 +1,4 @@
-import { AI_API_URL, aiClient, tenantHeaders } from "./client";
+import { AI_API_URL, aiClient, authorizationHeader, tenantHeaders } from "./client";
 
 /** What marketflow-ai says about an answer before the text arrives (the "meta" event). */
 export interface ChatMeta {
@@ -113,8 +113,9 @@ export function rateTurn(orgSlug: string, sessionId: string, turn: number, helpf
 
 /** Sends one question and streams the answer into `h`. Resolves when the answer is complete. */
 export async function streamChat(orgSlug: string, turn: ChatTurn, h: ChatHandlers, signal: AbortSignal): Promise<void> {
-  const auth = aiClient.defaults.headers.common.Authorization;
-  if (typeof auth !== "string") return chatPlain(orgSlug, turn, h, signal);
+  // A fresh page with the cookie session has no token yet; this waits for the first one.
+  const auth = await authorizationHeader();
+  if (!auth) return chatPlain(orgSlug, turn, h, signal);
 
   const resp = await fetch(`${AI_API_URL}/api/v1/chat`, {
     method: "POST",

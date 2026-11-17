@@ -1,5 +1,5 @@
 import axios from "axios";
-import { apiClient, subscriptionsClient } from "./client";
+import { authorizationHeader, subscriptionsClient } from "./client";
 
 /** GET /api/v1/subscription (subscriptions-api SubscriptionResult). */
 export interface TenantSubscription {
@@ -137,10 +137,10 @@ export const billingApi = {
    * The signed-in user's Treasury wallet. MarketFlow no longer takes ad money (ad budgets are
    * paid on the client's own ad account), so the page only shows money paid in under the old flow.
    */
-  wallet: (tenantSlug: string) =>
+  wallet: async (tenantSlug: string) =>
     axios
       .get<TreasuryWallet>(`${TREASURY_API_URL}/api/v1/${encodeURIComponent(tenantSlug)}/wallets/me`, {
-        headers: { Authorization: String(apiClient.defaults.headers.common.Authorization ?? "") },
+        headers: { Authorization: (await authorizationHeader()) ?? "" },
         timeout: 15000,
       })
       .then((r) => r.data),

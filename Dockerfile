@@ -25,6 +25,9 @@ ARG NEXT_PUBLIC_APP_URL=https://marketflow.codevertexafrica.com
 ARG NEXT_PUBLIC_NOTIFICATIONS_URL=https://notificationsapi.codevertexafrica.com
 ARG NEXT_PUBLIC_TREASURY_API_URL=https://booksapi.codevertexafrica.com
 ARG NEXT_PUBLIC_TREASURY_UI_URL=https://books.codevertexafrica.com
+# Sign-in flow: "true" keeps tokens out of browser storage (sso cookie session), anything else
+# keeps the stored-token flow. Off until the owner turns it on.
+ARG NEXT_PUBLIC_COOKIE_SESSION=false
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_AI_API_URL=$NEXT_PUBLIC_AI_API_URL
@@ -35,6 +38,7 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_NOTIFICATIONS_URL=$NEXT_PUBLIC_NOTIFICATIONS_URL
 ENV NEXT_PUBLIC_TREASURY_API_URL=$NEXT_PUBLIC_TREASURY_API_URL
 ENV NEXT_PUBLIC_TREASURY_UI_URL=$NEXT_PUBLIC_TREASURY_UI_URL
+ENV NEXT_PUBLIC_COOKIE_SESSION=$NEXT_PUBLIC_COOKIE_SESSION
 
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm exec next build --webpack

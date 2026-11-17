@@ -3,8 +3,22 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { SSOCallbackError } from "@bengo-hub/shared-ui-lib/auth";
+import type { UserProfile } from "@/lib/auth/pkce";
 import { useAuthStore } from "@/store/auth-store";
 import { useOutletFilterStore } from "@/store/outlet-filter";
+
+/**
+ * Outlet fields a profile may carry beyond UserProfile, in either spelling. All optional, so a
+ * profile without them reads as no outlet.
+ */
+interface OutletClaims {
+  outlet_id?: string;
+  outletId?: string;
+  is_hq_user?: boolean;
+  isHqUser?: boolean;
+  outlet_code?: string;
+  outlet_use_case?: string;
+}
 
 function CallbackHandler() {
   const searchParams = useSearchParams();
@@ -34,14 +48,15 @@ function CallbackHandler() {
       if (user && !user.isPlatformOwner) {
         const storedOutlet = localStorage.getItem("marketflow-selected-outlet-id");
         if (!storedOutlet) {
-          const jwtOutletId = (user as any)?.outlet_id || (user as any)?.outletId;
-          const isHqUser = (user as any)?.is_hq_user || (user as any)?.isHqUser;
+          const claims = user as UserProfile & OutletClaims;
+          const jwtOutletId = claims.outlet_id || claims.outletId;
+          const isHqUser = claims.is_hq_user || claims.isHqUser;
           if (jwtOutletId && !isHqUser) {
             useOutletFilterStore.getState().selectOutlet({
               id: jwtOutletId,
-              code: (user as any)?.outlet_code ?? '',
-              name: (user as any)?.outlet_code ?? '',
-              useCase: (user as any)?.outlet_use_case,
+              code: claims.outlet_code ?? '',
+              name: claims.outlet_code ?? '',
+              useCase: claims.outlet_use_case,
             });
             localStorage.setItem("marketflow-selected-outlet-id", jwtOutletId);
           }

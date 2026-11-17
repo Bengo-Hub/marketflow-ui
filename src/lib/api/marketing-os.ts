@@ -1,4 +1,4 @@
-import { AI_API_URL, aiClient, apiClient, tenantHeaders } from "./client";
+import { AI_API_URL, aiClient, apiClient, authorizationHeader, tenantHeaders } from "./client";
 
 // Marketing OS: the team runtime lives in marketflow-ai (/api/v1/os/*); brand
 // context, team overrides and switches are owned by marketflow-api.
@@ -341,8 +341,9 @@ function streamError(status: number, error: string) {
  * server charges only once the stream has opened.
  */
 async function askStream(body: AskBody, onProgress: (p: TeamProgress) => void): Promise<AskResponse> {
-  const auth = aiClient.defaults.headers.common.Authorization;
-  if (typeof window === "undefined" || typeof auth !== "string") {
+  // A fresh page with the cookie session has no token yet; this waits for the first one.
+  const auth = typeof window === "undefined" ? undefined : await authorizationHeader();
+  if (!auth) {
     return marketingOsApi.ask(body);
   }
   const controller = new AbortController();

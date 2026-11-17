@@ -84,6 +84,8 @@ NEXT_PUBLIC_AUTH_API_URL=${NEXT_PUBLIC_AUTH_API_URL:-"${NEXT_PUBLIC_SSO_URL}"}
 NEXT_PUBLIC_SSO_CLIENT_ID=${NEXT_PUBLIC_SSO_CLIENT_ID:-"marketflow-ui"}
 NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-"https://marketflow.codevertexafrica.com"}
 NEXT_PUBLIC_NOTIFICATIONS_URL=${NEXT_PUBLIC_NOTIFICATIONS_URL:-"https://notificationsapi.codevertexafrica.com"}
+# Cookie session sign-in (fleet plan G11): off unless the workflow sets it to "true".
+NEXT_PUBLIC_COOKIE_SESSION=${NEXT_PUBLIC_COOKIE_SESSION:-"false"}
 
 DOCKER_BUILDKIT=1 docker build . -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" \
   --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
@@ -92,7 +94,8 @@ DOCKER_BUILDKIT=1 docker build . -t "${IMAGE_REPO}:${GIT_COMMIT_ID}" \
   --build-arg NEXT_PUBLIC_AUTH_API_URL="$NEXT_PUBLIC_AUTH_API_URL" \
   --build-arg NEXT_PUBLIC_SSO_CLIENT_ID="$NEXT_PUBLIC_SSO_CLIENT_ID" \
   --build-arg NEXT_PUBLIC_APP_URL="$NEXT_PUBLIC_APP_URL" \
-  --build-arg NEXT_PUBLIC_NOTIFICATIONS_URL="$NEXT_PUBLIC_NOTIFICATIONS_URL"
+  --build-arg NEXT_PUBLIC_NOTIFICATIONS_URL="$NEXT_PUBLIC_NOTIFICATIONS_URL" \
+  --build-arg NEXT_PUBLIC_COOKIE_SESSION="$NEXT_PUBLIC_COOKIE_SESSION"
 success "Docker build complete"
 
 if [[ ${DEPLOY} != "true" ]]; then
