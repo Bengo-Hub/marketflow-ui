@@ -9,7 +9,14 @@ import { ReactNode, useEffect, useState } from "react";
 import { BrandTheme } from "@/components/brand/brand-theme";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { attachOutletIdGetter } from "@/lib/api/client";
+import { watchSessionInOtherTabs } from "@/lib/auth/token-refresh";
 import { useOutletFilterStore } from "@/store/outlet-filter";
+
+/** Picks up a session another tab renewed, so this tab never sends a rotated-away token. */
+function SessionSync() {
+  useEffect(() => watchSessionInOtherTabs(), []);
+  return null;
+}
 
 // TanStack Query cache TTLs (matching TruLoad pattern)
 const STALE_TIMES = {
@@ -63,6 +70,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <BrandTheme>
           <TooltipProvider>
             <OutletInit />
+            <SessionSync />
             <OfflineBar availableOffline={["View cached data"]} disabledOffline={["Edits", "Campaigns"]} />
             {children}
           </TooltipProvider>

@@ -108,50 +108,60 @@ export function attachOutletIdGetter(getter: () => string | null) {
   outletIdGetter = getter;
 }
 
-// 401 callback — set by auth provider to handle logout
+/**
+ * Points both API clients at a new access token. subscriptionsClient copies apiClient's header,
+ * and the SSE streams (chat, marketing OS) read aiClient's, so this keeps every caller in step.
+ */
+export function setAccessToken(token: string) {
+  apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
+  aiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
+}
+
+// 401 callback: replaces the default sign-out after auth-api refuses the session.
 let on401Callback: (() => void) | null = null;
 export function setOn401(cb: () => void) {
   on401Callback = cb;
 }
 
-// Response interceptor: handle 401 with token refresh
+// Several requests can fail at once; they share one refresh, so sign out only once.
+let signingOut = false;
+function signOutAfterRefusal() {
+  if (on401Callback) return on401Callback();
+  if (signingOut) return;
+  signingOut = true;
+  void import("@/store/auth-store")
+    .then(({ useAuthStore }) => useAuthStore.getState().logout())
+    .catch(() => undefined)
+    .finally(() => {
+      signingOut = false;
+    });
+}
+
+// Response interceptor: handle 401 with the shared cross-tab-safe token refresh.
 const handle401 = async (error: AxiosError & { config?: InternalAxiosRequestConfig & { _retried?: boolean } }) => {
   const cfg = error.config;
-  if (error.response?.status === 401 && cfg && !cfg._retried) {
-    try {
-      const { refreshTokens } = await import("@/lib/auth/pkce");
-      const { useAuthStore } = await import("@/store/auth-store");
-      const session = useAuthStore.getState().session;
+  if (error.response?.status !== 401 || !cfg || cfg._retried) return Promise.reject(error);
 
-      if (session?.refreshToken) {
-        const data = await refreshTokens(session.refreshToken);
-        const newToken = data.access_token;
+  // Signed out already (public pages): there is no session to refresh or end.
+  const { useAuthStore } = await import("@/store/auth-store");
+  if (!useAuthStore.getState().session) return Promise.reject(error);
 
-        // Update store with new token
-        useAuthStore.setState({
-          session: {
-            ...session,
-            accessToken: newToken,
-            refreshToken: data.refresh_token || session.refreshToken,
-            expiresAt: new Date(Date.now() + (data.expires_in || 3600) * 1000).toISOString(),
-          },
-        });
+  const sent = cfg.headers?.Authorization;
+  const failedToken = typeof sent === "string" ? sent.replace(/^Bearer\s+/i, "") : null;
+  const { refreshAccessToken } = await import("@/lib/auth/token-refresh");
+  const outcome = await refreshAccessToken(failedToken);
 
-        // Retry failed request
-        cfg._retried = true;
-        cfg.headers.Authorization = `Bearer ${newToken}`;
-        apiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-        aiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-        // The config keeps its own baseURL, so this retries against the API that failed.
-        return apiClient.request(cfg);
-      }
-    } catch {
-      // Refresh failed — trigger logout
-    }
-
-    // Notify auth provider to handle logout
-    on401Callback?.();
+  if ("token" in outcome) {
+    // A token another tab saved is adopted the same way as one this tab refreshed.
+    setAccessToken(outcome.token);
+    cfg._retried = true;
+    cfg.headers.Authorization = `Bearer ${outcome.token}`;
+    // The config keeps its own baseURL, so this retries against the API that failed.
+    return apiClient.request(cfg);
   }
+
+  // A refused session signs out; an unreachable auth-api keeps the session and fails softly.
+  if ("rejected" in outcome) signOutAfterRefusal();
   return Promise.reject(error);
 };
 
