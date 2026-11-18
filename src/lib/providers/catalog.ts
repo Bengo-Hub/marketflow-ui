@@ -824,6 +824,27 @@ const researchProviders: ProviderDef[] = [
       },
       { key: "paid_monthly_cap", label: "Paid monthly cap", type: "number", default: "250", min: 1, help: "Searches a month when paid searches are on." },
       { key: "tenant_share", label: "Searches per business a month", type: "number", default: "5", min: 1 },
+      {
+        key: "details_platform_monthly",
+        label: "Ad detail reads a month (all businesses)",
+        type: "number",
+        default: "50",
+        min: 0,
+        help: "Reads of a winning ad's words, used only to tag it. They also count in the searches above, so the scan keeps the rest. 0 turns tags off.",
+      },
+      { key: "details_per_tenant", label: "Ad detail reads per business a month", type: "number", default: "3", min: 0 },
+      { key: "details_k", label: "Winners tagged per scan", type: "number", default: "3", min: 0, help: "The best-scored winners of each weekly scan that get tags." },
+      {
+        key: "summary_model_class",
+        label: "Winners summary model",
+        type: "select",
+        default: "nano",
+        options: [
+          { value: "nano", label: "Nano (free models first)" },
+          { value: "standard", label: "Standard" },
+        ],
+        help: "Writes the short brief the Ads Specialist reads from the tagged winners.",
+      },
     ],
   },
   {

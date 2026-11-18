@@ -8,10 +8,13 @@ import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, GlassPanel, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { apiError, marketingOsApi, type ResearchWinner } from "@/lib/api/marketing-os";
+import { isRelevant, quotaLine, tagLabels, tagsForBrief } from "@/lib/research-tags";
 
-/** Drafts describe a winner by its shape only, so no competitor's words reach a new ad. */
+/** Drafts describe a winner by its shape and tags only, so no competitor's words reach a new ad. */
 function winnerDraft(w: ResearchWinner) {
-  return `Write a short video ad for my business. A ${w.format.toLowerCase()} ad that ran ${w.total_days_shown} days is working in my market. Keep that kind of structure, change the angle for my customers, and answer one complaint from my list. Use only true facts from my brand context.`;
+  const tags = tagsForBrief(w.tags);
+  const shape = tags ? ` It ${tags}.` : "";
+  return `Write a short video ad for my business. A ${w.format.toLowerCase()} ad that ran ${w.total_days_shown} days is working in my market.${shape} Keep that kind of structure, change the angle for my customers, and answer one complaint from my list. Use only true facts from my brand context.`;
 }
 
 function complaintDraft(complaint: string) {
@@ -60,6 +63,8 @@ export default function ResearchPage() {
   const references = settingsQ.data?.reference_ads ?? [];
   const complaints = settingsQ.data?.customer_complaints ?? [];
   const waiting = tracked.filter((q) => !scanned.some((c) => c.query.toLowerCase() === q.toLowerCase()));
+  const summary = researchQ.data?.summary ?? "";
+  const quota = quotaLine(researchQ.data?.quota);
 
   return (
     <div className="space-y-6">
@@ -95,6 +100,12 @@ export default function ResearchPage() {
               />
             ) : (
               <div className="space-y-5">
+                {summary && (
+                  <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+                    <span className="font-medium">What the winners have in common: </span>
+                    {summary}
+                  </p>
+                )}
                 {scanned.map((c) => (
                   <section key={c.query} className="space-y-2">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -112,6 +123,12 @@ export default function ResearchPage() {
                               <ToneBadge>{w.format}</ToneBadge>
                               <span className="text-muted-foreground">{w.total_days_shown} days</span>
                               {w.still_running && <ToneBadge tone="success">Still running</ToneBadge>}
+                              {tagLabels(w.tags).map((label) => (
+                                <ToneBadge key={label} tone="info">
+                                  {label}
+                                </ToneBadge>
+                              ))}
+                              {isRelevant(w.tags) && <ToneBadge tone="primary">Close to your business</ToneBadge>}
                               {w.link && (
                                 <a href={w.link} target="_blank" rel="noopener noreferrer" aria-label={`See this ${w.advertiser} ad`} className="text-muted-foreground hover:text-primary">
                                   <ExternalLink className="size-4" />
@@ -128,6 +145,7 @@ export default function ResearchPage() {
                 {waiting.length > 0 && <p className="text-sm text-muted-foreground">Waiting for the next weekly scan: {waiting.join(", ")}.</p>}
               </div>
             )}
+            {quota && <p className="mt-4 text-xs text-muted-foreground">{quota}</p>}
           </GlassPanel>
 
           <GlassPanel title="Ads you saved" description="Ads you saw working, with your notes on why.">

@@ -113,12 +113,36 @@ export interface ComplaintReport {
   cached?: boolean;
 }
 
+/** Fixed labels the weekly scan puts on a top winner (never the ad's words). */
+export interface WinnerTags {
+  hook_type?: string;
+  angle?: string;
+  offer_type?: string;
+  relevance?: string;
+}
+
 export interface ResearchWinner {
   advertiser: string;
   format: string;
   total_days_shown: number;
   still_running: boolean;
   link?: string;
+  tags?: WinnerTags;
+}
+
+export interface ScanQuotaUse {
+  platform_used: number;
+  platform_limit: number;
+  tenant_used: number;
+  tenant_limit: number;
+  tenant_left: number;
+}
+
+/** This month's competitor searches and ad-detail reads (for winner tags). */
+export interface ScanQuota {
+  month: string;
+  scan: ScanQuotaUse;
+  details: ScanQuotaUse;
 }
 
 export interface ResearchCompetitor {
@@ -139,6 +163,10 @@ export interface MarketSuggestions {
 export interface MarketResearch {
   competitors: ResearchCompetitor[];
   suggestions: MarketSuggestions | null;
+  /** The scan's short brief of its tagged winners, the same one the Ads Specialist reads. */
+  summary: string;
+  /** Null when the budget could not be read right now. */
+  quota: ScanQuota | null;
 }
 
 export type ReferencePlatform = "meta" | "tiktok" | "youtube" | "google" | "other";
@@ -446,9 +474,14 @@ export const marketingOsApi = {
   brandContext: () => apiClient.get<BrandContext>("/api/v1/tenant/marketing-context").then((r) => r.data),
   saveBrandContext: (bc: BrandContext) =>
     apiClient.put<BrandContext>("/api/v1/tenant/marketing-context", bc).then((r) => r.data),
-  /** What the weekly competitor scan found, and the onboarding market search if it ran. */
-  research: () =>
-    apiClient.get<MarketResearch>("/api/v1/tenant/market-research").then((r) => ({ competitors: r.data.competitors ?? [], suggestions: r.data.suggestions ?? null })),
+  /** What the weekly competitor scan found, its summary and budget, and the onboarding market search if it ran. */
+  research: (): Promise<MarketResearch> =>
+    apiClient.get<Partial<MarketResearch>>("/api/v1/tenant/market-research").then((r) => ({
+      competitors: r.data.competitors ?? [],
+      suggestions: r.data.suggestions ?? null,
+      summary: r.data.summary ?? "",
+      quota: r.data.quota ?? null,
+    })),
   /** Complaint themes from public reviews of similar businesses. A fresh search costs 1 credit. */
   findComplaints: (query: string) =>
     apiClient.post<ComplaintReport>("/api/v1/tenant/market-research/complaints", { query }, { timeout: 60_000 }).then((r) => r.data),
