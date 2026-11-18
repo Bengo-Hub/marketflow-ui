@@ -1,10 +1,14 @@
 import type { NextConfig } from "next";
 import withPWA from "@ducanh2912/next-pwa";
+import { securityHeaders } from "./src/lib/security-headers";
 
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
   turbopack: {},
+  async headers() {
+    return securityHeaders(process.env, process.env.NODE_ENV === "development");
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "cdn.simpleicons.org" },
