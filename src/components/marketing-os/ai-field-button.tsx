@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, PenLine } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { apiError, marketingOsApi, type FieldSuggestion } from "@/lib/api/marketing-os";
@@ -39,7 +39,7 @@ export function AIFieldButton({
   }
   return (
     <Button type="button" variant="ghost" size="sm" onClick={run} disabled={busy || disabled} aria-label={`${label}: ${field}`} className="h-8 gap-1.5 px-2 text-xs">
-      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PenLine className="h-3.5 w-3.5" />}
       {busy ? "Writing..." : label}
     </Button>
   );
