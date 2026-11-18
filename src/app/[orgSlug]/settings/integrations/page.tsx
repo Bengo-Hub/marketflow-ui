@@ -45,7 +45,9 @@ export default function IntegrationsPage() {
       // google_ads to the Google Calendar flow.
       const entry = tenantIntegrations.find((i) => i.id === providerType);
       if (!entry) throw new Error(`No connect flow for ${providerType}`);
-      const r = await apiClient.get<{ url: string }>(entry.authorizePath);
+      // Credentialed, so the browser keeps the OAuth nonce cookie the API sets here; the
+      // callback checks it, which ties the consent to this browser (single-use bound state).
+      const r = await apiClient.get<{ url: string }>(entry.authorizePath, { withCredentials: true });
       window.location.href = r.data.url;
     },
   });
