@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/errors";
-import { onboardingApi } from "@/lib/api/onboarding";
+import { onboardingApi, type MarkableStep } from "@/lib/api/onboarding";
 import { justCompleted, onboardingShownKey, shouldOpenOnboarding } from "@/lib/onboarding-flow";
 import { isRestricted } from "@/lib/access/role-access";
 import { useMyAccess } from "./use-access";
@@ -19,6 +19,16 @@ export function useChecklist(enabled = true) {
 export function useBrandDraft(enabled: boolean) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   return useQuery({ queryKey: ["onboarding", orgSlug, "draft"], queryFn: onboardingApi.draft, enabled, staleTime: 5 * 60_000, retry: false });
+}
+
+/** Marks a quick start step done and reloads the checklist. */
+export function useMarkStep() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (key: MarkableStep) => onboardingApi.markStep(key),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["onboarding"] }),
+    onError: (e) => toast.error(apiErrorMessage(e, "Could not save")),
+  });
 }
 
 export function useDismissChecklist() {

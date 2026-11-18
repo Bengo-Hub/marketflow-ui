@@ -10,6 +10,8 @@ import { CapsuleTabs, Field } from "@/components/ui-kit";
 import { useCreateBrief, useOfferingSearch } from "@/hooks/use-creative";
 import { creativeApi, OBJECTIVES, type Objective, type Offering } from "@/lib/api/creative";
 import { kes } from "@/lib/api/billing";
+import { CreativePlanStep } from "@/components/studio/creative-plan-step";
+import type { BriefPlan } from "@/lib/studio/creative-plan";
 
 function optionOf(o: Offering): ComboboxOption {
   const promo = o.type === "PROMOTION";
@@ -37,6 +39,8 @@ export function NewAdForm({ onDone }: { onDone: (briefId?: string) => void }) {
   const [objective, setObjective] = useState<Objective>("sales");
   const [audience, setAudience] = useState("");
   const [language, setLanguage] = useState<"en" | "sw">("en");
+  const [planning, setPlanning] = useState(false);
+  const [plan, setPlan] = useState<BriefPlan | null>(null);
 
   const options = (top.data ?? []).map(optionOf);
   const catalogueDown = top.isError;
@@ -67,7 +71,15 @@ export function NewAdForm({ onDone }: { onDone: (briefId?: string) => void }) {
   const valid = title.trim().length > 0 && title.trim().length <= 160;
   const submit = () =>
     create.mutate(
-      { title: title.trim(), objective, language, audience: audience.trim() || undefined, offering: offering ?? undefined },
+      {
+        title: title.trim(),
+        objective,
+        language,
+        audience: audience.trim() || undefined,
+        offering: offering ?? undefined,
+        // The chosen Creative Plan option, when the owner made one (metadata.plan).
+        metadata: planning && plan ? { plan } : undefined,
+      },
       { onSuccess: (b) => onDone(b.id) },
     );
 
@@ -120,6 +132,12 @@ export function NewAdForm({ onDone }: { onDone: (briefId?: string) => void }) {
             ]}
           />
         </Field>
+        <div className="space-y-2">
+          <Button type="button" size="sm" variant="ghost" aria-expanded={planning} onClick={() => setPlanning((v) => !v)}>
+            {planning ? "Skip the plan" : "Plan it first (optional)"}
+          </Button>
+          {planning && <CreativePlanStep onChange={setPlan} />}
+        </div>
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={() => onDone()}>
