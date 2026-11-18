@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, Bot, Play, Plus, RotateCcw } from "lucide-react";
+import { Ban, Play, Plus, Repeat, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -132,7 +132,7 @@ export default function AutopilotPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        icon={<Bot />}
+        icon={<Repeat />}
         title="Ad autopilot"
         description="An agent drafts ads for your products on a schedule. By default nothing is posted until you approve it in the Studio. On plans that include it, an agent can post after a veto window you can cancel. Paid boosts always wait for you."
         actions={
@@ -158,7 +158,7 @@ export default function AutopilotPage() {
       ) : agents.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading...</p>
       ) : list.length === 0 && !draft ? (
-        <EmptyState icon={<Bot />} title="No ad agents yet" description="Create one, or hire a ready-made agent below." />
+        <EmptyState icon={<Repeat />} title="No ad agents yet" description="Create one, or hire a ready-made agent below." />
       ) : (
         <div className="space-y-3">
           {list.map((a) => (

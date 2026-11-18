@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Bot, CalendarDays, Compass, ImageIcon, Plus } from "lucide-react";
+import { CalendarDays, Compass, ImageIcon, Plus, Repeat } from "lucide-react";
 import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -82,7 +82,7 @@ export default function StudioPage() {
                 <Compass /> Research
               </Link>
               <Link href={`/${orgSlug}/studio/autopilot`} className={buttonVariants({ variant: "outline" })}>
-                <Bot /> Autopilot
+                <Repeat /> Autopilot
               </Link>
               <Link href={`/${orgSlug}/studio/calendar`} className={buttonVariants({ variant: "outline" })}>
                 <CalendarDays /> Calendar
