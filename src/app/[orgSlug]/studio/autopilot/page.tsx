@@ -47,6 +47,7 @@ import {
 } from "@/lib/studio/veto-window";
 import { ACCOUNTS_URL } from "@/lib/urls";
 import { HoldCategoriesEditor } from "@/components/studio/hold-categories-editor";
+import { AutopilotActivity } from "@/components/studio/autopilot-activity";
 
 const KEY = ["autopilot-agents"];
 const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
@@ -360,6 +361,7 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
     onError: (e) => toast.error(apiErrorMessage(e, "Could not restore the settings")),
   });
   const [previewing, setPreviewing] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
   const previous = versions.slice(0, -1).slice(-3).reverse();
   return (
     <GlassPanel>
@@ -431,9 +433,15 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
               {previewing ? "Hide preview" : "Preview next run"}
             </Button>
           )}
+          {cfg && (
+            <Button size="sm" variant="ghost" aria-expanded={showActivity} onClick={() => setShowActivity((v) => !v)}>
+              {showActivity ? "Hide activity" : "Activity"}
+            </Button>
+          )}
           {a.is_active && <ToneBadge tone="success">On</ToneBadge>}
         </div>
         {previewing && <DryRunPreview agentId={a.id} />}
+        {showActivity && <AutopilotActivity agentId={a.id} orgSlug={orgSlug} />}
         {previous.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>Earlier settings:</span>
