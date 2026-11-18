@@ -20,6 +20,8 @@ export interface AutopilotConfig {
   connected_account_ids: string[];
   monthly_credit_ceiling: number;
   new_item_drafts?: boolean;
+  /** One extra draft a day when a review rated 4 or 5 (or unrated) is published. */
+  testimonial_drafts?: boolean;
   /** approve_each (default) or auto_publish: publish after a veto window unless the owner cancels. */
   approval_mode?: "approve_each" | "auto_publish";
   /** The veto window in hours, for auto_publish. */

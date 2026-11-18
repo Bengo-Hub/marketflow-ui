@@ -46,6 +46,7 @@ import {
   type ApprovalMode,
 } from "@/lib/studio/veto-window";
 import { ACCOUNTS_URL } from "@/lib/urls";
+import { RULE_TRIGGERS, ruleTriggers } from "@/lib/autopilot-triggers";
 import { HoldCategoriesEditor } from "@/components/studio/hold-categories-editor";
 
 const KEY = ["autopilot-agents"];
@@ -460,7 +461,7 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const [time, setTime] = useState(cfg?.time ?? "09:00");
   const [objective, setObjective] = useState<AutopilotConfig["objective"]>(cfg?.objective ?? "whatsapp");
   const [credits, setCredits] = useState(cfg?.monthly_credit_ceiling ?? 100);
-  const [newItems, setNewItems] = useState(cfg?.new_item_drafts ?? false);
+  const [triggers, setTriggers] = useState(() => ruleTriggers(cfg));
   // The CPL stop (Sprint 20): 0 is off.
   const [stopCPL, setStopCPL] = useState(cfg?.stop_cpl ?? 0);
   const [stopDays, setStopDays] = useState(cfg?.stop_cpl_days ?? STOP_CPL_DEFAULT_DAYS);
@@ -508,7 +509,7 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           ...(cfg ?? {}),
           offering_ids: picked.map((o) => String(o.source_id)),
           objective,
-          new_item_drafts: newItems,
+          ...triggers,
           languages: cfg?.languages ?? ["en"],
           video_tiers: cfg?.video_tiers ?? ["template"],
           cadence,
@@ -691,13 +692,19 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           </ul>
         )}
 
-        <label className="flex min-h-11 items-center gap-3 text-sm">
-          <Checkbox checked={newItems} onCheckedChange={(on) => setNewItems(on === true)} aria-label="Draft an ad when a new product is added" />
-          <span>
-            Draft an ad when a new product is added
-            <span className="block text-xs text-muted-foreground">At most one extra draft a day, only for products with a photo. Each draft uses credits and counts toward your monthly limit.</span>
-          </span>
-        </label>
+        {RULE_TRIGGERS.map((t) => (
+          <label key={t.key} className="flex min-h-11 items-center gap-3 text-sm">
+            <Checkbox
+              checked={triggers[t.key]}
+              onCheckedChange={(on) => setTriggers((prev) => ({ ...prev, [t.key]: on === true }))}
+              aria-label={t.label}
+            />
+            <span>
+              {t.label}
+              <span className="block text-xs text-muted-foreground">{t.help}</span>
+            </span>
+          </label>
+        ))}
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">Where approved ads will go</legend>
