@@ -2,7 +2,20 @@ import { apiClient } from "./client";
 import type { BrandContext } from "./marketing-os";
 
 /** forever_shop is the Forever tenant's step only; no tenant has a products step (owner, 2026-11-03). */
-export type StepKey = "profile" | "forever_shop" | "brand_context" | "brand_images" | "channels" | "lead_capture" | "team";
+export type StepKey =
+  | "plan"
+  | "profile"
+  | "forever_shop"
+  | "brand_context"
+  | "brand_images"
+  | "channels"
+  | "lead_capture"
+  | "widget"
+  | "share_page"
+  | "team";
+
+/** The quick start steps the owner marks done in the guide (marketflow-api onboarding quick_start.go). */
+export type MarkableStep = "plan" | "widget" | "share_page";
 
 /** GET /api/v1/tenant/onboarding (marketflow-api onboarding.Checklist). Done and total count required steps. */
 export interface Checklist {
@@ -46,6 +59,8 @@ export interface BrandDraft {
 export const onboardingApi = {
   checklist: () => apiClient.get<Checklist>("/api/v1/tenant/onboarding").then((r) => ({ ...r.data, steps: r.data.steps ?? [] })),
   dismiss: (dismissed: boolean) => apiClient.post("/api/v1/tenant/onboarding/dismiss", { dismissed }).then(() => undefined),
+  /** Marks a quick start step done: stay on the trial, the widget added, the page shared. */
+  markStep: (key: MarkableStep) => apiClient.post(`/api/v1/tenant/onboarding/steps/${key}/done`).then(() => undefined),
   draft: () =>
     apiClient.get<BrandDraft>("/api/v1/tenant/marketing-context/draft").then((r) => ({
       ...r.data,
@@ -57,6 +72,24 @@ export const onboardingApi = {
 
 /** Where each step is finished in the app, relative to /{orgSlug}. */
 export const STEP_META: Record<StepKey, { title: string; blurb: string; href: string; action: string }> = {
+  plan: {
+    title: "Choose your plan",
+    blurb: "You start on a free trial. Pick the plan that fits your business now, or stay on the trial and choose later.",
+    href: "/settings/billing",
+    action: "See plans",
+  },
+  widget: {
+    title: "Add the chat assistant to your website",
+    blurb: "Optional. Paste one line into your site and visitors can ask questions and leave their details any time.",
+    href: "/settings/integrations",
+    action: "Get the code",
+  },
+  share_page: {
+    title: "Share your page",
+    blurb: "Optional. Send your public page to customers on WhatsApp and your social pages, so leads start coming in.",
+    href: "/settings/profile",
+    action: "Share",
+  },
   profile: {
     title: "Tell customers who you are",
     blurb: "A tagline, a short story and how to reach you. It fills your public page.",

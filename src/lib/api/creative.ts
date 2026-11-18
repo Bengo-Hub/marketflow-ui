@@ -88,6 +88,8 @@ export interface BriefInput {
   audience?: string;
   language?: "en" | "sw";
   status?: "active" | "archived";
+  /** Kept on the brief; the Studio form sends only `plan` (lib/studio/creative-plan.ts). */
+  metadata?: Record<string, unknown>;
 }
 
 export interface VersionInput {
