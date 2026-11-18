@@ -20,6 +20,8 @@ export interface AutopilotConfig {
   connected_account_ids: string[];
   monthly_credit_ceiling: number;
   new_item_drafts?: boolean;
+  /** One extra draft a day when a review rated 4 or 5 (or unrated) is published. */
+  testimonial_drafts?: boolean;
   /** approve_each (default) or auto_publish: publish after a veto window unless the owner cancels. */
   approval_mode?: "approve_each" | "auto_publish";
   /** The veto window in hours, for auto_publish. */
@@ -188,6 +190,36 @@ export interface AgentRun {
   status: string;
   error_message?: string;
   trace?: { skip?: string };
+  triggered_by?: string;
+  started_at?: string;
+  finished_at?: string;
+}
+
+/** A draft of the agent's waiting for the owner: a script to review or a finished ad to approve. */
+export interface PendingDraft {
+  version_id: string;
+  brief_id: string;
+  title: string;
+  kind: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** The agent's last seven days, the same numbers as the weekly email. Spend is in the ad account's currency. */
+export interface AutopilotWeek {
+  since: string;
+  ads_made: number;
+  credits: number;
+  spend: number;
+  leads: number;
+  cpl: number;
+}
+
+/** GET /agents/custom/{id}/autopilot/dashboard. */
+export interface AutopilotDashboard {
+  pending: PendingDraft[];
+  week: AutopilotWeek;
 }
 
 /** A preview of the next run and a month of runs. Nothing is made or charged. */
@@ -254,6 +286,11 @@ export const autopilotApi = {
   /** The plan's Autopilot allowance and how many agents are switched on. */
   plan: () => apiClient.get<AutopilotPlan>(`${base}/autopilot/plan`).then((r) => r.data),
   dryRun: (id: string) => apiClient.get<DryRun>(`${base}/custom/${id}/autopilot/dry-run`).then((r) => r.data),
+  /** The agent's drafts waiting for the owner and its last seven days. */
+  dashboard: (id: string) => apiClient.get<AutopilotDashboard>(`${base}/custom/${id}/autopilot/dashboard`).then((r) => r.data),
+  /** The agent's latest runs, newest first. */
+  runs: (id: string, limit = 10) =>
+    apiClient.get<{ data: AgentRun[] | null }>(`${base}/custom/${id}/runs`, { params: { limit } }).then((r) => r.data.data ?? []),
   latestRun: (id: string) =>
     apiClient.get<{ data: AgentRun[] | null }>(`${base}/custom/${id}/runs`, { params: { limit: 1 } }).then((r) => r.data.data?.[0] ?? null),
   /** The tenant's agents that are ad autopilots. */

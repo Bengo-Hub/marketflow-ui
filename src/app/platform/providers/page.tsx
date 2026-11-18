@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { ArrowUpRight, BrainCircuit, Megaphone, CalendarClock, MessageSquareMore } from "lucide-react";
+import { ArrowUpRight, Cpu, Megaphone, CalendarClock, MessageSquareMore } from "lucide-react";
 
 type ProviderRow = {
   id: string;
@@ -19,7 +19,7 @@ type ProviderRow = {
 };
 
 const TAB_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
-  ai: BrainCircuit,
+  ai: Cpu,
   ads: Megaphone,
   scheduling: CalendarClock,
   messaging: MessageSquareMore,
@@ -76,7 +76,7 @@ export default function PlatformProvidersPage() {
       <Tabs defaultValue="ai" className="w-full">
         <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex">
           {providerCatalog.map((cat) => {
-            const Icon = TAB_ICON[cat.id] ?? BrainCircuit;
+            const Icon = TAB_ICON[cat.id] ?? Cpu;
             const count = countConfigured(cat.id);
             return (
               <TabsTrigger key={cat.id} value={cat.id} className="gap-1.5">

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useBrandDraft } from "@/hooks/use-onboarding";
 import type { BrandDraft } from "@/lib/api/onboarding";
-import { CheckCircle2, CircleAlert, ExternalLink, Save, Sparkles, UserCircle } from "lucide-react";
+import { CheckCircle2, CircleAlert, ExternalLink, Info, Save, UserCircle } from "lucide-react";
 import { PhoneInputField, CountrySelect } from "@bengo-hub/shared-ui-lib/contact";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -176,7 +176,7 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
 
       {filled.length > 0 && (
         <div className="flex items-start gap-3 rounded-2xl border border-info/25 bg-info/10 p-4 text-sm">
-          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-info" />
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-info" />
           <p className="text-foreground">
             We filled {filled.join(", ")} from your account and business data. Check {filled.length > 1 ? "them" : "it"}, then save.
           </p>

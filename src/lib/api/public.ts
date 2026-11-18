@@ -42,7 +42,6 @@ export interface PublicMetadata {
 }
 
 export interface PublicProfile {
-  id: string;
   name: string;
   slug: string;
   business_type?: string;

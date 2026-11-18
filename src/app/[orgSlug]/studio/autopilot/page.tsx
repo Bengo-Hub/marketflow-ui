@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, Bot, Play, Plus, RotateCcw } from "lucide-react";
+import { Ban, Play, Plus, Repeat, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,7 +46,9 @@ import {
   type ApprovalMode,
 } from "@/lib/studio/veto-window";
 import { ACCOUNTS_URL } from "@/lib/urls";
+import { RULE_TRIGGERS, ruleTriggers } from "@/lib/autopilot-triggers";
 import { HoldCategoriesEditor } from "@/components/studio/hold-categories-editor";
+import { AutopilotActivity } from "@/components/studio/autopilot-activity";
 
 const KEY = ["autopilot-agents"];
 const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
@@ -130,7 +132,7 @@ export default function AutopilotPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        icon={<Bot />}
+        icon={<Repeat />}
         title="Ad autopilot"
         description="An agent drafts ads for your products on a schedule. By default nothing is posted until you approve it in the Studio. On plans that include it, an agent can post after a veto window you can cancel. Paid boosts always wait for you."
         actions={
@@ -156,7 +158,7 @@ export default function AutopilotPage() {
       ) : agents.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading...</p>
       ) : list.length === 0 && !draft ? (
-        <EmptyState icon={<Bot />} title="No ad agents yet" description="Create one, or hire a ready-made agent below." />
+        <EmptyState icon={<Repeat />} title="No ad agents yet" description="Create one, or hire a ready-made agent below." />
       ) : (
         <div className="space-y-3">
           {list.map((a) => (
@@ -360,6 +362,7 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
     onError: (e) => toast.error(apiErrorMessage(e, "Could not restore the settings")),
   });
   const [previewing, setPreviewing] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
   const previous = versions.slice(0, -1).slice(-3).reverse();
   return (
     <GlassPanel>
@@ -431,9 +434,15 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
               {previewing ? "Hide preview" : "Preview next run"}
             </Button>
           )}
+          {cfg && (
+            <Button size="sm" variant="ghost" aria-expanded={showActivity} onClick={() => setShowActivity((v) => !v)}>
+              {showActivity ? "Hide activity" : "Activity"}
+            </Button>
+          )}
           {a.is_active && <ToneBadge tone="success">On</ToneBadge>}
         </div>
         {previewing && <DryRunPreview agentId={a.id} />}
+        {showActivity && <AutopilotActivity agentId={a.id} orgSlug={orgSlug} />}
         {previous.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>Earlier settings:</span>
@@ -460,7 +469,7 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const [time, setTime] = useState(cfg?.time ?? "09:00");
   const [objective, setObjective] = useState<AutopilotConfig["objective"]>(cfg?.objective ?? "whatsapp");
   const [credits, setCredits] = useState(cfg?.monthly_credit_ceiling ?? 100);
-  const [newItems, setNewItems] = useState(cfg?.new_item_drafts ?? false);
+  const [triggers, setTriggers] = useState(() => ruleTriggers(cfg));
   // The CPL stop (Sprint 20): 0 is off.
   const [stopCPL, setStopCPL] = useState(cfg?.stop_cpl ?? 0);
   const [stopDays, setStopDays] = useState(cfg?.stop_cpl_days ?? STOP_CPL_DEFAULT_DAYS);
@@ -508,7 +517,7 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           ...(cfg ?? {}),
           offering_ids: picked.map((o) => String(o.source_id)),
           objective,
-          new_item_drafts: newItems,
+          ...triggers,
           languages: cfg?.languages ?? ["en"],
           video_tiers: cfg?.video_tiers ?? ["template"],
           cadence,
@@ -691,13 +700,19 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           </ul>
         )}
 
-        <label className="flex min-h-11 items-center gap-3 text-sm">
-          <Checkbox checked={newItems} onCheckedChange={(on) => setNewItems(on === true)} aria-label="Draft an ad when a new product is added" />
-          <span>
-            Draft an ad when a new product is added
-            <span className="block text-xs text-muted-foreground">At most one extra draft a day, only for products with a photo. Each draft uses credits and counts toward your monthly limit.</span>
-          </span>
-        </label>
+        {RULE_TRIGGERS.map((t) => (
+          <label key={t.key} className="flex min-h-11 items-center gap-3 text-sm">
+            <Checkbox
+              checked={triggers[t.key]}
+              onCheckedChange={(on) => setTriggers((prev) => ({ ...prev, [t.key]: on === true }))}
+              aria-label={t.label}
+            />
+            <span>
+              {t.label}
+              <span className="block text-xs text-muted-foreground">{t.help}</span>
+            </span>
+          </label>
+        ))}
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">Where approved ads will go</legend>

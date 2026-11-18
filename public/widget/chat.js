@@ -599,10 +599,25 @@
     '    <svg class="send-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>',
     '  </button>',
     '</form>',
-    '<div class="powered">Powered by <a href="https://codevertexafrica.com" target="_blank" rel="noreferrer">Codevertex</a></div>',
+    '<div class="powered" hidden>Powered by <a href="https://codevertexafrica.com" target="_blank" rel="noreferrer">Codevertex</a></div>',
   ].join('');
   shadow.appendChild(panel);
   showLogo(panel.querySelector('.hdr-avatar'));
+  applyWhiteLabel(panel.querySelector('.powered'));
+
+  // applyWhiteLabel keeps "Powered by Codevertex" off for a tenant whose plan includes white label
+  // (the Business plan, as on the /p, /f and /book pages). The server decides from the plan, so a
+  // page cannot turn the badge off on its own. The badge starts hidden so a white label site never
+  // flashes it, and shows on any other answer or a failure. A reply slower than 4 seconds shows it
+  // meanwhile; the answer, when it comes, still decides.
+  function applyWhiteLabel(badge) {
+    if (!badge) return;
+    var timer = setTimeout(function () { badge.hidden = false; }, 4000);
+    fetch(apiURL + '/api/v1/public/widget-config?tenant=' + encodeURIComponent(tenantSlug))
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .then(function (cfg) { clearTimeout(timer); badge.hidden = !!(cfg && cfg.white_label === true); })
+      .catch(function () { clearTimeout(timer); badge.hidden = false; });
+  }
 
   var panelOpen = false;
 

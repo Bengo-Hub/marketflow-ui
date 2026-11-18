@@ -67,6 +67,7 @@ The widget:
 - Sends messages to `POST {api-url}/api/v1/public/chat` with the `X-Tenant-ID` header.
 - Keeps a `session_id` across turns.
 - Uses Shadow DOM, so host-page CSS cannot leak into the widget.
+- Reads `GET {api-url}/api/v1/public/widget-config?tenant={slug}` on load. When the business's plan includes white label (the Business plan), "Powered by Codevertex" stays hidden, as on the `/p`, `/f` and `/book` pages. The plan decides this on the server; no attribute turns the badge off.
 
 ## Cache
 

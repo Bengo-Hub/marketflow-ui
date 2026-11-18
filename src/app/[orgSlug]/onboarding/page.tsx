@@ -16,6 +16,7 @@ import { apiErrorMessage } from "@/lib/api/errors";
 import { marketingOsApi, type BrandContext } from "@/lib/api/marketing-os";
 import { ActorNamesFields } from "@/components/marketing-os/actor-names-fields";
 import { BrandImagesPanel } from "@/components/media/brand-images-panel";
+import { PlanStepPanel, ShareStepPanel, WidgetStepPanel } from "@/components/onboarding/quick-start-panels";
 import { BusinessTypePicker } from "@/components/business-type-picker";
 import { businessTypeChosen, changedBusinessType, initialBusinessType } from "@/lib/business-types";
 import { STEP_META, type BrandDraft, type StepKey } from "@/lib/api/onboarding";
@@ -122,7 +123,8 @@ export default function OnboardingPage() {
   if (checklist.isError) return <ErrorState message="Could not load your setup steps." onRetry={() => void checklist.refetch()} />;
   const c = checklist.data;
   const pct = c && c.total ? Math.round((c.done / c.total) * 100) : 0;
-  const inline: Partial<Record<StepKey, boolean>> = { profile: true, brand_context: true, brand_images: true };
+  const inline: Partial<Record<StepKey, boolean>> = { plan: true, profile: true, brand_context: true, brand_images: true, widget: true, share_page: true };
+  const brandColor = profile.data?.metadata?.brand_primary_color;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -168,10 +170,15 @@ export default function OnboardingPage() {
                   </div>
                   {expanded && (
                     <div className="mt-4 border-t border-border pt-4">
-                      {draft.isError && <p className="mb-3 text-sm text-warning">We couldn&apos;t read your other Codevertex apps just now, so fill this in yourself.</p>}
+                      {draft.isError && (st.key === "profile" || st.key === "brand_context") && <p className="mb-3 text-sm text-warning">We couldn&apos;t read your other Codevertex apps just now, so fill this in yourself.</p>}
                       {profile.data && st.key === "profile" && <ProfileStep key={draft.data ? "with" : "without"} profile={profile.data} draft={draft.data} onDone={refresh} />}
                       {st.key === "brand_context" && <BrandStep key={draft.data ? "with" : "without"} draft={draft.data} onDone={refresh} />}
                       {st.key === "brand_images" && <BrandImagesPanel />}
+                      {st.key === "plan" && <PlanStepPanel done={st.done} />}
+                      {st.key === "widget" && (
+                        <WidgetStepPanel slug={profile.data?.slug ?? orgSlug} color={typeof brandColor === "string" ? brandColor : undefined} done={st.done} />
+                      )}
+                      {st.key === "share_page" && <ShareStepPanel slug={profile.data?.slug ?? orgSlug} businessName={profile.data?.name} done={st.done} />}
                       {profile.isLoading && st.key === "profile" && <div className="h-24 animate-pulse rounded-xl bg-muted" />}
                     </div>
                   )}

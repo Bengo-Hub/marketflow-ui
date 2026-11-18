@@ -442,6 +442,9 @@ export const marketingOsApi = {
   team: () =>
     aiClient.get<{ members: TeamMember[]; playbooks: Playbook[] }>("/api/v1/os/team").then((r) => r.data),
   optimize: (text: string) => aiClient.post<TaskSpec>("/api/v1/os/optimize", { text }).then((r) => r.data),
+  /** A Creative Plan from explicit inputs (budget, days, platforms, output); nothing is made or charged. */
+  planQuote: (input: { ad_budget_kes: number; days: number; platforms: string[]; tier: string }) =>
+    aiClient.post<CreativePlan>("/api/v1/os/plan/quote", input).then((r) => r.data),
   /** "Generate with AI" for one profile or brand-context field (marketflow-ai team.FieldSpecs). */
   suggestField: (field: string, form: Record<string, string>, language?: "en" | "sw") =>
     aiClient.post<FieldSuggestion>("/api/v1/os/field-suggest", { field, form, language }).then((r) => r.data),
