@@ -37,7 +37,8 @@ describe("UI rules", () => {
       if (used.length) offenders.push(`${rel}: ${used.join(", ")}`);
     }
     expect(offenders).toEqual([]);
-  });
+    // It reads every source file, which outlasts the 5 s default on a loaded machine.
+  }, 60_000);
 
   it("reads lucide imports, aliases included", () => {
     expect(lucideImports('import { Bot, Play as Go } from "lucide-react";')).toEqual(["Bot", "Play"]);

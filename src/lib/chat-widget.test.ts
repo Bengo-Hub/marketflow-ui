@@ -60,7 +60,7 @@ describe("chat widget white label", () => {
     const badge = shadow.querySelector(".powered") as HTMLElement;
     expect(badge.hidden).toBe(true); // never flashed while the answer is on its way
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/v1/public/widget-config?tenant=acme-shop");
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toContain("/api/v1/public/widget-config?tenant=acme-shop");
     await new Promise((r) => setTimeout(r, 0));
     expect(badge.hidden).toBe(true);
   });
