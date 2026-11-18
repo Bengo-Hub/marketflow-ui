@@ -19,7 +19,7 @@ import {
   Settings, Megaphone, Globe, Mail, Calendar, Sun, Moon, Shield, Building2,
   Briefcase, Activity, CheckSquare, ChevronDown, LogOut, UsersRound, Filter,
   SlidersHorizontal, Workflow, Palette, UserCircle, CreditCard, PlugZap, Quote,
-  ScrollText, Gauge, KeyRound, Cog, Receipt, ImageIcon, Inbox, Plug, Gift, ShieldCheck,
+  ScrollText, Gauge, KeyRound, Cog, Receipt, ImageIcon, Inbox, Plug, Gift, ShieldCheck, Scale,
 } from "lucide-react";
 import { useTenantProfile } from "@/hooks/use-tenant-profile";
 import { filterByBusinessType } from "@/lib/access/business-type-nav";
@@ -99,6 +99,7 @@ export const platformItems: NavItem[] = [
   { label: "Providers", icon: KeyRound, href: "/platform/providers" },
   { label: "Billing", icon: Receipt, href: "/platform/billing" },
   { label: "Usage", icon: Gauge, href: "/platform/usage" },
+  { label: "Costs and margin", icon: Scale, href: "/platform/costs" },
   { label: "Service config", icon: Cog, href: "/platform/service-config" },
   { label: "Service data", icon: Plug, href: "/platform/endpoints" },
   { label: "Security", icon: Shield, href: "/platform/security" },

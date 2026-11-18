@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, Cog, Gauge, KeyRound, Receipt, Shield } from "lucide-react";
+import { Building2, Cog, Gauge, KeyRound, Receipt, Scale, Shield } from "lucide-react";
 import { PageHeader } from "@/components/ui-kit";
 
 const SECTIONS = [
@@ -7,6 +7,7 @@ const SECTIONS = [
   { title: "Providers", href: "/platform/providers", icon: KeyRound, desc: "AI, advertising, calendar and messaging providers shared by all tenants." },
   { title: "Billing", href: "/platform/billing", icon: Receipt, desc: "Plans, service charges and plan overrides per tenant." },
   { title: "Usage", href: "/platform/usage", icon: Gauge, desc: "Leads, chats, campaigns and meetings across the platform this week." },
+  { title: "Costs and margin", href: "/platform/costs", icon: Scale, desc: "Credits charged against media cost per business each month, with the margin." },
   { title: "Service config", href: "/platform/service-config", icon: Cog, desc: "Platform defaults and per-tenant overrides for service settings." },
   { title: "Security", href: "/platform/security", icon: Shield, desc: "Encryption key status and rotation, and the admin audit trail." },
 ];
