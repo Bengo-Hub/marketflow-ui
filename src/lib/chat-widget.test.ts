@@ -39,6 +39,53 @@ beforeEach(() => {
   delete (window as unknown as { __veraLoaded?: boolean }).__veraLoaded;
   document.body.innerHTML = "";
   sessionStorage.clear();
+  // The widget reads its config at load; no test reaches the network.
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) })));
+});
+
+/** Answers the widget's config read with cfg (null: the read fails). */
+function stubConfig(cfg: Record<string, unknown> | null) {
+  const fetchMock = vi.fn(async () => {
+    if (cfg === null) throw new TypeError("network down");
+    return { ok: true, status: 200, json: async () => cfg };
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+describe("chat widget white label", () => {
+  it("hides Powered by Codevertex when the plan includes white label", async () => {
+    const fetchMock = stubConfig({ white_label: true });
+    const shadow = loadWidget({ tenant: "acme-shop" });
+    const badge = shadow.querySelector(".powered") as HTMLElement;
+    expect(badge.hidden).toBe(true); // never flashed while the answer is on its way
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/v1/public/widget-config?tenant=acme-shop");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(badge.hidden).toBe(true);
+  });
+
+  it("shows the badge when the plan has no white label", async () => {
+    stubConfig({ white_label: false });
+    const shadow = loadWidget({ tenant: "cafe" });
+    const badge = shadow.querySelector(".powered") as HTMLElement;
+    await vi.waitFor(() => expect(badge.hidden).toBe(false));
+    expect(badge.textContent).toContain("Powered by");
+  });
+
+  it("shows the badge when the config cannot be read", async () => {
+    stubConfig(null);
+    const shadow = loadWidget({ tenant: "cafe" });
+    const badge = shadow.querySelector(".powered") as HTMLElement;
+    await vi.waitFor(() => expect(badge.hidden).toBe(false));
+  });
+
+  it("ignores a white_label value that is not exactly true", async () => {
+    stubConfig({ white_label: "yes" });
+    const shadow = loadWidget({ tenant: "cafe" });
+    const badge = shadow.querySelector(".powered") as HTMLElement;
+    await vi.waitFor(() => expect(badge.hidden).toBe(false));
+  });
 });
 
 afterEach(() => {
