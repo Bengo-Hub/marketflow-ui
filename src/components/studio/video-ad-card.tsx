@@ -12,16 +12,19 @@ import { PublishDialog } from "@/components/studio/publish-dialog";
 import { useApprove, useDiscard } from "@/hooks/use-creative";
 import { useCanPublish, useIsRestricted } from "@/hooks/use-access";
 import {
+  useApprovePlan,
   useApproveStoryboard,
   useMakeStoryboard,
+  useRedrawActor,
   useRenderVideoAd,
   useReviseVideoAd,
   useSaveScript,
   useVideoAdQuote,
 } from "@/hooks/use-video-ads";
 import { kes } from "@/lib/api/billing";
-import { IN_PROGRESS, mainAsset, STATUS_LABEL, type CreativeVersion } from "@/lib/api/creative";
+import { aspectClass, IN_PROGRESS, mainAsset, STATUS_LABEL, type CreativeVersion } from "@/lib/api/creative";
 import {
+  frameLabel,
   SHOT_LABEL,
   VIDEO_KINDS,
   videoParts,
@@ -29,6 +32,7 @@ import {
   type ScriptScene,
   type Shot,
   type Speaker,
+  type VideoAdQuote,
   type VideoScript,
 } from "@/lib/api/video-ads";
 import { defaultPostCaption } from "@/lib/studio/post-caption";
@@ -120,7 +124,12 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
   const save = useSaveScript(briefId);
   const board = useMakeStoryboard(briefId);
   const approveBoard = useApproveStoryboard(briefId);
+  const redraw = useRedrawActor(briefId);
+  const approvePlan = useApprovePlan(briefId);
+  const [newActor, setNewActor] = useState("");
   const render = useRenderVideoAd(briefId);
+  const shape = aspectClass(version.format);
+  const wide = version.format === "1920x1080";
   const discard = useDiscard(briefId);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const approved = !!parts.storyboard?.approved_at;
@@ -173,9 +182,9 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
               <div className="flex flex-col gap-3 sm:flex-row">
                 {still?.url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={still.url} alt={`Storyboard for scene ${i + 1}`} className="aspect-[9/16] w-24 shrink-0 rounded-lg object-cover" />
+                  <img src={still.url} alt={`Storyboard for scene ${i + 1}`} className={`${shape} ${wide ? "w-40" : "w-24"} shrink-0 rounded-lg object-contain bg-muted`} />
                 ) : (
-                  <div className="flex aspect-[9/16] w-24 shrink-0 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
+                  <div className={`flex ${shape} ${wide ? "w-40" : "w-24"} shrink-0 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground`}>
                     {still?.source === "footage" ? "Your clip" : `Scene ${i + 1}`}
                   </div>
                 )}
@@ -255,15 +264,26 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
         </Button>
       )}
 
-      {presenter && !dirty && (
+      {!dirty && (
         <div className="space-y-2 rounded-xl border p-3">
           <p className="flex items-center gap-2 text-sm font-medium">
             <Clapperboard className="size-4" aria-hidden /> Storyboard
           </p>
           {parts.storyboardError && <p className="text-sm text-destructive">{parts.storyboardError}</p>}
+          {presenter && parts.storyboard?.actor?.url && (
+            // The presenter preview: the face every presenter scene is lip-synced from.
+            <figure className="flex flex-col gap-2 sm:flex-row sm:items-start">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={parts.storyboard.actor.url} alt="The presenter" className={`${shape} ${wide ? "w-56" : "w-28"} rounded-lg bg-muted object-contain`} />
+              <figcaption className="text-sm text-muted-foreground">{parts.storyboard.actor.prompt}</figcaption>
+            </figure>
+          )}
           {!parts.storyboard ? (
             <>
-              <p className="text-sm text-muted-foreground">Before any video is paid for, see the presenter and one picture per scene. About 1 credit.</p>
+              <p className="text-sm text-muted-foreground">
+                Before any video is paid for, see {presenter ? "the presenter and " : ""}one picture per scene. About 1 credit, free when every scene uses your
+                photos.
+              </p>
               <Button variant="outline" disabled={board.isPending} onClick={() => board.mutate(version.id)}>
                 {board.isPending ? "Starting..." : "Make the storyboard"}
               </Button>
@@ -273,13 +293,25 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
               <Check className="size-4 text-success" aria-hidden /> Approved. The pictures are shown beside each scene.
             </p>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              <Button disabled={approveBoard.isPending} onClick={() => approveBoard.mutate(version.id)}>
-                <Check /> Approve the storyboard
-              </Button>
-              <Button variant="outline" disabled={board.isPending} onClick={() => board.mutate(version.id)}>
-                Make it again
-              </Button>
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={approveBoard.isPending} onClick={() => approveBoard.mutate(version.id)}>
+                  <Check /> Approve the storyboard
+                </Button>
+                <Button variant="outline" disabled={board.isPending} onClick={() => board.mutate(version.id)}>
+                  Make it again
+                </Button>
+              </div>
+              {presenter && (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <Field label="New presenter (optional description)" htmlFor={`actor-${version.id}`} hint="Leave empty to redraw from the same description.">
+                    <Input id={`actor-${version.id}`} maxLength={300} value={newActor} onChange={(e) => setNewActor(e.target.value)} />
+                  </Field>
+                  <Button variant="outline" disabled={redraw.isPending} onClick={() => redraw.mutate({ id: version.id, actorPrompt: newActor.trim() })}>
+                    {redraw.isPending ? "Starting..." : "Draw a new presenter"}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -301,9 +333,24 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
                   Not enough credits: {q.shortfall} short. Buy {q.suggested_bundle.units} credits for {kes(q.suggested_bundle.price_kes)} in Billing.
                 </p>
               )}
+              <GenerationPlan quote={q} shape={shape} wide={wide} />
+              {q.plan_fingerprint && !q.plan_approved && (
+                <Button
+                  variant="outline"
+                  disabled={approvePlan.isPending || (q.plan?.scenes ?? []).some((s) => s.frame === "generated" && !s.frame_url)}
+                  onClick={() => approvePlan.mutate({ id: version.id, fingerprint: q.plan_fingerprint as string })}
+                >
+                  <Check /> {approvePlan.isPending ? "Approving..." : "Approve the generation plan"}
+                </Button>
+              )}
+              {q.plan_approved && (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Check className="size-4 text-success" aria-hidden /> Plan approved. Any change to the script or storyboard asks for it again.
+                </p>
+              )}
             </>
           )}
-          <Button className="w-full sm:w-auto" disabled={render.isPending || !q || !q.enough} onClick={() => render.mutate(version.id)}>
+          <Button className="w-full sm:w-auto" disabled={render.isPending || !q || !q.enough || !q.plan_approved} onClick={() => render.mutate(version.id)}>
             <Play /> {render.isPending ? "Starting..." : q ? `Render for ${q.credits_needed} credits` : "Render"}
           </Button>
         </div>
@@ -323,6 +370,56 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
         onConfirm={() => discard.mutate(version.id, { onSuccess: () => setConfirmDiscard(false) })}
       />
     </div>
+  );
+}
+
+/**
+ * The generation plan: for every scene, the first frame and the exact prompts each provider will
+ * receive. The owner approves it before the render; any change to the script or storyboard makes a
+ * new plan.
+ */
+function GenerationPlan({ quote, shape, wide }: { quote: VideoAdQuote; shape: string; wide: boolean }) {
+  const scenes = quote.plan?.scenes ?? [];
+  if (scenes.length === 0) return null;
+  const missing = scenes.some((s) => s.frame === "generated" && !s.frame_url);
+  return (
+    <details className="rounded-lg border p-2" open={!quote.plan_approved}>
+      <summary className="cursor-pointer text-sm font-medium">Generation plan: what each scene is made from</summary>
+      {missing && <p className="mt-2 text-sm text-destructive">Some scenes need a picture from the storyboard. Make the storyboard first.</p>}
+      <ol className="mt-2 space-y-2">
+        {scenes.map((s, i) => (
+          <li key={s.scene_id || i} className="flex flex-col gap-2 rounded-lg bg-muted/40 p-2 sm:flex-row">
+            {s.frame_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={s.frame_url} alt={`First frame of scene ${i + 1}`} className={`${shape} ${wide ? "w-32" : "w-16"} shrink-0 rounded bg-muted object-contain`} />
+            ) : (
+              <div className={`${shape} ${wide ? "w-32" : "w-16"} shrink-0 rounded bg-muted`} />
+            )}
+            <div className="min-w-0 flex-1 space-y-1 text-xs">
+              <p className="text-sm">
+                Scene {i + 1}: {SHOT_LABEL[s.shot] ?? s.shot}. First frame: {frameLabel(s)}
+                {s.cached ? ". Kept from the last version" : s.route ? `. ${s.route}${s.tier === "premium" ? " (premium)" : ""}` : ""}
+              </p>
+              {s.still_prompt && !s.cached && (
+                <p className="break-words text-muted-foreground">
+                  <span className="font-medium text-foreground">Picture prompt:</span> {s.still_prompt}
+                </p>
+              )}
+              {s.prompt && (
+                <p className="whitespace-pre-line break-words text-muted-foreground">
+                  <span className="font-medium text-foreground">Video prompt:</span> {s.prompt}
+                </p>
+              )}
+              {s.negative_prompt && (
+                <p className="break-words text-muted-foreground">
+                  <span className="font-medium text-foreground">Kept out:</span> {s.negative_prompt}
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }
 

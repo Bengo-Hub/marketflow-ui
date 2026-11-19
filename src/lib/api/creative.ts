@@ -8,7 +8,7 @@ import type { Paginated } from "./types";
  */
 
 export type Objective = "sales" | "leads" | "awareness" | "traffic";
-export type PosterFormat = "1080x1080" | "1080x1350" | "1080x1920";
+export type PosterFormat = "1920x1080" | "1080x1080" | "1080x1350" | "1080x1920";
 export type Tier = "standard" | "premium";
 export type VersionStatus = "queued" | "rendering" | "ready" | "failed" | "approved" | "rejected" | "superseded" | "script_ready";
 
@@ -193,6 +193,7 @@ export const STATUS_LABEL: Record<VersionStatus, string> = {
 };
 
 export const FORMATS: { value: PosterFormat; label: string; hint: string }[] = [
+  { value: "1920x1080", label: "Landscape", hint: "Full screen on laptops, desktops, TVs and phones held sideways" },
   { value: "1080x1350", label: "Portrait", hint: "Feed posts" },
   { value: "1080x1080", label: "Square", hint: "Feed and WhatsApp" },
   { value: "1080x1920", label: "Story", hint: "Stories and Status" },
@@ -204,3 +205,17 @@ export const OBJECTIVES: { value: Objective; label: string }[] = [
   { value: "awareness", label: "Awareness" },
   { value: "traffic", label: "Website visits" },
 ];
+
+/** The CSS aspect class of a format, so previews keep the ad's own shape. */
+export function aspectClass(format?: string): string {
+  switch (format) {
+    case "1920x1080":
+      return "aspect-video";
+    case "1080x1080":
+      return "aspect-square";
+    case "1080x1350":
+      return "aspect-4/5";
+    default:
+      return "aspect-9/16";
+  }
+}

@@ -36,7 +36,9 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
   const [approach, setApproach] = useState("");
   const offerPhotos = (brief.offering?.photo_urls ?? []).filter((u) => /^https?:\/\//.test(u));
   const [kind, setKind] = useState<VideoKind>("template");
-  const [format, setFormat] = useState<PosterFormat>("1080x1920");
+  // Landscape is the platform default; the tenant's own default applies when the owner leaves the size alone.
+  const [format, setFormat] = useState<PosterFormat>("1920x1080");
+  const [formatChosen, setFormatChosen] = useState(false);
   const [seconds, setSeconds] = useState<number>(30);
   const [language, setLanguage] = useState<"en" | "sw">(brief.language === "sw" ? "sw" : "en");
   const [delivery, setDelivery] = useState<Delivery>("ad");
@@ -65,7 +67,7 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
           e.preventDefault();
           create.mutate({
             kind,
-            format,
+            format: formatChosen ? format : undefined,
             seconds,
             language,
             delivery,
@@ -83,7 +85,15 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
           <CapsuleTabs label="Video type" options={VIDEO_KINDS.map((k) => ({ value: k.value, label: k.label }))} value={kind} onChange={setKind} />
         </Field>
         <Field label="Size">
-          <CapsuleTabs label="Size" options={FORMATS.map((f) => ({ value: f.value, label: f.label }))} value={format} onChange={setFormat} />
+          <CapsuleTabs
+            label="Size"
+            options={FORMATS.map((f) => ({ value: f.value, label: f.label }))}
+            value={format}
+            onChange={(f) => {
+              setFormat(f);
+              setFormatChosen(true);
+            }}
+          />
         </Field>
         <Field label="Length">
           <CapsuleTabs

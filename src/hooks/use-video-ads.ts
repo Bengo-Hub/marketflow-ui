@@ -57,6 +57,10 @@ export const useMakeStoryboard = (briefId: string) =>
   useAction(briefId, videoAdsApi.storyboard, "Making the storyboard. It takes about a minute.", "Could not start the storyboard");
 export const useApproveStoryboard = (briefId: string) =>
   useAction(briefId, videoAdsApi.approveStoryboard, "Storyboard approved", "Could not approve the storyboard");
+export const useRedrawActor = (briefId: string) =>
+  useAction(briefId, videoAdsApi.redrawActor, "Drawing a new presenter. It takes about a minute.", "Could not redraw the presenter");
+export const useApprovePlan = (briefId: string) =>
+  useAction(briefId, videoAdsApi.approvePlan, "Generation plan approved", "Could not approve the plan");
 export const useRenderVideoAd = (briefId: string) =>
   useAction(briefId, videoAdsApi.render, "Video started. A presenter ad takes about 5 to 10 minutes.", "Could not start the video");
 export const useReviseVideoAd = (briefId: string) =>

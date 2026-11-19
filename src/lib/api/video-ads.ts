@@ -15,7 +15,8 @@ export type Delivery = "ad" | "ugc" | "kids" | "story" | "info";
 
 export interface VideoAdInput {
   kind: VideoKind;
-  format: PosterFormat;
+  /** Omitted: the tenant's default video size, else the platform's (1920x1080). */
+  format?: PosterFormat;
   seconds: number;
   language: "en" | "sw";
   voice?: string;
@@ -98,10 +99,17 @@ export interface EndCard {
   cta?: string;
 }
 
+export type FrameSource = "actor" | "photo" | "generated" | "footage";
+
 export interface StoryboardStill {
   scene_id: string;
   url?: string;
-  source: "actor" | "photo" | "generated" | "footage";
+  source: FrameSource;
+  /** For a photo frame: which photo, and whether it is the offering's own or a matched brand picture. */
+  photo?: number;
+  origin?: "offering" | "library";
+  /** For a generated still: the exact prompt it was drawn from. */
+  prompt?: string;
 }
 
 export interface Storyboard {
@@ -126,6 +134,16 @@ export interface ScenePlan {
   seconds: number;
   route?: string;
   cost_usd: number;
+  /** The generation plan: the first frame and the exact prompts the route is sent. */
+  frame?: FrameSource;
+  frame_url?: string;
+  photo?: number;
+  origin?: "offering" | "library";
+  prompt?: string;
+  negative_prompt?: string;
+  still_prompt?: string;
+  /** The scene's own tier when it differs by scene (premium with a standard fallback). */
+  tier?: "standard" | "premium";
 }
 
 export interface VideoAdQuote {
@@ -135,6 +153,23 @@ export interface VideoAdQuote {
   shortfall?: number;
   suggested_bundle?: { code: string; units: number; price_kes: number };
   plan?: { kind: VideoKind; scenes?: ScenePlan[]; cached_scenes?: number };
+  /** Names the plan this quote shows; approving it lets the render start. */
+  plan_fingerprint?: string;
+  plan_approved?: boolean;
+}
+
+/** Where a scene's first frame comes from, in the owner's words. */
+export function frameLabel(s: Pick<ScenePlan, "frame" | "origin" | "photo">): string {
+  switch (s.frame) {
+    case "actor":
+      return "The presenter";
+    case "footage":
+      return "Your video";
+    case "photo":
+      return s.origin === "library" ? `Brand picture ${s.photo ?? ""}`.trim() : `Product photo ${s.photo ?? ""}`.trim();
+    default:
+      return "New picture made for the scene";
+  }
 }
 
 export interface Voice {
@@ -187,7 +222,15 @@ export const videoAdsApi = {
   saveScript: (id: string, data: { script?: VideoScript; end_card?: EndCard }) =>
     apiClient.put<CreativeVersion>(`${base}/versions/${id}/script`, data).then((r) => r.data),
   storyboard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/storyboard`).then((r) => r.data),
+  /** A new storyboard with a newly drawn presenter (optionally from a new description). */
+  redrawActor: ({ id, actorPrompt }: { id: string; actorPrompt?: string }) =>
+    apiClient
+      .post<CreativeVersion>(`${base}/versions/${id}/storyboard`, { redraw_actor: true, actor_prompt: actorPrompt || undefined })
+      .then((r) => r.data),
   approveStoryboard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/storyboard/approve`).then((r) => r.data),
+  /** Approves the generation plan the quote showed (and the storyboard with it). */
+  approvePlan: ({ id, fingerprint }: { id: string; fingerprint: string }) =>
+    apiClient.post<CreativeVersion>(`${base}/versions/${id}/storyboard/approve`, { plan_fingerprint: fingerprint }).then((r) => r.data),
   quote: (id: string) => apiClient.get<VideoAdQuote>(`${base}/versions/${id}/quote`).then((r) => r.data),
   render: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/render`).then((r) => r.data),
   revision: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/revision`).then((r) => r.data),
