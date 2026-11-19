@@ -15,6 +15,7 @@ import {
   CAMPAIGN_CHANNELS, CAMPAIGN_PLATFORMS, CAMPAIGN_STATUSES, CAMPAIGN_TYPES, formatMoney, runsOnAdPlatform, type Campaign, type CampaignInput,
 } from "@/lib/api/campaigns";
 import { useIsRestricted } from "@/hooks/use-access";
+import { GoogleAdsPanel } from "@/components/campaigns/google-ads-panel";
 
 const empty: CampaignInput = { name: "", campaign_type: "lead_gen", platform: "meta", channel: "whatsapp", currency: "KES" };
 const label = (v: string) => (v === "sms" ? "SMS" : v === "lead_gen" ? "Lead generation" : v === "re_engagement" ? "Re-engagement" : humanize(v));
@@ -204,6 +205,8 @@ export default function CampaignsPage() {
         )}
         {list.data && <div className="px-4 pb-4"><Pager page={page} limit={list.data.limit || 20} total={list.data.total} onPage={setPage} /></div>}
       </div>
+
+      <GoogleAdsPanel orgSlug={orgSlug} canEdit={!restricted} />
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>

@@ -6,6 +6,7 @@ const providerNames: Record<string, string> = {
   google: "Google Calendar",
   tiktok: "TikTok for Business",
   youtube: "YouTube",
+  google_ads: "Google Ads",
 };
 
 const reasons: Record<string, (name: string) => string> = {
@@ -18,7 +19,13 @@ const reasons: Record<string, (name: string) => string> = {
   no_refresh_token: (n) =>
     `${n} did not grant offline access. Remove MarketFlow from your Google account's third-party access, then connect again.`,
   missing_scope: (n) =>
-    `${n} needs both permissions on Google's screen: uploading videos, and managing the videos MarketFlow posts. Click Connect and leave both ticked.`,
+    n === "Google Ads"
+      ? "Google Ads needs its permission ticked on Google's screen. Click Connect and leave it ticked."
+      : `${n} needs both permissions on Google's screen: uploading videos, and managing the videos MarketFlow posts. Click Connect and leave both ticked.`,
+  no_account: () =>
+    "That Google account cannot reach a Google Ads account that runs ads. Sign in with the Google account that has access to your Google Ads account, then connect again.",
+  account_read_failed: () =>
+    "Google Ads did not list your accounts just now. Please connect again in a few minutes.",
   no_channel: () =>
     "That Google account has no YouTube channel yet. Create the channel on YouTube, or pick the Google account or brand account that owns it, then connect again.",
   channel_read_failed: () => "YouTube did not say which channel you picked. Please connect again in a few minutes.",

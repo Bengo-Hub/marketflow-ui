@@ -675,13 +675,12 @@ export const tenantIntegrations: {
   {
     id: "google_ads",
     name: "Google Ads",
-    description: "Track leads + conversions from Google Ads campaigns.",
+    description: "See your Google Ads results in MarketFlow and send your leads back as conversions.",
     logoSlug: "googleads",
     logoColor: "4285F4",
     brandColor: "#4285F4",
     requiresPlatformConfig: "google_ads",
     authorizePath: "/api/v1/integrations/google-ads/authorize",
-    comingSoon: true, // Sprint 19: Google OAuth and the manager-account link are not built
   },
   {
     id: "tiktok_ads",

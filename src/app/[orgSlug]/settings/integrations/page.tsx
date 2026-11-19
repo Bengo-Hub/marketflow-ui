@@ -91,6 +91,12 @@ export default function IntegrationsPage() {
       {params.get("tiktok") === "connected" && (
         <Banner ok text="TikTok for Business connected. You can now run TikTok campaigns." />
       )}
+      {params.get("google_ads") === "connected" && (
+        <Banner
+          ok
+          text={`Google Ads connected${params.get("account") ? `: ${params.get("account")}` : ""}. Its results are on the Campaigns page, where you can also send your leads back to it as conversions.`}
+        />
+      )}
       {params.get("youtube") === "connected" && (
         <Banner
           ok
