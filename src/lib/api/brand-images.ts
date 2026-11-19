@@ -10,6 +10,10 @@ export interface BrandImage {
   bytes: number;
   name?: string;
   uploaded_at: string;
+  /** Address of a picture linked from the business's website. */
+  source?: string;
+  /** Where on the website it was found, such as "Services page" or "Home page, hero". */
+  from?: string;
 }
 
 /** GET /api/v1/tenant/brand-images: the images and the server's limits (config, not code). */
@@ -57,7 +61,12 @@ export function describeImport(r: BrandImageImport): string {
   const n = r.added.length;
   if (n > 0) {
     const left = Math.max(0, r.min - r.total);
-    return `Added ${n} picture${n === 1 ? "" : "s"} from your website.` + (left > 0 ? ` Upload ${left} more to finish.` : "");
+    const places = [...new Set(r.added.map((a) => a.from).filter((f): f is string => !!f))];
+    return (
+      `Added ${n} picture${n === 1 ? "" : "s"} from your website` +
+      (places.length > 0 ? ` (${places.join("; ")}).` : ".") +
+      (left > 0 ? ` Upload ${left} more to finish.` : "")
+    );
   }
   if (r.found === 0) return "No pictures were found on your website. Upload your own instead.";
   if (r.skipped.too_small) return "Your website's pictures are too small (at least 1024 px on the short side). Upload larger ones.";

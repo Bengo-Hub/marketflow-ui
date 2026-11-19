@@ -8,6 +8,13 @@ describe("website import message", () => {
     expect(describeImport({ ...base, added: [img, img], total: 2 })).toBe("Added 2 pictures from your website. Upload 1 more to finish.");
     expect(describeImport({ ...base, added: [img], total: 3 })).toBe("Added 1 picture from your website.");
   });
+  it("says where on the website the pictures were found", () => {
+    const hero = { ...img, from: "Home page, hero" };
+    const services = { ...img, from: "Services page" };
+    expect(describeImport({ ...base, added: [hero, services, hero], total: 3 })).toBe(
+      "Added 3 pictures from your website (Home page, hero; Services page).",
+    );
+  });
   it("explains why nothing was added", () => {
     expect(describeImport({ ...base, found: 0 })).toMatch(/No pictures were found/);
     expect(describeImport({ ...base, skipped: { too_small: 3 } })).toMatch(/too small/);
