@@ -2,6 +2,7 @@ import { CalendarDays, Globe, KanbanSquare, MessagesSquare, Repeat, UsersRound, 
 import { cn } from "@/lib/utils";
 import { SignUpButton } from "./auth-actions";
 import { BrandMark } from "./brand-mark";
+import { FooterLegalLinks } from "./footer-legal-links";
 
 const CAPABILITIES = [
   {
@@ -171,6 +172,9 @@ export function SiteFooter() {
           <a href="https://codevertexafrica.com" className="font-medium text-foreground hover:text-primary">Codevertex Africa</a>
         </div>
         <p>&copy; {new Date().getFullYear()} Codevertex Africa Ltd.</p>
+      </div>
+      <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
+        <FooterLegalLinks />
       </div>
     </footer>
   );

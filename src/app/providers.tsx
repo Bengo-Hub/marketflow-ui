@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { OfflineBar } from "@bengo-hub/shared-ui-lib/offline";
+import { CookieNotice } from "@bengo-hub/shared-ui-lib/legal";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { ReactNode, useEffect, useState } from "react";
@@ -91,6 +92,7 @@ export function Providers({ children }: { children: ReactNode }) {
             <SessionSync queryClient={queryClient} />
             <OfflineBar availableOffline={["View cached data"]} disabledOffline={["Edits", "Campaigns"]} />
             {children}
+            <CookieNotice />
           </TooltipProvider>
         </BrandTheme>
       </ThemeProvider>
