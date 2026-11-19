@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Check, Plug, RefreshCw, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, GlassPanel, PageHeader, ToneBadge } from "@/components/ui-kit";
-import { countByStatus, endpointsApi, type DiscoveredEndpoint, type EndpointStatus } from "@/lib/api/endpoints";
+import { countByStatus, emptyReason, endpointsApi, type DiscoveredEndpoint, type EndpointStatus } from "@/lib/api/endpoints";
 import { apiErrorMessage } from "@/lib/api/errors";
 
 const KEY = ["admin", "endpoints"];
@@ -42,7 +42,7 @@ export default function EndpointsPage() {
       <PageHeader
         title="Service data for Vera"
         icon={<Plug />}
-        description="Read-only routes found in the other services each week. Payments, users, staff, logs and every write are filtered out before they get here. Approve a route to let Vera read it for a business."
+        description="Read-only routes found in the other services each week. Payments, users, staff, logs, files, every write and any route without the business in its path are filtered out before they get here. Approve a route to let Vera read it for a business; people's details are removed from what she reads."
         actions={
           <Button variant="outline" onClick={() => scan.mutate()} disabled={scan.isPending}>
             <RefreshCw className={scan.isPending ? "animate-spin" : undefined} /> Scan now
@@ -61,9 +61,13 @@ export default function EndpointsPage() {
       {list.isLoading && <div className="h-40 animate-pulse rounded-[1.25rem] bg-muted" />}
 
       {list.data?.map((s) => (
-        <GlassPanel key={s.service} title={s.service} description={`${s.endpoints.length} route${s.endpoints.length === 1 ? "" : "s"}`}>
+        <GlassPanel
+          key={s.service}
+          title={s.service}
+          description={`${s.endpoints.length} route${s.endpoints.length === 1 ? "" : "s"}${s.last_scan ? `, scanned ${when.format(new Date(s.last_scan.scanned_at))}` : ""}`}
+        >
           {s.endpoints.length === 0 ? (
-            <EmptyState title="Nothing found yet" description="This service's spec has no marketing-safe read routes, or it has not been scanned." />
+            <EmptyState title="Nothing to offer" description={emptyReason(s)} />
           ) : (
             <ul className="divide-y divide-border">
               {s.endpoints.map((e) => (

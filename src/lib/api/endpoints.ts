@@ -13,9 +13,30 @@ export interface DiscoveredEndpoint {
   decided_at?: string;
 }
 
+/** How a service's last scan went. docs_view "external" means it served only its public spec. */
+export interface ScanStatus {
+  scanned_at: string;
+  error?: string;
+  operations: number;
+  offerable: number;
+  added: number;
+  docs_view?: string;
+}
+
 export interface ServiceEndpoints {
   service: string;
   endpoints: DiscoveredEndpoint[];
+  last_scan?: ScanStatus;
+}
+
+/** Why a service offers no routes, in the owner's words, from its last scan. */
+export function emptyReason(s: ServiceEndpoints): string {
+  const st = s.last_scan;
+  if (!st) return "This service has not been scanned yet. Use Scan now.";
+  if (st.error) return `The last scan could not read the spec: ${st.error}`;
+  if (st.docs_view === "external")
+    return `The service served only its public spec (${st.operations} operations). Set MF_ENDPOINT_SCAN_DOCS_KEY to a key it trusts so the full spec is read.`;
+  return `The spec lists ${st.operations} operations and none of them is a tenant-scoped, marketing-safe read.`;
 }
 
 export type EndpointStatus = DiscoveredEndpoint["status"];

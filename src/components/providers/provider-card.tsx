@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProviderLogo } from "./provider-logo";
 import type { ProviderDef, ProviderField } from "@/lib/providers/catalog";
-import { ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Zap } from "lucide-react";
+import { ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Zap, Star, Wallet } from "lucide-react";
 
 type ProviderRow = {
   id: string;
@@ -20,6 +20,25 @@ type ProviderRow = {
   is_active?: boolean;
 };
 
+export type ProviderBalance = {
+  remaining: number;
+  unit: string;
+  low_mark: number;
+  estimate?: boolean;
+  at: string;
+  low: boolean;
+};
+
+type Recommendation = { field: string; label: string; model: string; informational?: boolean };
+
+const checkedAt = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
+
+/** "USD 4.49" or "14,707 characters". */
+export function formatBalance(b: ProviderBalance): string {
+  if (b.unit === "usd") return `USD ${b.remaining.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${Math.round(b.remaining).toLocaleString("en-KE")} ${b.unit}`;
+}
+
 /**
  * Metadata-driven config card for a single provider. Reads the catalog
  * definition to render inputs; handles save, sync-models, test connection,
@@ -28,9 +47,17 @@ type ProviderRow = {
 export function ProviderCard({
   provider,
   existing,
+  balance,
+  defaultFor,
+  onSetDefault,
 }: {
   provider: ProviderDef;
   existing?: ProviderRow;
+  /** The media provider's last balance from marketflow-ai's watcher. */
+  balance?: ProviderBalance;
+  /** Groups this provider is the default of, and the ones it could be set as default for. */
+  defaultFor?: { id: string; label: string; isDefault: boolean }[];
+  onSetDefault?: (group: string) => void;
 }) {
   const qc = useQueryClient();
   const configured = !!existing && existing.is_active !== false;
@@ -94,17 +121,33 @@ export function ProviderCard({
     onError: (e) => setFeedback({ kind: "err", text: (e as Error).message }),
   });
 
+  const [latest, setLatest] = useState<Recommendation[]>([]);
+
   const syncModels = useMutation({
     mutationFn: async () => {
-      const r = await apiClient.post<{ models: { id: string }[] }>(`/api/v1/admin/providers/sync-models`, {
+      const r = await apiClient.post<{
+        models: { id: string }[];
+        recommended?: Record<string, string>;
+        recommendations?: Recommendation[];
+      }>(`/api/v1/admin/providers/sync-models`, {
         provider_type: provider.type,
         provider_name: provider.id,
       });
-      return r.data.models.map((m) => m.id);
+      return { models: r.data.models.map((m) => m.id), recommended: r.data.recommended ?? {}, recs: r.data.recommendations ?? [] };
     },
-    onSuccess: (models) => {
+    onSuccess: ({ models, recommended, recs }) => {
       qc.setQueryData(["provider-models", provider.type, provider.id], models);
-      setFeedback({ kind: "ok", text: `${models.length} models available — pick from dropdown` });
+      // Preselect the recommended model for every role this card has a field for; nothing is
+      // saved until Update.
+      const fields = new Set(provider.fields.map((f) => f.key));
+      const picks = Object.fromEntries(Object.entries(recommended).filter(([k]) => fields.has(k)));
+      setEdits((s) => ({ ...s, ...picks }));
+      setLatest(recs.filter((r) => r.informational || !fields.has(r.field)));
+      const n = Object.keys(picks).length;
+      setFeedback({
+        kind: "ok",
+        text: n > 0 ? `${models.length} models; the newest stable model is preselected for ${n} role${n === 1 ? "" : "s"}. Review, then Update.` : `${models.length} models available`,
+      });
     },
     onError: (e) => setFeedback({ kind: "err", text: `Sync failed: ${(e as Error).message}` }),
   });
@@ -162,6 +205,43 @@ export function ProviderCard({
               )}
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground">{provider.description}</p>
+            {defaultFor && defaultFor.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {defaultFor.map((g) =>
+                  g.isDefault ? (
+                    <Badge key={g.id} className="bg-primary/10 text-primary hover:bg-primary/10">
+                      <Star className="mr-1 h-3 w-3" /> Default for {g.label.toLowerCase()}
+                    </Badge>
+                  ) : (
+                    <Button
+                      key={g.id}
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs"
+                      disabled={!configured || !onSetDefault}
+                      title={configured ? `Use ${provider.name} for ${g.label.toLowerCase()} everywhere` : "Configure it first"}
+                      onClick={() => onSetDefault?.(g.id)}
+                    >
+                      Set as default for {g.label.toLowerCase()}
+                    </Button>
+                  ),
+                )}
+              </div>
+            )}
+            {provider.capabilities?.balance && configured && (
+              <p className={`mt-1.5 flex items-center gap-1 text-xs ${balance?.low ? "text-red-700" : "text-muted-foreground"}`}>
+                <Wallet className="h-3.5 w-3.5" />
+                {balance ? (
+                  <>
+                    Balance {balance.estimate ? "about " : ""}
+                    <span className="font-medium">{formatBalance(balance)}</span>
+                    {balance.low && " (below the low mark)"}, checked {checkedAt.format(new Date(balance.at))}
+                  </>
+                ) : (
+                  "No balance reading yet; the watcher reads it every 15 minutes."
+                )}
+              </p>
+            )}
           </div>
         </div>
         {provider.docsUrl && (
@@ -195,6 +275,20 @@ export function ProviderCard({
           );
         })}
       </div>
+
+      {latest.length > 0 && (
+        <div className="mt-3 rounded-lg border bg-muted/40 p-3 text-xs">
+          <p className="mb-1 font-medium">Newest model per tier</p>
+          <ul className="space-y-0.5 text-muted-foreground">
+            {latest.map((r) => (
+              <li key={r.field}>
+                {r.label}: <span className="break-all font-mono text-foreground">{r.model}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-muted-foreground">These media routes are set in marketflow-ai; compare a new model before switching it there.</p>
+        </div>
+      )}
 
       {feedback && (
         <p

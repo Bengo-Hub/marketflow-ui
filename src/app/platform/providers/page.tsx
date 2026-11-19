@@ -1,9 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { apiClient } from "@/lib/api/client";
 import { providerCatalog } from "@/lib/providers/catalog";
-import { ProviderCard } from "@/components/providers/provider-card";
+import { ProviderCard, type ProviderBalance } from "@/components/providers/provider-card";
+import { sectionsFor, type ProviderGroup } from "@/lib/providers/groups";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +43,29 @@ export default function PlatformProvidersPage() {
       return r.data.data ?? [];
     },
     refetchInterval: 30_000,
+  });
+
+  const qc = useQueryClient();
+  // Provider groups (one default each) and the media balances, both from marketflow-api.
+  const groups = useQuery({
+    queryKey: ["admin-provider-defaults"],
+    queryFn: async () => (await apiClient.get<{ groups: ProviderGroup[] }>(`/api/v1/admin/providers/defaults`)).data.groups ?? [],
+  });
+  const balances = useQuery({
+    queryKey: ["admin-provider-balances"],
+    queryFn: async () =>
+      (await apiClient.get<{ balances: Record<string, ProviderBalance> }>(`/api/v1/admin/providers/balances`)).data.balances ?? {},
+    refetchInterval: 5 * 60_000,
+  });
+  const setDefault = useMutation({
+    mutationFn: async (v: { group: string; provider: string }) => {
+      await apiClient.post(`/api/v1/admin/providers/defaults`, v);
+    },
+    onSuccess: () => {
+      toast.success("Default saved. Services pick it up within five minutes.");
+      void qc.invalidateQueries({ queryKey: ["admin-provider-defaults"] });
+    },
+    onError: (e) => toast.error(`Could not set the default: ${(e as Error).message}`),
   });
 
   function rowFor(type: string, id: string) {
@@ -117,15 +142,32 @@ export default function PlatformProvidersPage() {
                 ))}
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {cat.providers.map((p) => (
-                  <ProviderCard
-                    key={`${p.type}:${p.id}`}
-                    provider={p}
-                    existing={rowFor(p.type, p.id)}
-                  />
-                ))}
-              </div>
+              sectionsFor(cat.providers, groups.data ?? []).map((section) => (
+                <section key={section.id} className="space-y-3">
+                  {section.label && (
+                    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-1">
+                      <h3 className="text-sm font-semibold">{section.label}</h3>
+                      {section.defaultName && (
+                        <span className="text-xs text-muted-foreground">Default: {section.defaultName}</span>
+                      )}
+                    </div>
+                  )}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {section.providers.map((p) => (
+                      <ProviderCard
+                        key={`${p.type}:${p.id}`}
+                        provider={p}
+                        existing={rowFor(p.type, p.id)}
+                        balance={balances.data?.[p.id]}
+                        defaultFor={(groups.data ?? [])
+                          .filter((g) => g.members.length > 1 && g.members.includes(p.id))
+                          .map((g) => ({ id: g.id, label: g.label, isDefault: g.default === p.id }))}
+                        onSetDefault={(group) => setDefault.mutate({ group, provider: p.id })}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))
             )}
           </TabsContent>
         ))}

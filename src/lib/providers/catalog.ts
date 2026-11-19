@@ -65,6 +65,8 @@ export interface ProviderDef {
     oauth?: boolean;
     /** Supports POST /admin/providers/test to verify credentials work. */
     test?: boolean;
+    /** Has a balance read by marketflow-ai's watcher (GET /admin/providers/balances). */
+    balance?: boolean;
   };
   /** Which field keys are model selectors (become Select once sync-models runs). */
   modelFieldKeys?: string[];
@@ -113,20 +115,20 @@ const aiProviders: ProviderDef[] = [
         key: "router_model",
         label: "Router (classifier) model",
         type: "text",
-        default: "openai/gpt-oss-20b",
+        placeholder: "openai/gpt-oss-20b",
         help: "Fast, small model for intent classification and the light tasks (public widget, prompt optimiser).",
       },
       {
         key: "main_model",
         label: "Responder model",
         type: "text",
-        default: "openai/gpt-oss-120b",
+        placeholder: "openai/gpt-oss-120b",
       },
       {
         key: "fallback_model",
         label: "Fallback model",
         type: "text",
-        default: "openai/gpt-oss-20b",
+        placeholder: "openai/gpt-oss-20b",
         help: "Groq retired the Llama and Gemma ids for pay as you go; old values are replaced automatically.",
       },
     ],
@@ -157,7 +159,7 @@ const aiProviders: ProviderDef[] = [
         key: "embedding_model",
         label: "Embedding model",
         type: "text",
-        default: "nomic-embed-text",
+        placeholder: "nomic-embed-text",
       },
       {
         key: "embedding_dim",
@@ -169,7 +171,7 @@ const aiProviders: ProviderDef[] = [
         key: "fallback_model",
         label: "Fallback LLM (tool-calling)",
         type: "text",
-        default: "llama3.1:8b",
+        placeholder: "llama3.1:8b",
       },
     ],
   },
@@ -210,61 +212,67 @@ const aiProviders: ProviderDef[] = [
     ],
   },
   {
-    id: "custom_search",
+    id: "vertex_search",
     type: "ai_search",
-    name: "Google Custom Search",
+    name: "Google Vertex AI Search",
     description:
-      "Primary web search for the agentic RAG. 100 free queries/day; $5 per 1000 after.",
+      "Optional web search through a Vertex AI Search app (Discovery Engine). Tavily answers whenever it is not set up or fails.",
     scope: "platform",
-    logoSlug: "google",
+    logoSlug: "googlecloud",
     logoColor: "4285F4",
     brandColor: "#4285F4",
-    docsUrl: "https://developers.google.com/custom-search/v1/overview",
+    docsUrl: "https://cloud.google.com/generative-ai-app-builder/docs/try-enterprise-search",
     capabilities: { test: true },
     fields: [
+      { key: "project_id", label: "Project ID", type: "text", required: true, placeholder: "my-project" },
+      {
+        key: "location",
+        label: "Location",
+        type: "select",
+        default: "global",
+        options: [
+          { value: "global", label: "global" },
+          { value: "us", label: "us (multi-region)" },
+          { value: "eu", label: "eu (multi-region)" },
+        ],
+      },
+      { key: "engine_id", label: "App (engine) ID", type: "text", required: true, help: "The search app's ID from AI Applications, Apps." },
+      { key: "serving_config", label: "Serving config", type: "text", default: "default_search" },
+      {
+        key: "service_account_json",
+        label: "Service account JSON",
+        type: "textarea",
+        secret: true,
+        help: "A key for a service account with the Discovery Engine User role. Used with the search method.",
+      },
       {
         key: "api_key",
-        label: "Google API key",
+        label: "API key",
         type: "password",
         secret: true,
-        required: true,
         placeholder: "AIza…",
-        help: "Enable 'Custom Search API' in Google Cloud Console.",
+        help: "Only for an app on a public website data store (searchLite). The service account wins when both are set.",
       },
-      {
-        key: "cse_id",
-        label: "Programmable Search Engine ID",
-        type: "text",
-        required: true,
-        placeholder: "0123456789abc:xyz",
-        help: "Create at programmablesearchengine.google.com; set 'Search the entire web' ON.",
-      },
-      {
-        key: "daily_cap",
-        label: "Per-tenant daily cap",
-        type: "number",
-        default: "80",
-        min: 1,
-        help: "Keep below 100 to stay within the free tier (shared across all tenants).",
-      },
+      { key: "daily_cap", label: "Per-tenant daily cap", type: "number", default: "100", min: 1 },
     ],
   },
   {
     id: "openai",
     type: "ai_llm",
     name: "OpenAI (optional fallback)",
-    description: "GPT-4o / GPT-4.1 as a premium fallback.",
+    description: "A paid fallback in the standard and light classes. Sync models picks the newest mini and flagship models.",
     scope: "platform",
     logoSlug: "openai",
     logoColor: "412991",
     brandColor: "#412991",
     docsUrl: "https://platform.openai.com/api-keys",
     capabilities: { syncModels: true, test: true },
-    modelFieldKeys: ["main_model"],
+    modelFieldKeys: ["main_model", "premium_model"],
     fields: [
       { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "sk-…" },
       { key: "base_url", label: "Base URL", type: "url", default: "https://api.openai.com/v1" },
-      { key: "main_model", label: "Model", type: "text", default: "gpt-4o-mini" },
+      { key: "main_model", label: "Standard model", type: "text", help: "Used by the routing classes that list OpenAI. Run Sync models to pick the newest." },
+      { key: "premium_model", label: "Premium model", type: "text", help: "For a routing policy that names @premium on OpenAI." },
     ],
   },
   {
@@ -278,11 +286,12 @@ const aiProviders: ProviderDef[] = [
     brandColor: "#191919",
     docsUrl: "https://console.anthropic.com/settings/keys",
     capabilities: { syncModels: true, test: true },
-    modelFieldKeys: ["main_model"],
+    modelFieldKeys: ["main_model", "plus_model"],
     fields: [
       { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "sk-ant-…" },
       { key: "base_url", label: "Base URL", type: "url", default: "https://api.anthropic.com/v1" },
-      { key: "main_model", label: "Model", type: "text", default: "claude-haiku-5-5" },
+      { key: "main_model", label: "Standard and premium model (Haiku)", type: "text", help: "The standard and premium classes use it." },
+      { key: "plus_model", label: "Premium plus model (Sonnet)", type: "text", help: "The premium_plus class uses it." },
     ],
   },
   {
@@ -294,6 +303,7 @@ const aiProviders: ProviderDef[] = [
     scope: "platform",
     brandColor: "#334155",
     docsUrl: "https://typesafe.ai",
+    capabilities: { test: true },
     fields: [
       { key: "api_key", label: "API key", type: "password", secret: true, required: true },
       { key: "base_url", label: "Base URL", type: "url", default: "https://api.typesafe.ai/v1" },
@@ -313,8 +323,8 @@ const aiProviders: ProviderDef[] = [
         key: "policy",
         label: "Policy (JSON)",
         type: "textarea",
-        placeholder: '{"classes":{"premium":[{"provider":"anthropic","model":"claude-haiku-5-5"}]}}',
-        help: "Merged over the defaults; only the classes you list change.",
+        placeholder: '{"classes":{"premium":[{"provider":"anthropic","model":"@premium"}]}}',
+        help: "Merged over the defaults; only the classes you list change. Leave it empty to follow each provider's models: a model of \"\" is the provider's main model, and @fallback, @router and @premium name its other models, so Sync models moves the routing too. Prices per model family go under \"prices\".",
       },
     ],
   },
@@ -730,7 +740,7 @@ const mediaProviders: ProviderDef[] = [
     scope: "platform",
     brandColor: "#5B21B6",
     docsUrl: "https://fal.ai/dashboard/keys",
-    capabilities: { test: true },
+    capabilities: { test: true, syncModels: true, balance: true },
     fields: [
       {
         key: "api_key",
@@ -751,7 +761,7 @@ const mediaProviders: ProviderDef[] = [
     scope: "platform",
     brandColor: "#84CC16",
     docsUrl: "https://console.higgsfield.ai",
-    capabilities: { test: true },
+    capabilities: { test: true, balance: true },
     fields: [
       {
         key: "api_key",
@@ -773,7 +783,8 @@ const mediaProviders: ProviderDef[] = [
     logoColor: "000000",
     brandColor: "#000000",
     docsUrl: "https://elevenlabs.io/app/settings/api-keys",
-    capabilities: { test: true },
+    capabilities: { test: true, syncModels: true, balance: true },
+    modelFieldKeys: ["voice_model", "voice_premium_model"],
     fields: [
       {
         key: "api_key",
@@ -783,6 +794,8 @@ const mediaProviders: ProviderDef[] = [
         required: true,
         help: "Needs a paid plan: free-plan audio can never be used in ads, even after upgrading.",
       },
+      { key: "voice_model", label: "Voice model (standard)", type: "text", placeholder: "eleven_v4_turbo" },
+      { key: "voice_premium_model", label: "Voice model (premium)", type: "text", placeholder: "eleven_v4" },
     ],
   },
   {
