@@ -609,6 +609,22 @@ const schedulingProviders: ProviderDef[] = [
 
 const publishingProviders: ProviderDef[] = [
   {
+    id: "switches",
+    type: "publishing",
+    name: "Posting switches",
+    description:
+      "Turns organic posting on per platform for every business. Keep a platform off until its app review has passed; a business can only post where the switch is on and its own account is connected.",
+    scope: "platform",
+    brandColor: "#334155",
+    fields: [
+      onOff("facebook_enabled", "Facebook Pages"),
+      onOff("instagram_enabled", "Instagram"),
+      onOff("tiktok_enabled", "TikTok"),
+      onOff("youtube_enabled", "YouTube"),
+      onOff("x_enabled", "X"),
+    ],
+  },
+  {
     id: "oauth",
     type: "youtube",
     name: "YouTube",
@@ -725,6 +741,67 @@ export const tenantIntegrations: {
 // integrations/video-generation-providers.md (confirmed 2026-10-24).
 
 const mediaProviders: ProviderDef[] = [
+  {
+    id: "routing",
+    type: "media",
+    name: "Media routing and cost ceiling",
+    description:
+      "Which route each scenario tries first, premium routes for the platform owner, and the most one video or poster may cost at provider prices. marketflow-ai reads it within a minute.",
+    scope: "platform",
+    brandColor: "#0F766E",
+    fields: [
+      {
+        key: "max_video_budget_usd",
+        label: "Cost ceiling per video (USD)",
+        type: "number",
+        default: "2",
+        min: 0.1,
+        max: 50,
+        help: "No video ad or poster is made above this provider cost, premium included. Quotes show it next to the plan.",
+      },
+      onOff("premium_for_exempt", "Premium routes for the platform owner", "true"),
+      {
+        key: "premium_budget_usd",
+        label: "Premium budget per video (USD)",
+        type: "number",
+        default: "2",
+        min: 0,
+        max: 50,
+        help: "Above this all-premium quote the dearest scenes fall back to standard. It never goes above the ceiling.",
+      },
+      {
+        key: "prefer",
+        label: "Preferred routes (JSON)",
+        type: "textarea",
+        placeholder: '{"ad_clip/standard": ["fal/hailuo-2.3-fast"], "still/premium": ["fal/seedream-v5-lite"]}',
+        help: "scenario/tier to route keys, tried in order. Scenarios: presenter, ad_clip, motion, still, poster. Leave empty for the bake-off defaults.",
+      },
+    ],
+  },
+  {
+    id: "review",
+    type: "media",
+    name: "Self-review before the owner sees it",
+    description:
+      "A cheap vision model checks storyboard stills, posters and finished video frames for logo placement, legibility, garbled text, the wrong brand and off-location scenes, and redoes the failing part within budget.",
+    scope: "platform",
+    brandColor: "#7C3AED",
+    fields: [
+      onOff("enabled", "Review on", "true"),
+      { key: "max_retries", label: "Retries per part", type: "number", default: "1", min: 0, max: 3, help: "0 reviews and reports only." },
+      { key: "poster_retry_usd", label: "Poster retry budget (USD)", type: "number", default: "0.10", min: 0, max: 2 },
+      { key: "still_retry_usd", label: "Storyboard retry budget (USD)", type: "number", default: "0.10", min: 0, max: 2 },
+      { key: "video_frames", label: "Frames checked per video", type: "number", default: "8", min: 1, max: 12 },
+      {
+        key: "targets",
+        label: "Vision models (JSON)",
+        type: "textarea",
+        placeholder: '[{"provider":"groq","model":"meta-llama/llama-4-scout-17b-16e-instruct"},{"provider":"anthropic","model":"claude-haiku-4-5"}]',
+        help: "Tried in order; each provider uses the key saved on its AI card. Empty uses the two shown.",
+      },
+      { key: "prompt", label: "Reviewer instructions", type: "textarea", help: "Empty uses the built-in checklist." },
+    ],
+  },
   {
     id: "fal",
     type: "media",
@@ -928,4 +1005,18 @@ export function findProvider(type: string, id: string): ProviderDef | undefined 
     }
   }
   return undefined;
+}
+
+/** An on and off setting saved as "true" or "false". */
+function onOff(key: string, label: string, def = "false"): ProviderField {
+  return {
+    key,
+    label,
+    type: "select",
+    default: def,
+    options: [
+      { value: "true", label: "On" },
+      { value: "false", label: "Off" },
+    ],
+  };
 }

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, EmptyState, ErrorState, Field, PageHeader, ToneBadge } from "@/components/ui-kit";
 import { useAdminTenants, useServiceConfig, useUpsertServiceConfig } from "@/hooks/use-admin";
 import type { ServiceConfig } from "@/lib/api/admin";
+import { CreativeSettingsCard } from "@/components/platform/creative-settings-card";
 
 type Scope = "platform" | "tenant";
 type Draft = { key: string; value: string; description: string; isNew: boolean };
@@ -74,6 +75,8 @@ export default function ServiceConfigPage() {
           </div>
         )}
       </div>
+
+      {!waitingForTenant && <CreativeSettingsCard tenantId={activeTenant} />}
 
       <div className="glass rounded-[1.25rem] p-2 sm:p-4">
         {list.isError && <ErrorState onRetry={() => void list.refetch()} />}

@@ -38,6 +38,9 @@ export interface TenantProfileUpdate {
     weekly_report?: "on" | "off";
     average_sale_value?: number | null;
     email_footer?: string | null;
+    /** Private: where the business is, so its ads show scenes from its own town. */
+    business_address?: string;
+    business_city?: string;
   };
 }
 

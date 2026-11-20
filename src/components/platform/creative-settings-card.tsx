@@ -1,0 +1,136 @@
+"use client";
+
+import { useState } from "react";
+import { Clapperboard } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field } from "@/components/ui-kit";
+import { useServiceConfig, useUpsertServiceConfig } from "@/hooks/use-admin";
+
+/** A Creative Studio setting marketflow-api reads from service-config, with its documented fallback. */
+export interface CreativeSetting {
+  key: string;
+  label: string;
+  hint: string;
+  fallback: string;
+  validate?: (v: string) => string | null;
+}
+
+/** Hours in a window: a number of hours ("72") or a Go duration in hours and minutes ("24h", "1h30m"). */
+export function windowHours(v: string): number | null {
+  const s = v.trim();
+  if (/^\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+  const m = /^(?:(\d+)h)?(?:(\d+)m)?$/.exec(s);
+  if (!m || (!m[1] && !m[2])) return null;
+  return (m[1] ? parseInt(m[1], 10) : 0) + (m[2] ? parseInt(m[2], 10) / 60 : 0);
+}
+
+/** The API keeps the discard window between 1 hour and 30 days. */
+export function validateDiscardWindow(v: string): string | null {
+  if (!v.trim()) return null;
+  const h = windowHours(v);
+  if (h === null) return "Use hours like 24h or 72, or 1h30m.";
+  if (h < 1 || h > 720) return "Between 1 hour and 30 days (720h).";
+  return null;
+}
+
+const CONTACT_KINDS = ["whatsapp", "phone", "web", "email", "link"];
+
+export function validateContacts(v: string): string | null {
+  const bad = v
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s && !CONTACT_KINDS.includes(s));
+  return bad.length ? `Unknown: ${bad.join(", ")}. Use ${CONTACT_KINDS.join(", ")}.` : null;
+}
+
+export const CREATIVE_SETTINGS: CreativeSetting[] = [
+  {
+    key: "creative.discard_purge_after",
+    label: "Discarded drafts are deleted after",
+    hint: "A WhatsApp Discard keeps the draft this long in case the tap was a mistake. 24h when empty.",
+    fallback: "24h",
+    validate: validateDiscardWindow,
+  },
+  {
+    key: "creative.cta_contacts",
+    label: "Contacts on posters and end cards, in order",
+    hint: "Drawn with their icons instead of a button. link is the offering's own page, else the website.",
+    fallback: "whatsapp,phone,web",
+    validate: validateContacts,
+  },
+  {
+    key: "creative.flp_default_address",
+    label: "Default address for Forever Living sellers",
+    hint: "Used only for an FLP tenant in Kenya that has not given its own address.",
+    fallback: "Reinsurance Plaza, Nairobi CBD",
+    validate: (v) => (v.trim().length > 200 ? "Up to 200 characters." : null),
+  },
+  {
+    key: "creative.setting_pages",
+    label: "Website pages read for the setting brief",
+    hint: "Paths on the business's website, comma separated. The offering's own page is always read.",
+    fallback: "/,/services,/about,/projects,/blog",
+    validate: (v) => (v.split(",").some((p) => p.trim() && !p.trim().startsWith("/")) ? "Each path starts with /." : null),
+  },
+];
+
+/** The Creative Studio's service-config settings as named fields, platform defaults or one tenant's overrides. */
+export function CreativeSettingsCard({ tenantId }: { tenantId: string | null }) {
+  const list = useServiceConfig(tenantId);
+  const upsert = useUpsertServiceConfig(tenantId);
+  // Unsaved edits by key; a field shows its stored value until it is edited.
+  const [edits, setEdits] = useState<Record<string, string>>({});
+
+  return (
+    <section className="glass space-y-4 rounded-[1.25rem] p-4 sm:p-5" aria-labelledby="creative-settings">
+      <div className="flex items-start gap-3">
+        <Clapperboard className="mt-0.5 size-5 text-primary" aria-hidden />
+        <div>
+          <h2 id="creative-settings" className="text-base font-semibold">Creative Studio</h2>
+          <p className="text-sm text-muted-foreground">
+            {tenantId ? "Overrides for this tenant. Empty keeps the platform default." : "Platform defaults. A tenant override wins."}
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {CREATIVE_SETTINGS.map((s) => {
+          const stored = list.data?.find((c) => c.config_key === s.key)?.config_value ?? "";
+          const value = edits[s.key] ?? stored;
+          const error = s.validate?.(value) ?? null;
+          return (
+            <Field key={s.key} label={s.label} hint={s.hint} error={error} htmlFor={`cs-${s.key}`}>
+              <div className="flex gap-2">
+                <Input
+                  id={`cs-${s.key}`}
+                  value={value}
+                  placeholder={s.fallback}
+                  onChange={(e) => setEdits((v) => ({ ...v, [s.key]: e.target.value }))}
+                />
+                <Button
+                  variant="outline"
+                  disabled={!!error || value === stored || upsert.isPending}
+                  onClick={() =>
+                    upsert.mutate(
+                      { key: s.key, value: value.trim(), description: s.label },
+                      {
+                        onSuccess: () =>
+                          setEdits((v) => {
+                            const next = { ...v };
+                            delete next[s.key];
+                            return next;
+                          }),
+                      },
+                    )
+                  }
+                >
+                  Save
+                </Button>
+              </div>
+            </Field>
+          );
+        })}
+      </div>
+    </section>
+  );
+}

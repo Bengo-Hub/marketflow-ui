@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/errors";
+import { saveBlob } from "@/lib/download";
 import {
   creativeApi,
   IN_PROGRESS,
@@ -139,3 +140,12 @@ export const useRevise = (briefId: string) =>
   useVersionAction(briefId, ({ id, data }: { id: string; data: ReviseInput }) => creativeApi.revise(id, data), "New words on the same picture, ready in a few seconds", "Could not change the words");
 export const useMotion = (briefId: string) =>
   useVersionAction(briefId, ({ id, data }: { id: string; data: MotionInput }) => creativeApi.motion(id, data), "Motion poster started. It takes a few minutes.", "Could not start the motion poster");
+
+/** Saves a Studio file to the device (the API serves it as an attachment; nothing opens in a tab). */
+export function useDownloadAsset() {
+  return useMutation({
+    mutationFn: (assetId: string) => creativeApi.file(assetId),
+    onSuccess: ({ blob, name }) => saveBlob(blob, name),
+    onError: (e) => toast.error(apiErrorMessage(e, "The file could not be downloaded")),
+  });
+}

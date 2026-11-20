@@ -333,7 +333,7 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
                   Not enough credits: {q.shortfall} short. Buy {q.suggested_bundle.units} credits for {kes(q.suggested_bundle.price_kes)} in Billing.
                 </p>
               )}
-              <GenerationPlan quote={q} shape={shape} wide={wide} />
+              <GenerationPlan quote={q} shape={shape} wide={wide} settings={Object.fromEntries(script.scenes.map((s) => [s.id, s.setting ?? ""]))} />
               {q.plan_fingerprint && !q.plan_approved && (
                 <Button
                   variant="outline"
@@ -378,14 +378,21 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
  * receive. The owner approves it before the render; any change to the script or storyboard makes a
  * new plan.
  */
-function GenerationPlan({ quote, shape, wide }: { quote: VideoAdQuote; shape: string; wide: boolean }) {
+function GenerationPlan({ quote, shape, wide, settings }: { quote: VideoAdQuote; shape: string; wide: boolean; settings: Record<string, string> }) {
   const scenes = quote.plan?.scenes ?? [];
   if (scenes.length === 0) return null;
+  const cost = quote.plan?.cost_usd;
+  const ceiling = quote.max_video_usd;
   const missing = scenes.some((s) => s.frame === "generated" && !s.frame_url);
   return (
     <details className="rounded-lg border p-2" open={!quote.plan_approved}>
       <summary className="cursor-pointer text-sm font-medium">Generation plan: what each scene is made from</summary>
       {missing && <p className="mt-2 text-sm text-destructive">Some scenes need a picture from the storyboard. Make the storyboard first.</p>}
+      {ceiling ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          {typeof cost === "number" ? `Provider cost about ${usd(cost)}, ` : ""}within the {usd(ceiling)} ceiling per video. Nothing is made above it.
+        </p>
+      ) : null}
       <ol className="mt-2 space-y-2">
         {scenes.map((s, i) => (
           <li key={s.scene_id || i} className="flex flex-col gap-2 rounded-lg bg-muted/40 p-2 sm:flex-row">
@@ -400,6 +407,11 @@ function GenerationPlan({ quote, shape, wide }: { quote: VideoAdQuote; shape: st
                 Scene {i + 1}: {SHOT_LABEL[s.shot] ?? s.shot}. First frame: {frameLabel(s)}
                 {s.cached ? ". Kept from the last version" : s.route ? `. ${s.route}${s.tier === "premium" ? " (premium)" : ""}` : ""}
               </p>
+              {settings[s.scene_id] && (
+                <p className="break-words text-muted-foreground">
+                  <span className="font-medium text-foreground">Setting:</span> {settings[s.scene_id]}
+                </p>
+              )}
               {s.still_prompt && !s.cached && (
                 <p className="break-words text-muted-foreground">
                   <span className="font-medium text-foreground">Picture prompt:</span> {s.still_prompt}
@@ -539,4 +551,9 @@ function Finished({
       />
     </div>
   );
+}
+
+/** "USD 1.20" */
+function usd(v: number): string {
+  return `USD ${v.toFixed(2)}`;
 }

@@ -32,6 +32,8 @@ function ProfileStep({ profile, draft, onDone }: { profile: TenantProfile; draft
     bio: (m.bio as string) ?? "",
     contact_email: (m.contact_email as string) || draft?.profile.contact_email || "",
     whatsapp_number: profile.whatsapp_number || draft?.profile.whatsapp_number || "",
+    business_address: (m.business_address as string) || draft?.profile.business_address || "",
+    business_city: (m.business_city as string) ?? "",
     business_type: initialBusinessType(profile.business_type, typeChosen),
   });
   const logo = !(m.logo_url as string) ? draft?.profile.logo_url : undefined;
@@ -48,6 +50,8 @@ function ProfileStep({ profile, draft, onDone }: { profile: TenantProfile; draft
               tagline: form.tagline.trim(),
               bio: form.bio.trim(),
               contact_email: form.contact_email.trim(),
+              business_address: form.business_address.trim(),
+              business_city: form.business_city.trim(),
               ...(logo ? { logo_url: logo } : {}),
             },
           },
@@ -63,9 +67,11 @@ function ProfileStep({ profile, draft, onDone }: { profile: TenantProfile; draft
         <Field label="Contact email" htmlFor="ob-mail"><Input id="ob-mail" type="email" inputMode="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} /></Field>
         <Field label="Your story" htmlFor="ob-bio" hint="Two or three sentences" className="sm:col-span-2"><Textarea id="ob-bio" rows={3} maxLength={600} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} /></Field>
         <Field label="WhatsApp number" htmlFor="ob-wa" hint="Customers tap to chat with you"><Input id="ob-wa" type="tel" inputMode="tel" value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} placeholder="+2547..." /></Field>
+        <Field label="Business address" htmlFor="ob-addr" required hint="Building, street and area. Your ads show scenes from your own town." className="sm:col-span-2"><Input id="ob-addr" maxLength={200} autoComplete="street-address" value={form.business_address} onChange={(e) => setForm({ ...form, business_address: e.target.value })} placeholder="Building, street and area" /></Field>
+        <Field label="Town or city" htmlFor="ob-city"><Input id="ob-city" maxLength={80} autoComplete="address-level2" value={form.business_city} onChange={(e) => setForm({ ...form, business_city: e.target.value })} placeholder="Kisumu" /></Field>
       </div>
       {logo && <p className="text-xs text-muted-foreground">Your account logo will be used on your public page.</p>}
-      <Button type="submit" disabled={update.isPending || !form.tagline.trim() || !form.bio.trim()}>{update.isPending ? "Saving..." : "Save profile"}</Button>
+      <Button type="submit" disabled={update.isPending || !form.tagline.trim() || !form.bio.trim() || !form.business_address.trim()}>{update.isPending ? "Saving..." : "Save profile"}</Button>
     </form>
   );
 }

@@ -155,6 +155,12 @@ export const creativeApi = {
   discard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/discard`).then((r) => r.data),
   /** Tells the API an approved video was downloaded (starts its 48-hour removal countdown). */
   downloaded: (assetId: string) => apiClient.post(`${base}/assets/${assetId}/downloaded`).then(() => undefined),
+  /** The file itself, served as an attachment by the API (the storage origin would open it in a tab). */
+  file: (assetId: string) =>
+    apiClient.get<Blob>(`${base}/assets/${assetId}/file`, { responseType: "blob" }).then((r) => ({
+      blob: r.data,
+      name: fileNameFrom(String(r.headers["content-disposition"] ?? "")),
+    })),
   revise: (id: string, data: ReviseInput) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/revise`, data).then((r) => r.data),
   extend: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/extend`).then((r) => r.data),
   motion: (id: string, data: MotionInput) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/motion`, data).then((r) => r.data),
@@ -218,4 +224,10 @@ export function aspectClass(format?: string): string {
     default:
       return "aspect-9/16";
   }
+}
+
+/** The filename in a Content-Disposition header, or a safe default. */
+export function fileNameFrom(disposition: string): string {
+  const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  return m ? decodeURIComponent(m[1]) : "marketflow-file";
 }

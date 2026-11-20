@@ -20,6 +20,9 @@ import {
   clampStopDays,
   MAX_PERIOD_DAYS,
   paidBudgetProblems,
+  creditCeilingProblem,
+  CREDIT_CEILING_MAX,
+  CREDIT_CEILING_MIN,
   STOP_CPL_DEFAULT_DAYS,
   STOP_CPL_MAX_DAYS,
   WEEKDAYS,
@@ -487,7 +490,11 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const adAcct = adChoice ?? (adAccounts.data ?? []).find((a) => acctIDs.includes(a.connected_account_id))?.connected_account_id ?? "";
   const chosenAd = adAccounts.data?.find((a) => a.connected_account_id === adAcct);
   const postIDs = acctIDs.filter((id) => !adIDs.has(id));
-  const budgetProblems = paidBudgetProblems({ paid, per_ad_budget: perAd, period_days: periodDays, monthly_ad_ceiling: adCeiling, end_date: endDate });
+  const creditProblem = creditCeilingProblem(credits);
+  const budgetProblems = [
+    ...(creditProblem ? [creditProblem] : []),
+    ...paidBudgetProblems({ paid, per_ad_budget: perAd, period_days: periodDays, monthly_ad_ceiling: adCeiling, end_date: endDate }),
+  ];
   const [mode, setMode] = useState<ApprovalMode>(cfg?.approval_mode ?? "approve_each");
   const [vetoHours, setVetoHours] = useState<number | null>(cfg?.veto_hours ?? null);
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -613,8 +620,8 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
               <option value="traffic">Visit a link</option>
             </select>
           </Field>
-          <Field label="Most AI credits a month" htmlFor="ap-credits" hint="The agent stops drafting for the month once it reaches this.">
-            <Input id="ap-credits" type="number" min={1} max={5000} value={credits} onChange={(e) => setCredits(Number(e.target.value))} />
+          <Field label="Most AI credits a month" htmlFor="ap-credits" required error={creditProblem} hint="The agent stops drafting for the month once it reaches this.">
+            <Input id="ap-credits" type="number" min={CREDIT_CEILING_MIN} max={CREDIT_CEILING_MAX} step={1} value={credits || ""} aria-invalid={!!creditProblem} onChange={(e) => setCredits(num(e.target.value))} />
           </Field>
         </div>
 
@@ -652,8 +659,12 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
               </span>
             </span>
           </label>
+          {!paid && (
+            <p className="text-sm text-muted-foreground">Turn on paid ads to set the budget per ad, the days each ad runs and the most ad spend a month.</p>
+          )}
           {paid && (
-            <div className="space-y-3 rounded-lg border border-border p-3">
+            <div className="space-y-3 rounded-lg border border-primary/40 bg-primary/5 p-3">
+              <p className="text-sm font-medium">Ad budget</p>
               <Field label="Meta ad account that pays" htmlFor="ap-ad-account">
                 <select id="ap-ad-account" className={inputClass} value={adAcct} onChange={(e) => setAdChoice(e.target.value)} disabled={adAccounts.isLoading}>
                   <option value="">{adAccounts.isLoading ? "Loading..." : "Choose an ad account"}</option>
@@ -674,13 +685,13 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
               )}
               {adAccounts.isError && <p className="text-sm text-destructive">{apiErrorMessage(adAccounts.error, "Could not load your ad accounts")}</p>}
               <div className="grid gap-3 sm:grid-cols-3">
-                <Field label="Budget per ad" htmlFor="ap-per-ad" hint={chosenAd?.currency ? `In ${chosenAd.currency}, for the whole run of the ad.` : "In your ad account's currency, for the whole run of the ad."}>
+                <Field label="Budget per ad" htmlFor="ap-per-ad" required error={paid && !(perAd > 0) ? "Enter the budget for each ad." : null} hint={chosenAd?.currency ? `In ${chosenAd.currency}, for the whole run of the ad.` : "In your ad account's currency, for the whole run of the ad."}>
                   <Input id="ap-per-ad" type="number" min={1} step={1} value={perAd || ""} onChange={(e) => setPerAd(num(e.target.value))} />
                 </Field>
-                <Field label="Days each ad runs" htmlFor="ap-period" hint={`1 to ${MAX_PERIOD_DAYS} days.`}>
+                <Field label="Days each ad runs" htmlFor="ap-period" required error={paid && !(periodDays >= 1 && periodDays <= MAX_PERIOD_DAYS) ? `1 to ${MAX_PERIOD_DAYS} days.` : null} hint={`1 to ${MAX_PERIOD_DAYS} days.`}>
                   <Input id="ap-period" type="number" min={1} max={MAX_PERIOD_DAYS} step={1} value={periodDays || ""} onChange={(e) => setPeriodDays(num(e.target.value))} />
                 </Field>
-                <Field label="Most ad spend a month" htmlFor="ap-ad-ceiling" hint="Checked against what the agent's ads really spent this month.">
+                <Field label="Most ad spend a month" htmlFor="ap-ad-ceiling" required error={paid && adCeiling > 0 && perAd > adCeiling ? "Below the budget per ad." : paid && !(adCeiling > 0) ? "Enter the monthly ceiling." : null} hint="Checked against what the agent's ads really spent this month.">
                   <Input id="ap-ad-ceiling" type="number" min={1} step={1} value={adCeiling || ""} onChange={(e) => setAdCeiling(num(e.target.value))} />
                 </Field>
               </div>

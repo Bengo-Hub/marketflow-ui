@@ -4,13 +4,13 @@ import { useState } from "react";
 import { Check, Clock, Copy, Download, Film, MoreVertical, PenLine, Repeat2, Share2, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, ConfirmDialog, Field, ToneBadge, humanize, type Tone } from "@/components/ui-kit";
-import { useApprove, useDiscard, useExtend, useMotion, useRevise } from "@/hooks/use-creative";
+import { useApprove, useDiscard, useExtend, useMotion, useRevise, useDownloadAsset } from "@/hooks/use-creative";
 import { useIsRestricted } from "@/hooks/use-access";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { creativeApi, expiresAt, IN_PROGRESS, mainAsset, STATUS_LABEL, type CreativeVersion, type Tier, type VersionStatus } from "@/lib/api/creative";
@@ -49,6 +49,7 @@ export function VersionCard({
   const [open, setOpen] = useState<Open>(null);
   const approve = useApprove(briefId);
   const discard = useDiscard(briefId);
+  const download = useDownloadAsset();
   const extend = useExtend(briefId);
   // The app reviewer only looks at posters: no discard, edits, new posters, share links or extensions.
   const reviewer = useIsRestricted();
@@ -137,19 +138,11 @@ export function VersionCard({
             </Button>
           )}
           {asset && finished && (
-            <a
-              href={asset.url}
-              download
-              target="_blank"
-              rel="noreferrer"
-              className={buttonVariants({ size: "sm", variant: "ghost" })}
-              // A downloaded approved video starts its 48-hour removal countdown; best effort.
-              onClick={() => {
-                if (v.status === "approved" && v.kind === "video") void creativeApi.downloaded(asset.id).catch(() => undefined);
-              }}
-            >
-              <Download /> Download
-            </a>
+            // The API serves the file as an attachment and records the download (an approved video then
+            // starts its removal countdown), so the file is saved and no tab opens.
+            <Button size="sm" variant="ghost" disabled={download.isPending} onClick={() => download.mutate(asset.id)}>
+              <Download /> {download.isPending ? "Downloading..." : "Download"}
+            </Button>
           )}
           {(finished || editable) && !reviewer && (
             <DropdownMenu>

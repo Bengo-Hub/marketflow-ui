@@ -325,3 +325,15 @@ export const autopilotApi = {
 };
 
 export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** The monthly AI credit ceiling the API accepts. */
+export const CREDIT_CEILING_MIN = 1;
+export const CREDIT_CEILING_MAX = 5000;
+
+/** What is wrong with the monthly AI credit ceiling, or null. */
+export function creditCeilingProblem(credits: number): string | null {
+  if (!Number.isInteger(credits) || credits < CREDIT_CEILING_MIN || credits > CREDIT_CEILING_MAX) {
+    return `Most AI credits a month is a whole number from ${CREDIT_CEILING_MIN} to ${CREDIT_CEILING_MAX.toLocaleString()}.`;
+  }
+  return null;
+}

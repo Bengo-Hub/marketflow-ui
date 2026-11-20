@@ -51,6 +51,8 @@ export interface BrandDraft {
     logo_url?: string;
     website?: string;
     brand_primary_color?: string;
+    /** A Forever Living seller with no address gets the platform default prefilled. */
+    business_address?: string;
   };
   /** Which sources answered: profile, account, catalogue, website. */
   sources: string[];

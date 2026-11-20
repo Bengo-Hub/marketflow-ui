@@ -23,7 +23,13 @@ import type { TenantProfile, TenantProfileUpdate } from "@/lib/api/tenant-profil
 type Meta = Pick<
   PublicMetadata,
   "tagline" | "bio" | "story" | "video_url" | "logo_url" | "cover_url" | "contact_email" | "booking_enabled" | "brand_primary_color" | "opportunity_text"
-> & { socials: Socials; offerings: Offering[] };
+> & {
+  socials: Socials;
+  offerings: Offering[];
+  /** Private: where the business is, so its ads show scenes from its own town. */
+  business_address?: string;
+  business_city?: string;
+};
 
 const SOCIALS: Array<{ key: keyof Socials; label: string }> = [
   { key: "facebook", label: "Facebook" },
@@ -66,6 +72,8 @@ function initialMeta(data: TenantProfile): Meta {
     booking_enabled: m.booking_enabled,
     brand_primary_color: m.brand_primary_color,
     opportunity_text: m.opportunity_text,
+    business_address: m.business_address as string | undefined,
+    business_city: m.business_city as string | undefined,
     socials: (m.socials as Socials) ?? {},
     offerings: Array.isArray(m.offerings) ? (m.offerings as Offering[]) : [],
   };
@@ -245,6 +253,12 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
           </Field>
           <Field label="Contact email" hint="Shown when there is no WhatsApp number." error={errors.contact_email} htmlFor="pf-email">
             <Input id="pf-email" type="email" autoComplete="email" value={meta.contact_email ?? ""} onChange={(e) => setM({ contact_email: e.target.value })} />
+          </Field>
+          <Field label="Business address" hint="Building, street and area. Kept private; your ads show scenes from your own town." htmlFor="pf-address">
+            <Input id="pf-address" maxLength={200} autoComplete="street-address" value={meta.business_address ?? ""} onChange={(e) => setM({ business_address: e.target.value })} placeholder="Building, street and area" />
+          </Field>
+          <Field label="Town or city" htmlFor="pf-city">
+            <Input id="pf-city" maxLength={80} autoComplete="address-level2" value={meta.business_city ?? ""} onChange={(e) => setM({ business_city: e.target.value })} />
           </Field>
           <div className="flex items-start justify-between gap-4 rounded-2xl border border-border bg-background/60 p-4">
             <div>

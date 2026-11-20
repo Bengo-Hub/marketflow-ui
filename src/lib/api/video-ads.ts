@@ -46,6 +46,8 @@ export interface ScriptScene {
   caption: string;
   duration_s?: number;
   speaker?: Speaker;
+  /** Where the scene happens, from the setting brief (place, neighbourhood, vibe, people, props). */
+  setting?: string;
 }
 
 export interface VideoScript {
@@ -152,7 +154,9 @@ export interface VideoAdQuote {
   enough: boolean;
   shortfall?: number;
   suggested_bundle?: { code: string; units: number; price_kes: number };
-  plan?: { kind: VideoKind; scenes?: ScenePlan[]; cached_scenes?: number };
+  plan?: { kind: VideoKind; scenes?: ScenePlan[]; cached_scenes?: number; cost_usd?: number };
+  /** The per-video provider-cost ceiling in force (platform setting), in USD. */
+  max_video_usd?: number;
   /** Names the plan this quote shows; approving it lets the render start. */
   plan_fingerprint?: string;
   plan_approved?: boolean;
