@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMarkStep } from "@/hooks/use-onboarding";
-import { pageUrl, plansHref, whatsappShareHref, widgetSnippet } from "@/lib/onboarding/quick-start";
+import { usePublicLink } from "@/hooks/use-public-link";
+import { plansHref, whatsappShareHref, widgetSnippet } from "@/lib/onboarding/quick-start";
 
 async function copy(text: string, what: string): Promise<boolean> {
   try {
@@ -64,11 +65,23 @@ export function WidgetStepPanel({ slug, color, done }: { slug: string; color?: s
   );
 }
 
-/** The share step: the public page's link to copy or send on WhatsApp; either marks the step done. */
+/**
+ * The share step: the business's public link to copy or send on WhatsApp; either marks the step
+ * done. The link follows resolvePublicLink: the website, then the storefront domain, then the
+ * ordering storefront, and the MarketFlow page only for Forever distributors.
+ */
 export function ShareStepPanel({ slug, businessName, done }: { slug: string; businessName?: string; done: boolean }) {
   const mark = useMarkStep();
   const [shared, setShared] = useState(done);
-  const url = pageUrl(slug);
+  const link = usePublicLink(slug);
+  if (!link) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Add your website in Settings, Profile, and its link shows here ready to share.
+      </p>
+    );
+  }
+  const url = link.href;
   const markOnce = () => {
     if (!shared) {
       setShared(true);
@@ -77,7 +90,7 @@ export function ShareStepPanel({ slug, businessName, done }: { slug: string; bus
   };
   return (
     <div className="space-y-3 text-sm">
-      <Input readOnly value={url} aria-label="Your public page" onFocus={(e) => e.currentTarget.select()} />
+      <Input readOnly value={url} aria-label={`Your ${link.label.toLowerCase()} link`} onFocus={(e) => e.currentTarget.select()} />
       <div className="flex flex-wrap gap-2">
         <Button
           size="sm"

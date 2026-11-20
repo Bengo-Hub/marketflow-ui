@@ -29,6 +29,7 @@ import { AlertTriangle, Check, Loader2, Users } from "lucide-react";
 import { BrandImagesRequired } from "@/components/media/brand-images-required";
 import { isBrandImagesRequired } from "@/lib/api/brand-images";
 import { cn } from "@/lib/utils";
+import { fieldLabel, unfilledFields } from "@/lib/templates/fill";
 
 const MAX_ASK = 2000;
 
@@ -388,6 +389,8 @@ export function ManagerConsole({
   const result = res?.result;
   const shortlist = new Set(result?.shortlist ?? []);
   const tooLong = draft.length > MAX_ASK;
+  // A template's ${field} left in the brief: the team would read it literally.
+  const unfilled = unfilledFields(draft);
   const busy = preview.isPending || ask.isPending;
   const elapsed = useElapsed(ask.isPending);
   const brandStep = result?.steps?.find((s) => s.contract === "brand_context" && s.output);
@@ -420,8 +423,10 @@ export function ManagerConsole({
             }}
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className={cn("text-xs", tooLong ? "text-destructive" : "text-muted-foreground")}>
-              English or Swahili. {draft.length}/{MAX_ASK}
+            <span className={cn("text-xs", tooLong || unfilled.length > 0 ? "text-destructive" : "text-muted-foreground")}>
+              {unfilled.length > 0
+                ? `Fill in ${unfilled.map((f) => fieldLabel(f).toLowerCase()).join(", ")} before sending.`
+                : <>English or Swahili. {draft.length}/{MAX_ASK}</>}
             </span>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -437,11 +442,11 @@ export function ManagerConsole({
                 )}
                 Set up my team
               </Button>
-              <Button variant="outline" onClick={() => preview.mutate()} disabled={!draft.trim() || tooLong || busy}>
+              <Button variant="outline" onClick={() => preview.mutate()} disabled={!draft.trim() || tooLong || unfilled.length > 0 || busy}>
                 {preview.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
                 Check first (free)
               </Button>
-              <Button onClick={() => ask.mutate({})} disabled={!draft.trim() || tooLong || busy}>
+              <Button onClick={() => ask.mutate({})} disabled={!draft.trim() || tooLong || unfilled.length > 0 || busy}>
                 {ask.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
                 Send to the team (1 credit)
               </Button>

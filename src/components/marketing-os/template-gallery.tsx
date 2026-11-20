@@ -4,6 +4,8 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { marketingOsApi, type Template } from "@/lib/api/marketing-os";
+import { TemplateFillDialog } from "@/components/marketing-os/template-fill-dialog";
+import { templateFields } from "@/lib/templates/fill";
 import {
   SORTS,
   activeFilterCount,
@@ -141,13 +143,17 @@ export function TemplateGallery({ onUse }: { onUse: (text: string) => void }) {
     setQ("");
     setFilters((f) => clearFilters(f));
   };
+  // A template with fields opens the form first; one without goes straight to the manager.
+  const [filling, setFilling] = useState<Template | null>(null);
   const use = (t: Template) => {
     setUsage(recordUse(browserStorage(), t.id));
-    onUse(t.template);
+    if (templateFields(t.template).length > 0) setFilling(t);
+    else onUse(t.template);
   };
 
   return (
     <div className="space-y-4">
+      <TemplateFillDialog template={filling} onClose={() => setFilling(null)} onUse={onUse} />
       <div className="relative w-full max-w-md">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input

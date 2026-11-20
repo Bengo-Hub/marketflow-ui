@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { AI_API_URL, APP_URL, PRICING_URL } from "@/lib/urls";
 import { STEP_META } from "@/lib/api/onboarding";
-import { pageUrl, plansHref, whatsappShareHref, widgetSnippet } from "./quick-start";
+import { plansHref, whatsappShareHref, widgetSnippet } from "./quick-start";
 
 describe("setup guide quick start", () => {
-  it("links to the MarketFlow plans, as Billing's Change plan does", () => {
-    expect(plansHref()).toBe(`${PRICING_URL}/plans?service=marketflow`);
+  it("links to the MarketFlow plans alone, as Billing's Change plan does", () => {
+    expect(plansHref()).toBe(`${PRICING_URL}/plans?service=marketflow&only=1`);
   });
 
   it("builds the widget code for the business, as in the widget README", () => {
@@ -24,9 +24,8 @@ describe("setup guide quick start", () => {
     expect(s).toContain('data-primary-color="#9100B0"');
   });
 
-  it("shares the public page on WhatsApp with a short line", () => {
-    const url = pageUrl("mama-mboga");
-    expect(url).toBe(`${APP_URL}/p/mama-mboga`);
+  it("shares the business's link on WhatsApp with a short line", () => {
+    const url = "https://mamamboga.co.ke";
     const href = whatsappShareHref(url, "Mama Mboga");
     expect(href.startsWith("https://wa.me/?text=")).toBe(true);
     expect(decodeURIComponent(href.split("text=")[1])).toBe(`See what Mama Mboga offers: ${url}`);

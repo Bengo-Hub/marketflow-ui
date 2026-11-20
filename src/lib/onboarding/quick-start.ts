@@ -1,4 +1,4 @@
-import { AI_API_URL, APP_URL, PRICING_URL, publicProfileUrl } from "@/lib/urls";
+import { AI_API_URL, APP_URL, PRICING_URL } from "@/lib/urls";
 
 /**
  * The setup guide's quick start steps (Sprint 6): choose a plan, put the chat widget on the
@@ -6,9 +6,12 @@ import { AI_API_URL, APP_URL, PRICING_URL, publicProfileUrl } from "@/lib/urls";
  * can (a paid plan, a lead from the widget's form) or when the owner taps the step's button.
  */
 
-/** Where plans are chosen: the platform's pricing site, the same link as Billing's Change plan. */
+/**
+ * Where plans are chosen: the platform's pricing site, the same link as Billing's Change plan.
+ * only=1 shows the MarketFlow plans alone, without the other products' tabs.
+ */
 export function plansHref(): string {
-  return `${PRICING_URL}/plans?service=marketflow`;
+  return `${PRICING_URL}/plans?service=marketflow&only=1`;
 }
 
 /** Only a slug is put into the snippet; anything else is left out rather than escaped. */
@@ -26,11 +29,6 @@ export function widgetSnippet(slug: string, primaryColor?: string): string {
     `  data-primary-color="${color}"`,
     "  async></script>",
   ].join("\n");
-}
-
-/** The public page's link. */
-export function pageUrl(slug: string): string {
-  return publicProfileUrl(slug);
 }
 
 /** A WhatsApp share of the page with a short line, opened in WhatsApp or WhatsApp Web. */

@@ -11,10 +11,11 @@ import { ErrorState, GlassPanel, PageHeader, StatusBadge, ToneBadge } from "@/co
 import { useCreditHistory, useCredits, useLegacyWallet, useTenantSubscription, useUsage } from "@/hooks/use-billing";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { billingApi, kes, type CreditService, type CreditSnapshot, type UsageMetric } from "@/lib/api/billing";
-import { PRICING_URL } from "@/lib/urls";
+import { plansHref } from "@/lib/onboarding/quick-start";
 import { cn } from "@/lib/utils";
 import { UsageCard } from "@/components/billing/usage-card";
 import { useAuthStore } from "@/store/auth-store";
+import { useSubscription } from "@/hooks/use-subscription";
 
 const dateFmt = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium" });
 const whenFmt = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
@@ -147,6 +148,7 @@ function CreditPanel({ snap, onBuy, buying }: { snap: CreditSnapshot; onBuy: (s:
 export default function BillingPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const user = useAuthStore((s) => s.user);
+  const { isSubscriptionExempt } = useSubscription();
   const qc = useQueryClient();
   const sub = useTenantSubscription();
   const usage = useUsage();
@@ -176,15 +178,21 @@ export default function BillingPage() {
     }
   };
 
-  if (user?.isPlatformOwner) {
+  // The platform owner and sub_exempt tenants are never billed (auth-client IsGatingExempt): every
+  // feature is on, with no trial, plan or credit prompts.
+  if (user?.isPlatformOwner || isSubscriptionExempt) {
     return (
       <div className="space-y-6">
         <PageHeader icon={<CreditCard />} title="Billing" description="Plan, usage and credits for this business." />
         <GlassPanel>
-          <p className="text-sm text-muted-foreground">
-            You are signed in as the platform owner, whose account is never billed. To see or change a business&apos;s plan and credits, open it from{" "}
-            <Link href="/platform/billing" className="font-medium text-primary hover:underline">platform billing</Link>.
-          </p>
+          {user?.isPlatformOwner ? (
+            <p className="text-sm text-muted-foreground">
+              You are signed in as the platform owner, whose account is never billed. To see or change a business&apos;s plan and credits, open it from{" "}
+              <Link href="/platform/billing" className="font-medium text-primary hover:underline">platform billing</Link>.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">This business is not billed. Every MarketFlow feature is included.</p>
+          )}
         </GlassPanel>
       </div>
     );
@@ -245,7 +253,7 @@ export default function BillingPage() {
                     ? `This period ends ${dateFmt.format(new Date(s.current_period_end))}.`
                     : "No active subscription."}
               </p>
-              <a href={`${PRICING_URL}/plans?service=marketflow`} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <a href={plansHref()} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "outline", size: "sm" })}>
                 {s?.plan_code ? "Change plan" : "Choose a plan"}
               </a>
             </div>

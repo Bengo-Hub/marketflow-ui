@@ -7,7 +7,7 @@ import { fetchSubscriptionInfo } from "@/lib/auth/subscription";
 import { currentAccessToken } from "@/lib/api/client";
 
 /** The unverified payload of a JWT, or {} when it cannot be read. */
-function tokenClaims(token?: string | null): { billing_mode?: string; is_demo?: boolean; sub_exempt?: boolean } {
+function tokenClaims(token?: string | null): { billing_mode?: string; is_demo?: boolean; sub_exempt?: boolean; is_platform_owner?: boolean } {
   const part = token?.split(".")[1];
   if (!part || typeof atob !== "function") return {};
   try {
@@ -26,10 +26,10 @@ export function useSubscription() {
 
   const tenantId = user?.tenantId ?? null;
   const tenantSlug = user?.tenantSlug ?? null;
-  const isPlatformOwner = user?.isPlatformOwner ?? false;
   // The gating exemptions live on the access token (auth-client Claims.IsGatingExempt), not on the
   // user profile. Read them from its payload for display only; every server checks the signed token.
   const claims = tokenClaims(session?.accessToken);
+  const isPlatformOwner = (user?.isPlatformOwner ?? false) || claims.is_platform_owner === true;
   const isServiceCharge = claims.billing_mode === "service_charge";
   const isDemo = !!claims.is_demo || tenantSlug === "codevertex-demo";
   const isSubscriptionExempt = !!claims.sub_exempt;
