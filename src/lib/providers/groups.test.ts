@@ -18,7 +18,8 @@ describe("sectionsFor", () => {
     expect(s.map((x) => x.id)).toEqual(["image", "voice", "other"]);
     expect(s[0].providers.map((p) => p.id)).toEqual(["fal", "higgsfield"]);
     expect(s[0].defaultName).toBe("fal.ai");
-    expect(s[2].providers.map((p) => p.id)).toEqual(["creatomate"]);
+    // The routing and self-review settings cards sit with the ungrouped media providers.
+    expect(s[2].providers.map((p) => p.id)).toEqual(["routing", "review", "creatomate"]);
   });
   it("groups web search and leaves the rest unheaded when no group fits", () => {
     const s = sectionsFor(ai, groups);
@@ -51,5 +52,16 @@ describe("emptyReason", () => {
       /public spec/,
     );
     expect(emptyReason({ service: "x", endpoints: [], last_scan: { scanned_at: "", operations: 0, offerable: 0, added: 0, error: "status 404" } })).toMatch(/404/);
+  });
+});
+
+describe("settings cards", () => {
+  it("makes the per-video ceiling editable and the posting switches on or off", () => {
+    const ceiling = findProvider("media", "routing")!.fields.find((f) => f.key === "max_video_budget_usd")!;
+    expect(ceiling.type).toBe("number");
+    expect(ceiling.default).toBe("2");
+    const sw = findProvider("publishing", "switches")!.fields.map((f) => f.key);
+    expect(sw).toContain("facebook_enabled");
+    expect(findProvider("media", "review")!.fields.map((f) => f.key)).toContain("max_retries");
   });
 });
