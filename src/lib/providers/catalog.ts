@@ -501,7 +501,9 @@ const adProviders: ProviderDef[] = [
     id: "ads",
     type: "google_ads",
     name: "Google Ads",
-    description: "Google Ads OAuth + developer token.",
+    // No developer token: Google retired them on 2026-09-09. API access belongs to the Cloud
+    // project that owns this OAuth client; its level is set on that project's Google Ads API page.
+    description: "Google Ads OAuth client. API access level comes from its Google Cloud project.",
     scope: "platform",
     logoSlug: "google",
     logoColor: "4285F4",
@@ -511,14 +513,6 @@ const adProviders: ProviderDef[] = [
     fields: [
       { key: "client_id", label: "Client ID", type: "text", required: true, help: "OAuth 2.0 Client ID (…apps.googleusercontent.com)" },
       { key: "client_secret", label: "Client secret", type: "password", secret: true, required: true },
-      {
-        key: "developer_token",
-        label: "Developer token",
-        type: "password",
-        secret: true,
-        required: true,
-        help: "Google Ads API developer token from the manager account.",
-      },
       {
         key: "redirect_url",
         label: "OAuth redirect URL",
