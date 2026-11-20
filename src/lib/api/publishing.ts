@@ -58,7 +58,43 @@ export interface ScheduleInput {
   /** Omit to post now. */
   scheduled_at?: string;
   made_for_kids: boolean;
+  /** Required when a TikTok account is picked. */
+  tiktok?: TikTokOptions;
+  /** The person agreed to TikTok's Music Usage Confirmation (and Branded Content Policy). */
+  tiktok_consent?: boolean;
 }
+
+export type TikTokPrivacy = "PUBLIC_TO_EVERYONE" | "MUTUAL_FOLLOW_FRIENDS" | "FOLLOWER_OF_CREATOR" | "SELF_ONLY";
+
+export interface TikTokOptions {
+  privacy_level: TikTokPrivacy;
+  allow_comment: boolean;
+  allow_duet: boolean;
+  allow_stitch: boolean;
+  /** Promotes the business's own brand ("Your brand"). */
+  brand_organic: boolean;
+  /** A paid partnership for a third party ("Branded content"); never private. */
+  brand_content: boolean;
+}
+
+/** TikTok creator_info for the publish dialog, read each time a TikTok account is picked. */
+export interface TikTokCreatorInfo {
+  nickname: string;
+  username: string;
+  avatar_url: string;
+  privacy_level_options: TikTokPrivacy[];
+  comment_disabled: boolean;
+  duet_disabled: boolean;
+  stitch_disabled: boolean;
+  max_video_post_duration_sec: number;
+}
+
+export const TIKTOK_PRIVACY_LABEL: Record<TikTokPrivacy, string> = {
+  PUBLIC_TO_EVERYONE: "Everyone",
+  MUTUAL_FOLLOW_FRIENDS: "Friends",
+  FOLLOWER_OF_CREATOR: "Followers",
+  SELF_ONLY: "Only me",
+};
 
 export interface JobPage {
   data: PublishJob[];
@@ -68,6 +104,8 @@ export interface JobPage {
 
 export const publishingApi = {
   accounts: () => apiClient.get<{ data: PublishAccount[] }>(`${base}/accounts`).then((r) => r.data.data),
+  tiktokCreatorInfo: (accountId: string) =>
+    apiClient.get<TikTokCreatorInfo>(`${base}/accounts/${accountId}/tiktok-creator-info`).then((r) => r.data),
   schedule: (data: ScheduleInput) => apiClient.post<{ data: PublishJob[] }>(`${base}/jobs`, data).then((r) => r.data.data),
   list: (params: { from: string; to: string; status?: JobStatus; cursor?: string }) =>
     apiClient.get<JobPage>(`${base}/jobs`, { params: { ...params, limit: 50 } }).then((r) => r.data),

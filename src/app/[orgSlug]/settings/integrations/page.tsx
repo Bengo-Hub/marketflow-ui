@@ -103,6 +103,12 @@ export default function IntegrationsPage() {
           text={`YouTube channel connected${params.get("channel") ? `: ${params.get("channel")}` : ""}. Approved videos can now be posted to it as Shorts.`}
         />
       )}
+      {params.get("tiktok_creator") === "connected" && (
+        <Banner
+          ok
+          text={`TikTok account connected${params.get("account") ? `: ${params.get("account")}` : ""}. Approved videos can now be posted to it.`}
+        />
+      )}
       {/* Failure banners: the callback returns ?<provider>=error&reason=<code>. */}
       {connectProviders.map((p) => {
         const text = params.get(p) === "error" ? connectErrorText(p, params.get("reason") ?? "") : null;

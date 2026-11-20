@@ -7,6 +7,7 @@ const providerNames: Record<string, string> = {
   tiktok: "TikTok for Business",
   youtube: "YouTube",
   google_ads: "Google Ads",
+  tiktok_creator: "TikTok",
 };
 
 const reasons: Record<string, (name: string) => string> = {
@@ -17,9 +18,13 @@ const reasons: Record<string, (name: string) => string> = {
     "Facebook did not share any Page with MarketFlow. Click Connect, choose Edit settings, tick at least one Facebook Page (and its Instagram account), then finish.",
   oauth_not_configured: (n) => `${n} is not set up on MarketFlow yet. Please contact Codevertex support.`,
   no_refresh_token: (n) =>
-    `${n} did not grant offline access. Remove MarketFlow from your Google account's third-party access, then connect again.`,
+    n === "TikTok"
+      ? "TikTok did not finish the connection. Please connect again."
+      : `${n} did not grant offline access. Remove MarketFlow from your Google account's third-party access, then connect again.`,
   missing_scope: (n) =>
-    n === "Google Ads"
+    n === "TikTok"
+      ? "TikTok needs every permission on its screen to post your videos. Click Connect and leave them all ticked."
+      : n === "Google Ads"
       ? "Google Ads needs its permission ticked on Google's screen. Click Connect and leave it ticked."
       : `${n} needs both permissions on Google's screen: uploading videos, and managing the videos MarketFlow posts. Click Connect and leave both ticked.`,
   no_account: () =>

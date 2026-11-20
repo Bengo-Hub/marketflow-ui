@@ -648,6 +648,29 @@ const publishingProviders: ProviderDef[] = [
       },
     ],
   },
+  {
+    id: "oauth",
+    type: "tiktok",
+    name: "TikTok",
+    description:
+      "TikTok for Developers app (Login Kit and Content Posting API) for posting to each business's own TikTok account. It asks for user.info.basic, video.publish and video.upload only. Add the redirect URL below as a Web redirect URI under Login Kit, and the webhook URL under Webhooks.",
+    scope: "platform",
+    logoSlug: "tiktok",
+    logoColor: "000000",
+    brandColor: "#000000",
+    docsUrl: "https://developers.tiktok.com/apps",
+    fields: [
+      { key: "client_key", label: "Client key", type: "text", required: true, help: "From the app's Credentials section. TikTok calls the app id a client key." },
+      { key: "client_secret", label: "Client secret", type: "password", secret: true, required: true, help: "Also signs TikTok's webhooks to https://marketflowapi.codevertexafrica.com/api/v1/webhooks/tiktok/events" },
+      {
+        key: "redirect_url",
+        label: "OAuth redirect URL",
+        type: "url",
+        required: true,
+        default: "https://marketflowapi.codevertexafrica.com/api/v1/integrations/tiktok-creator/callback",
+      },
+    ],
+  },
 ];
 
 // Email / SMS / WhatsApp / Push providers are NOT defined here — notifications-api
@@ -721,6 +744,16 @@ export const tenantIntegrations: {
     brandColor: "#FF0000",
     requiresPlatformConfig: "youtube",
     authorizePath: "/api/v1/integrations/youtube/authorize",
+  },
+  {
+    id: "tiktok",
+    name: "TikTok",
+    description: "Post approved videos to your own TikTok account.",
+    logoSlug: "tiktok",
+    logoColor: "000000",
+    brandColor: "#000000",
+    requiresPlatformConfig: "tiktok",
+    authorizePath: "/api/v1/integrations/tiktok-creator/authorize",
   },
   {
     id: "linkedin_ads",

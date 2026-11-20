@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { TikTokPostOptions } from "@/components/studio/tiktok-post-options";
+import { emptyTikTokDraft, tiktokOptions, tiktokProblem, type TikTokDraft } from "@/lib/studio/tiktok-post";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field, ToneBadge } from "@/components/ui-kit";
 import { usePublishAccounts, useSchedulePost } from "@/hooks/use-publishing";
 import { apiErrorMessage } from "@/lib/api/errors";
-import { CAPTION_LIMIT, PLATFORM_LABEL, type PublishAccount } from "@/lib/api/publishing";
+import { CAPTION_LIMIT, PLATFORM_LABEL, publishingApi, type PublishAccount } from "@/lib/api/publishing";
 import { reconnectToDeleteHint } from "@/lib/studio/delete-from-platform";
 
 /** The local date and time a datetime-local input shows, for a Date. */
@@ -30,11 +33,14 @@ export function PublishDialog({
   onOpenChange,
   assetId,
   defaultCaption,
+  videoSeconds = 0,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   assetId: string;
   defaultCaption?: string;
+  /** The video's length, checked against the TikTok account's limit (0 when unknown; the server checks it too). */
+  videoSeconds?: number;
 }) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const accounts = usePublishAccounts(open);
@@ -51,10 +57,34 @@ export function PublishDialog({
   const list = useMemo(() => accounts.data ?? [], [accounts.data]);
   const pickedAccounts = useMemo(() => list.filter((a) => picked.includes(a.id)), [list, picked]);
   const youtube = pickedAccounts.some((a) => a.platform === "youtube");
+  // One TikTok account per post: TikTok's options and consent belong to the account they show.
+  const tiktokAccount = pickedAccounts.find((a) => a.platform === "tiktok");
+  const [tiktokDraft, setTikTokDraft] = useState<TikTokDraft>(emptyTikTokDraft);
+  const [tiktokConsent, setTikTokConsent] = useState(false);
+  const creator = useQuery({
+    queryKey: ["tiktok-creator-info", tiktokAccount?.id],
+    queryFn: () => publishingApi.tiktokCreatorInfo(tiktokAccount!.id),
+    enabled: open && !!tiktokAccount,
+    staleTime: 0, // TikTok asks for fresh creator info each time the options are shown
+  });
+  const tiktokBlock = tiktokAccount ? tiktokProblem(tiktokDraft, creator.data, videoSeconds, tiktokConsent) : null;
   const whenDate = new Date(when);
   const whenInvalid = later && (Number.isNaN(whenDate.getTime()) || whenDate.getTime() < openedAt);
 
-  const toggle = (a: PublishAccount, on: boolean) => setPicked((p) => (on ? [...p, a.id] : p.filter((id) => id !== a.id)));
+  const toggle = (a: PublishAccount, on: boolean) => {
+    if (!on) {
+      setPicked((p) => p.filter((id) => id !== a.id));
+      return;
+    }
+    if (a.platform !== "tiktok") {
+      setPicked((p) => [...p, a.id]);
+      return;
+    }
+    // Picking another TikTok account replaces the first and starts its choices over.
+    setTikTokDraft(emptyTikTokDraft);
+    setTikTokConsent(false);
+    setPicked((p) => [...p.filter((id) => list.find((x) => x.id === id)?.platform !== "tiktok"), a.id]);
+  };
 
   const submit = () => {
     setError(null);
@@ -65,6 +95,9 @@ export function PublishDialog({
         caption: caption.trim(),
         scheduled_at: later ? whenDate.toISOString() : undefined,
         made_for_kids: youtube && kids,
+        ...(tiktokAccount && creator.data
+          ? { tiktok: tiktokOptions(tiktokDraft, creator.data), tiktok_consent: tiktokConsent }
+          : {}),
       },
       {
         onSuccess: () => {
@@ -157,6 +190,22 @@ export function PublishDialog({
             </label>
           )}
 
+          {tiktokAccount && (
+            <TikTokPostOptions
+              info={creator.data}
+              loading={creator.isLoading}
+              error={creator.isError ? apiErrorMessage(creator.error, "Could not load your TikTok account") : null}
+              draft={tiktokDraft}
+              onChange={setTikTokDraft}
+              consent={tiktokConsent}
+              onConsent={setTikTokConsent}
+            />
+          )}
+
+          {tiktokBlock && !creator.isLoading && !creator.isError && (
+            <p className="text-xs text-muted-foreground">{tiktokBlock}</p>
+          )}
+
           {error && (
             <p role="alert" className="text-sm text-destructive">
               {error}
@@ -168,7 +217,7 @@ export function PublishDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={schedule.isPending}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={schedule.isPending || picked.length === 0 || whenInvalid || caption.length > CAPTION_LIMIT}>
+          <Button onClick={submit} disabled={schedule.isPending || picked.length === 0 || whenInvalid || caption.length > CAPTION_LIMIT || !!tiktokBlock}>
             {schedule.isPending ? "Working..." : later ? "Schedule" : "Post now"}
           </Button>
         </DialogFooter>
