@@ -78,6 +78,15 @@ export function canPublish(access: Access): boolean {
 }
 
 /**
+ * An admin of this organisation, or the platform owner. Mirrors marketflow-api's adminOnly gate
+ * (record deletes, permanent deletes, settings). While the role is unknown this is false.
+ */
+export function isAdmin(access: Access): boolean {
+  if (!access) return false;
+  return access.platform_owner || access.roles.includes(ROLE_ADMIN);
+}
+
+/**
  * Delete a published post from its platform (owner 2026-11-14): the approving roles and the app
  * reviewer, who shows instagram_manage_contents in App Review. Mirrors marketflow-api's CanDelete.
  */

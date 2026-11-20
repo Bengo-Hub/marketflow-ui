@@ -100,6 +100,8 @@ export const funnelsApi = {
   publish: (id: string) => apiClient.post<Funnel>(`/api/v1/funnels/${id}/publish`).then((r) => r.data),
   /** Archives the funnel (the API keeps the row). */
   archive: (id: string) => apiClient.delete(`/api/v1/funnels/${id}`).then(() => undefined),
+  /** Deletes an archived funnel for good (admins). Its leads stay, keeping the funnel's name. */
+  purge: (id: string) => apiClient.delete(`/api/v1/funnels/${id}/permanent`).then(() => undefined),
   analytics: (id: string) => apiClient.get<FunnelAnalytics>(`/api/v1/funnels/${id}/analytics`).then((r) => r.data),
 };
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BarChart3, Copy, ExternalLink, Globe, MoreHorizontal, Pencil, Plus, Rocket, Undo2, Archive } from "lucide-react";
+import { BarChart3, Copy, ExternalLink, Globe, MoreHorizontal, Pencil, Plus, Rocket, Undo2, Archive, Trash2 } from "lucide-react";
+import { useIsAdmin } from "@/hooks/use-access";
 import { toast } from "sonner";
 import { FeatureLock, useFeature } from "@bengo-hub/shared-ui-lib/subscription";
 import { Button } from "@/components/ui/button";
@@ -204,6 +205,8 @@ export default function FunnelsPage() {
   const [editing, setEditing] = useState<{ id?: string; data: FunnelInput } | null>(null);
   const [stats, setStats] = useState<Funnel | null>(null);
   const [archiving, setArchiving] = useState<Funnel | null>(null);
+  const [purging, setPurging] = useState<Funnel | null>(null);
+  const admin = useIsAdmin();
   const list = useFunnels(status, page);
   const action = useFunnelAction();
   const rows = list.data?.data ?? [];
@@ -265,6 +268,7 @@ export default function FunnelsPage() {
                       </>
                     )}
                     {fn.status !== "archived" && <DropdownMenuItem className="text-destructive" onClick={() => setArchiving(fn)}><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>}
+                    {fn.status === "archived" && admin && <DropdownMenuItem className="text-destructive" onClick={() => setPurging(fn)}><Trash2 className="mr-2 h-4 w-4" /> Delete permanently</DropdownMenuItem>}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </li>
@@ -296,6 +300,16 @@ export default function FunnelsPage() {
         confirmLabel="Archive funnel"
         pending={action.isPending}
         onConfirm={() => archiving && action.mutate({ id: archiving.id, action: "archive" }, { onSuccess: () => setArchiving(null) })}
+      />
+
+      <ConfirmDialog
+        open={!!purging}
+        onOpenChange={(o) => !o && setPurging(null)}
+        title={`Delete "${purging?.name}" for good?`}
+        description="The funnel and its page are removed and cannot be brought back. Its leads stay, keeping the funnel's name."
+        confirmLabel="Delete permanently"
+        pending={action.isPending}
+        onConfirm={() => purging && action.mutate({ id: purging.id, action: "purge" }, { onSuccess: () => setPurging(null) })}
       />
     </div>
   );

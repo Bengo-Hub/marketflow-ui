@@ -36,13 +36,19 @@ export function useSaveFunnel() {
 export function useFunnelAction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, action }: { id: string; action: "publish" | "unpublish" | "archive" }): Promise<void> => {
+    mutationFn: async ({ id, action }: { id: string; action: "publish" | "unpublish" | "archive" | "purge" }): Promise<void> => {
       if (action === "publish") await funnelsApi.publish(id);
       else if (action === "unpublish") await funnelsApi.update(id, { status: "draft" });
+      else if (action === "purge") await funnelsApi.purge(id);
       else await funnelsApi.archive(id);
     },
     onSuccess: (_r, v) => {
-      toast.success(v.action === "publish" ? "Funnel is live" : v.action === "unpublish" ? "Funnel taken offline" : "Funnel archived");
+      toast.success(
+        v.action === "publish" ? "Funnel is live"
+          : v.action === "unpublish" ? "Funnel taken offline"
+            : v.action === "purge" ? "Funnel deleted for good. Its leads are kept."
+              : "Funnel archived. It is deleted for good when the retention period ends.",
+      );
       void qc.invalidateQueries({ queryKey: ["funnels"] });
     },
     onError: (e) => toast.error(apiErrorMessage(e, "Could not update the funnel")),

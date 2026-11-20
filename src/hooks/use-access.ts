@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { accessApi } from "@/lib/api/access";
-import { canPublish, isRestricted } from "@/lib/access/role-access";
+import { canPublish, isAdmin, isRestricted } from "@/lib/access/role-access";
 import { useAuthStore } from "@/store/auth-store";
 
 /** The caller's MarketFlow role in this organisation (GET /api/v1/me/access). */
@@ -23,6 +23,13 @@ export function useMyAccess() {
 export function useIsRestricted(): boolean {
   const { data } = useMyAccess();
   return isRestricted(data);
+}
+
+/** An admin of this organisation or the platform owner (permanent deletes, settings). */
+export function useIsAdmin(): boolean {
+  const platformOwner = useAuthStore((s) => s.user?.isPlatformOwner ?? false);
+  const { data } = useMyAccess();
+  return platformOwner || isAdmin(data);
 }
 
 /** May post an approved ad and boost it. Unknown yet: show it and let the API decide. */
