@@ -1,5 +1,6 @@
 "use client";
 
+import { HQ_ADDRESS_URL } from "@/lib/urls";
 import { useMemo, useState } from "react";
 import { useBrandDraft } from "@/hooks/use-onboarding";
 import type { BrandDraft } from "@/lib/api/onboarding";
@@ -254,7 +255,7 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
           <Field label="Contact email" hint="Shown when there is no WhatsApp number." error={errors.contact_email} htmlFor="pf-email">
             <Input id="pf-email" type="email" autoComplete="email" value={meta.contact_email ?? ""} onChange={(e) => setM({ contact_email: e.target.value })} />
           </Field>
-          <Field label="Business address" hint="Building, street and area. Kept private; your ads show scenes from your own town." htmlFor="pf-address">
+          <Field label="Business address" hint={<>Your head office address on your <a href={HQ_ADDRESS_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">account</a> is used first; this private copy is used only when it has none.</>} htmlFor="pf-address">
             <Input id="pf-address" maxLength={200} autoComplete="street-address" value={meta.business_address ?? ""} onChange={(e) => setM({ business_address: e.target.value })} placeholder="Building, street and area" />
           </Field>
           <Field label="Town or city" htmlFor="pf-city">

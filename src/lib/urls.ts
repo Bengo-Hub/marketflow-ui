@@ -47,3 +47,6 @@ export function shortLinkUrl(code: string): string {
   return `${APP_URL}/s/${encodeURIComponent(code)}`;
 }
 
+
+/** The head office (HQ branch) on the accounts site: its address is the one the ads use first. */
+export const HQ_ADDRESS_URL = `${ACCOUNTS_URL}/dashboard/my-tenant?tab=branches`;

@@ -1,5 +1,6 @@
 "use client";
 
+import { HQ_ADDRESS_URL } from "@/lib/urls";
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -67,7 +68,7 @@ function ProfileStep({ profile, draft, onDone }: { profile: TenantProfile; draft
         <Field label="Contact email" htmlFor="ob-mail"><Input id="ob-mail" type="email" inputMode="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} /></Field>
         <Field label="Your story" htmlFor="ob-bio" hint="Two or three sentences" className="sm:col-span-2"><Textarea id="ob-bio" rows={3} maxLength={600} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} /></Field>
         <Field label="WhatsApp number" htmlFor="ob-wa" hint="Customers tap to chat with you"><Input id="ob-wa" type="tel" inputMode="tel" value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} placeholder="+2547..." /></Field>
-        <Field label="Business address" htmlFor="ob-addr" required hint="Building, street and area. Your ads show scenes from your own town." className="sm:col-span-2"><Input id="ob-addr" maxLength={200} autoComplete="street-address" value={form.business_address} onChange={(e) => setForm({ ...form, business_address: e.target.value })} placeholder="Building, street and area" /></Field>
+        <Field label="Business address" htmlFor="ob-addr" required hint={<>Your head office address on your <a href={HQ_ADDRESS_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">account</a> is used first; this is used when it has none. Your ads show scenes from your own town.</>} className="sm:col-span-2"><Input id="ob-addr" maxLength={200} autoComplete="street-address" value={form.business_address} onChange={(e) => setForm({ ...form, business_address: e.target.value })} placeholder="Building, street and area" /></Field>
         <Field label="Town or city" htmlFor="ob-city"><Input id="ob-city" maxLength={80} autoComplete="address-level2" value={form.business_city} onChange={(e) => setForm({ ...form, business_city: e.target.value })} placeholder="Kisumu" /></Field>
       </div>
       {logo && <p className="text-xs text-muted-foreground">Your account logo will be used on your public page.</p>}
