@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui-kit";
-import { useDeleteVersion } from "@/hooks/use-creative";
+import { useDeleteVersion, useRestoreVersion } from "@/hooks/use-creative";
 
 /**
  * Deletes one never-approved version for good (account owner and admins). The API refuses an
@@ -29,5 +29,15 @@ export function DeleteVersionButton({ briefId, versionId, versionNo }: { briefId
         onConfirm={() => del.mutate(versionId, { onSuccess: () => setOpen(false) })}
       />
     </>
+  );
+}
+
+/** Brings back a discarded version while its files are still stored (account owner and admins). */
+export function RestoreVersionButton({ briefId, versionId }: { briefId: string; versionId: string }) {
+  const restore = useRestoreVersion(briefId);
+  return (
+    <Button size="sm" variant="outline" disabled={restore.isPending} onClick={() => restore.mutate(versionId)}>
+      <RotateCcw /> {restore.isPending ? "Restoring..." : "Restore"}
+    </Button>
   );
 }

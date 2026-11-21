@@ -137,6 +137,8 @@ export const useApprove = (briefId: string) => useVersionAction(briefId, creativ
 export const useDiscard = (briefId: string) => useVersionAction(briefId, creativeApi.discard, "Discarded", "Could not discard");
 export const useDeleteVersion = (briefId: string) =>
   useVersionAction(briefId, creativeApi.deleteVersion, "Deleted for good.", "Could not delete it");
+export const useRestoreVersion = (briefId: string) =>
+  useVersionAction(briefId, creativeApi.restoreVersion, "Restored", "Could not restore it");
 export const useExtend = (briefId: string) => useVersionAction(briefId, creativeApi.extend, "Kept for 7 days", "Could not keep it longer");
 export const useRevise = (briefId: string) =>
   useVersionAction(briefId, ({ id, data }: { id: string; data: ReviseInput }) => creativeApi.revise(id, data), "New words on the same picture, ready in a few seconds", "Could not change the words");

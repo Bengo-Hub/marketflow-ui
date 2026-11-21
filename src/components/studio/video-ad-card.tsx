@@ -1,6 +1,6 @@
 "use client";
 
-import { DeleteVersionButton } from "@/components/studio/delete-version-button";
+import { DeleteVersionButton, RestoreVersionButton } from "@/components/studio/delete-version-button";
 import { useState } from "react";
 import { Check, Clapperboard, Film, LoaderCircle, Pencil, Play, Rocket, Send, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,7 @@ export function VideoAdCard({
       {version.status === "script_ready" && !archived && !restricted && <ScriptReview briefId={briefId} version={version} />}
       {canApprove && !version.approved_at && (
         <div className="flex justify-end">
+          {!!version.metadata?.discarded_at && <RestoreVersionButton briefId={briefId} versionId={version.id} />}
           <DeleteVersionButton briefId={briefId} versionId={version.id} versionNo={version.version_no} />
         </div>
       )}

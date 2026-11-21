@@ -155,6 +155,8 @@ export const creativeApi = {
   discard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/discard`).then((r) => r.data),
   /** Deletes a never-approved version for good, files included (admins). */
   deleteVersion: (id: string) => apiClient.delete(`${base}/versions/${id}`).then(() => undefined),
+  /** Brings back a discarded version while its files are still stored (admins). */
+  restoreVersion: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/restore`).then((r) => r.data),
   /** Tells the API an approved video was downloaded (starts its 48-hour removal countdown). */
   downloaded: (assetId: string) => apiClient.post(`${base}/assets/${assetId}/downloaded`).then(() => undefined),
   /** The file itself, served as an attachment by the API (the storage origin would open it in a tab). */
