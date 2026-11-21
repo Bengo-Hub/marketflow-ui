@@ -135,6 +135,8 @@ export const useMakePoster = (briefId: string) =>
   useVersionAction(briefId, (d: VersionInput) => creativeApi.makePoster(briefId, d), "Poster started. It takes about a minute.", "Could not start the poster");
 export const useApprove = (briefId: string) => useVersionAction(briefId, creativeApi.approve, "Approved. The files are kept.", "Could not approve");
 export const useDiscard = (briefId: string) => useVersionAction(briefId, creativeApi.discard, "Discarded", "Could not discard");
+export const useDeleteVersion = (briefId: string) =>
+  useVersionAction(briefId, creativeApi.deleteVersion, "Deleted for good.", "Could not delete it");
 export const useExtend = (briefId: string) => useVersionAction(briefId, creativeApi.extend, "Kept for 7 days", "Could not keep it longer");
 export const useRevise = (briefId: string) =>
   useVersionAction(briefId, ({ id, data }: { id: string; data: ReviseInput }) => creativeApi.revise(id, data), "New words on the same picture, ready in a few seconds", "Could not change the words");

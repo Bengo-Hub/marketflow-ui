@@ -153,6 +153,8 @@ export const creativeApi = {
   version: (id: string) => apiClient.get<CreativeVersion>(`${base}/versions/${id}`).then((r) => r.data),
   approve: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/approve`).then((r) => r.data),
   discard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/discard`).then((r) => r.data),
+  /** Deletes a never-approved version for good, files included (admins). */
+  deleteVersion: (id: string) => apiClient.delete(`${base}/versions/${id}`).then(() => undefined),
   /** Tells the API an approved video was downloaded (starts its 48-hour removal countdown). */
   downloaded: (assetId: string) => apiClient.post(`${base}/assets/${assetId}/downloaded`).then(() => undefined),
   /** The file itself, served as an attachment by the API (the storage origin would open it in a tab). */

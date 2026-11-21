@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, ConfirmDialog, Field, ToneBadge, humanize, type Tone } from "@/components/ui-kit";
+import { DeleteVersionButton } from "@/components/studio/delete-version-button";
 import { useApprove, useDiscard, useExtend, useMotion, useRevise, useDownloadAsset } from "@/hooks/use-creative";
 import { useIsRestricted } from "@/hooks/use-access";
 import { apiErrorMessage } from "@/lib/api/errors";
@@ -137,6 +138,7 @@ export function VersionCard({
               <X /> Discard
             </Button>
           )}
+          {canApprove && !v.approved_at && !reviewer && <DeleteVersionButton briefId={briefId} versionId={v.id} versionNo={v.version_no} />}
           {asset && finished && (
             // The API serves the file as an attachment and records the download (an approved video then
             // starts its removal countdown), so the file is saved and no tab opens.
