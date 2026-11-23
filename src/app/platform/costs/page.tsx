@@ -6,6 +6,7 @@ import { Coins, DollarSign, Info, Layers, Percent, Receipt, Scale } from "lucide
 import type { DataTableColumn } from "@bengo-hub/shared-ui-lib/data-table";
 import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, ListTable, PageHeader, StatCard, ToneBadge } from "@/components/ui-kit";
 import { usePlatformCostReport } from "@/hooks/use-platform-costs";
+import { CostBreakdowns } from "@/components/platform/cost-breakdowns";
 import { formatMoney } from "@/lib/api/campaigns";
 import type { CostReportTenant } from "@/lib/api/platform-costs";
 import { cn } from "@/lib/utils";
@@ -149,6 +150,8 @@ export default function PlatformCostsPage() {
               </span>
             </p>
           )}
+
+          {d && <CostBreakdowns report={d} />}
 
           <div>
             <h2 className="mb-3 font-display text-base font-semibold">By business</h2>

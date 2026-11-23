@@ -31,6 +31,21 @@ export interface CostReport {
   pagination: { page: number; page_size: number; total: number };
   /** Costs the report does not count yet, in plain words. */
   gaps: string[];
+  /** The month by feature and by provider route, its days, the six months up to it, and the platform owner's own spend (no credits). */
+  by_feature?: CostReportGroup[];
+  by_route?: CostReportGroup[];
+  daily?: CostReportDay[];
+  monthly?: CostReportDay[];
+  platform_owner?: CostReportLine & { slug: string };
+}
+
+export interface CostReportGroup extends CostReportLine {
+  key: string;
+}
+
+export interface CostReportDay extends CostReportLine {
+  /** YYYY-MM-DD, or YYYY-MM in the monthly trend. */
+  day: string;
 }
 
 export const platformCostsApi = {

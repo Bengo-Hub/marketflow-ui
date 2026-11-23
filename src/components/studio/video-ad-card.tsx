@@ -12,6 +12,7 @@ import { BrandImagesRequired } from "@/components/media/brand-images-required";
 import { PublishDialog } from "@/components/studio/publish-dialog";
 import { useApprove, useDiscard } from "@/hooks/use-creative";
 import { useCanPublish, useIsRestricted } from "@/hooks/use-access";
+import { useSubscription } from "@/hooks/use-subscription";
 import {
   useApprovePlan,
   useApproveStoryboard,
@@ -133,6 +134,9 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
   const approveBoard = useApproveStoryboard(briefId);
   const redraw = useRedrawActor(briefId);
   const approvePlan = useApprovePlan(briefId);
+  // The platform owner and subscription-exempt tenants pay no credits: they see the provider cost.
+  const { isPlatformOwner, isSubscriptionExempt } = useSubscription();
+  const showUSD = !!(isPlatformOwner || isSubscriptionExempt);
   const [newActor, setNewActor] = useState("");
   const render = useRenderVideoAd(briefId);
   const shape = aspectClass(version.format);
@@ -247,7 +251,12 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {(["headline", "subline", "price", "cta"] as const).map((k) => (
-          <Field key={k} label={{ headline: "End card headline", subline: "End card line", price: "Price", cta: "Call to action" }[k]} htmlFor={`ec-${version.id}-${k}`}>
+          <Field
+            key={k}
+            label={{ headline: "End card headline", subline: "End card line", price: "Price shown on the end card (optional)", cta: "Call to action" }[k]}
+            hint={k === "price" ? "The product's own price, filled from the offering when it has one. Leave it empty to show no price. This is not what the video costs to make." : undefined}
+            htmlFor={`ec-${version.id}-${k}`}
+          >
             <Input
               id={`ec-${version.id}-${k}`}
               maxLength={200}
@@ -331,8 +340,12 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
           {q && (
             <>
               <p className="text-sm">
-                <span className="font-semibold">{q.credits_needed} credits</span>
-                {q.balance >= 0 && <span className="text-muted-foreground"> of {q.balance} left</span>}
+                {showUSD ? (
+                  <span className="font-semibold">About {usd(q.plan?.cost_usd ?? 0)} at provider prices{q.max_video_usd ? `, ceiling ${usd(q.max_video_usd)}` : ""}</span>
+                ) : (
+                  <span className="font-semibold">{q.credits_needed} credits</span>
+                )}
+                {!showUSD && q.balance >= 0 && <span className="text-muted-foreground"> of {q.balance} left</span>}
                 {!!q.plan?.cached_scenes && <span className="text-muted-foreground">. {q.plan.cached_scenes} unchanged scenes are reused for free</span>}
               </p>
               {!q.enough && q.suggested_bundle && (
@@ -364,7 +377,7 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
             </>
           )}
           <Button className="w-full sm:w-auto" disabled={render.isPending || !q || !q.enough || !q.plan_approved} onClick={() => render.mutate(version.id)}>
-            <Play /> {render.isPending ? "Starting..." : q ? `Render for ${q.credits_needed} credits` : "Render"}
+            <Play /> {render.isPending ? "Starting..." : q ? (showUSD ? `Render, about ${usd(q.plan?.cost_usd ?? 0)}` : `Render for ${q.credits_needed} credits`) : "Render"}
           </Button>
         </div>
       )}
