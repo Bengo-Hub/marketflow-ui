@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ProviderCard } from "./provider-card";
+import { ProviderCard, modelOptions } from "./provider-card";
 import { RoutingPolicyEditor } from "./routing-policy-editor";
 import { findProvider } from "@/lib/providers/catalog";
 
@@ -39,6 +39,26 @@ describe("ProviderCard", () => {
     expect(screen.getByText("Connected")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Update" })).toBeInTheDocument();
     expect(screen.getByLabelText(/App secret/)).toHaveAttribute("placeholder", "•••••••• (leave blank to keep)");
+  });
+});
+
+describe("modelOptions", () => {
+  it("tags free and vision models and keeps an unlisted saved id", () => {
+    const rows = modelOptions(
+      [
+        { id: "qwen/qwen3-vl:free", free: true, vision: true },
+        { id: "deepseek/deepseek-r2:free", free: true },
+        { id: "openai/gpt-5" },
+      ],
+      "my/custom-model",
+    );
+    expect(rows.map((r) => [r.value, r.hint])).toEqual([
+      ["my/custom-model", "not in the list"],
+      ["qwen/qwen3-vl:free", "free, reads images"],
+      ["deepseek/deepseek-r2:free", "free"],
+      ["openai/gpt-5", undefined],
+    ]);
+    expect(modelOptions([{ id: "a" }], "a")).toHaveLength(1);
   });
 });
 

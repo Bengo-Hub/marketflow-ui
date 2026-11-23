@@ -73,7 +73,7 @@ describe("catalog", () => {
     expect(findProvider("ai_search", "vertex_search")?.fields.map((f) => f.key)).toContain("engine_id");
   });
   it("gives every model provider a sync and a test, and keeps model ids out of defaults", () => {
-    for (const id of ["groq", "openai", "anthropic"]) {
+    for (const id of ["groq", "openai", "anthropic", "openrouter", "gemini", "cerebras"]) {
       const p = findProvider("ai_llm", id)!;
       expect(p.capabilities?.syncModels && p.capabilities?.test).toBe(true);
       for (const f of p.fields) if (/model$/.test(f.key)) expect(f.default).toBeUndefined();

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableCombobox, type ComboboxOption } from "@bengo-hub/shared-ui-lib/combobox";
 import { Field, ToneBadge } from "@/components/ui-kit";
 import { ProviderLogo } from "./provider-logo";
 import { RoutingPolicyEditor } from "./routing-policy-editor";
@@ -33,6 +34,20 @@ export type ProviderBalance = {
 };
 
 type Recommendation = { field: string; label: string; model: string; informational?: boolean };
+
+/** One synced model. free and vision come from lists that say so (OpenRouter, Gemini). */
+export type ModelOption = { id: string; free?: boolean; vision?: boolean };
+
+/** Combobox rows for a synced list: "free, reads images" as the row hint. */
+export function modelOptions(models: ModelOption[], current: string): ComboboxOption[] {
+  const rows = models.map((m) => {
+    const tags = [m.free && "free", m.vision && "reads images"].filter(Boolean).join(", ");
+    return { value: m.id, label: m.id, hint: tags || undefined };
+  });
+  // A saved or typed id the list no longer has stays selectable.
+  if (current && !models.some((m) => m.id === current)) rows.unshift({ value: current, label: current, hint: "not in the list" });
+  return rows;
+}
 
 const checkedAt = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
 
@@ -87,7 +102,7 @@ export function ProviderCard({
   });
 
   // Persist a recently-synced model list so switching tabs doesn't wipe it.
-  const modelListQ = useQuery<string[]>({
+  const modelListQ = useQuery<ModelOption[]>({
     queryKey: ["provider-models", provider.type, provider.id],
     queryFn: async () => [],
     enabled: false,
@@ -138,14 +153,18 @@ export function ProviderCard({
   const syncModels = useMutation({
     mutationFn: async () => {
       const r = await apiClient.post<{
-        models: { id: string }[];
+        models: ModelOption[];
         recommended?: Record<string, string>;
         recommendations?: Recommendation[];
       }>(`/api/v1/admin/providers/sync-models`, {
         provider_type: provider.type,
         provider_name: provider.id,
       });
-      return { models: r.data.models.map((m) => m.id), recommended: r.data.recommended ?? {}, recs: r.data.recommendations ?? [] };
+      return {
+        models: r.data.models.map((m) => ({ id: m.id, free: m.free, vision: m.vision })),
+        recommended: r.data.recommended ?? {},
+        recs: r.data.recommendations ?? [],
+      };
     },
     onSuccess: ({ models, recommended, recs }) => {
       qc.setQueryData(["provider-models", provider.type, provider.id], models);
@@ -190,7 +209,7 @@ export function ProviderCard({
     setFeedback(null);
   }
 
-  const modelChoices = (modelListQ.data ?? []) as string[];
+  const modelChoices = modelListQ.data ?? [];
   const canSync = !!(configured || values.api_key);
   const canTest = configured;
 
@@ -387,7 +406,7 @@ function FieldInput({
   field: ProviderField;
   value: string;
   placeholder?: string;
-  modelChoices: string[] | null;
+  modelChoices: ModelOption[] | null;
   onChange: (v: string) => void;
 }) {
   const hintId = field.help ? `${id}-hint` : undefined;
@@ -402,24 +421,25 @@ function FieldInput({
     );
   }
 
-  // If sync-models returned a list, render Select preserving the current value
-  // even if it's not in the list (so saved values aren't lost on re-render).
+  // After Sync models the field becomes a searchable list (OpenRouter lists hundreds). Typing an
+  // id the list lacks offers "Use ..." so a manual override still works, and a saved id that is
+  // no longer listed stays selected.
   if (modelChoices && modelChoices.length > 0) {
-    const choices = value && !modelChoices.includes(value) ? [value, ...modelChoices] : modelChoices;
     return (
       <Field {...common}>
-        <Select value={value || undefined} onValueChange={(v) => onChange(v ?? "")}>
-          <SelectTrigger id={id} aria-describedby={hintId} className="w-full min-w-0">
-            <SelectValue placeholder="Pick a model…" />
-          </SelectTrigger>
-          <SelectContent>
-            {choices.map((m) => (
-              <SelectItem key={m} value={m}>
-                {m}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div role="group" aria-label={field.label} aria-describedby={hintId} className="min-w-0">
+          <SearchableCombobox
+            options={modelOptions(modelChoices, value)}
+            value={value}
+            valueLabel={value || undefined}
+            onChange={(v: string) => onChange(v)}
+            placeholder="Pick a model"
+            searchPlaceholder="Search or type a model id"
+            emptyText="No model matches. Type the full id to use it."
+            onCreate={(text: string) => ({ value: text.trim(), label: text.trim() })}
+            createLabel={'Use "{text}"'}
+          />
+        </div>
       </Field>
     );
   }

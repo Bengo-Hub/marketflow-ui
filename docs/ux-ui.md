@@ -51,6 +51,7 @@ I redesigned this page on 2026-11-24 after the cards sat in a ragged two-column 
 - **Grid.** Simple key cards share a grid of up to three columns sized by a container query. Cards with a JSON field or more than four main fields (`isWideCard()`) take a full row each.
 - **Cards.** The header shows logo, name, Connected or Not configured, a docs link and the description. Base URLs, redirect URLs, scopes and the Graph version sit behind "Advanced settings" (`isAdvancedField()`, never a required field). The footer is always Configure or Update, then Test, then Sync models.
 - **Routing policy** has a "By class" view (each class as an ordered list of provider, model and timeout) and a "Raw JSON" view. Both save the same `policy` key on `ai_routing/policy`; keys the class view does not show are kept.
+- **Sync models** works for every model provider, the free-tier ones included (OpenRouter, Gemini, Cerebras read `{base_url}/models` with the saved key). After a sync each model field is a shared-ui-lib `SearchableCombobox` with the recommended model preselected; rows say "free" and "reads images", and typing an id the list lacks offers "Use ..." so a manual id still works.
 - JSON textareas use a fixed, resizable height, not `field-sizing-content`, so a long policy no longer stretches the card.
 
 ## Data
