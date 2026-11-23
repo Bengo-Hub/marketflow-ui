@@ -23,7 +23,8 @@ export function ProviderLogo({
   if (!slug || failed || !src) {
     return (
       <div
-        className={`flex items-center justify-center rounded-md text-xs font-bold text-white ${className ?? ""}`}
+        aria-hidden
+        className={`flex shrink-0 items-center justify-center rounded-md text-xs font-bold text-white ${className ?? ""}`}
         style={{
           width: size,
           height: size,
@@ -37,12 +38,18 @@ export function ProviderLogo({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      // The provider name sits next to the logo, so the image is decorative.
       src={src}
-      alt={`${name} logo`}
+      alt=""
       width={size}
       height={size}
+      // An error fired before hydration is missed by onError; check the loaded image on mount.
+      ref={(img) => {
+        if (img && img.complete && img.naturalWidth === 0) setFailed(true);
+      }}
       onError={() => setFailed(true)}
-      className={`rounded-md object-contain p-1 bg-white ring-1 ring-inset ring-gray-100 ${className ?? ""}`}
+      style={{ width: size, height: size }}
+      className={`shrink-0 overflow-hidden rounded-md object-contain p-1 bg-white ring-1 ring-inset ring-gray-100 ${className ?? ""}`}
     />
   );
 }

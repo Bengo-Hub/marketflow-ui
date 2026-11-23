@@ -42,6 +42,17 @@ These rules apply to every screen in marketflow-ui. Read them before you add a p
 
 Use shadcn primitives from `src/components/ui`. Control defaults are 40px tall (`h-10`), and every button or link a finger can hit is at least 44px tall. For dropdowns over data, such as tenants, contacts or pipelines, use the shared-ui-lib `SearchableCombobox`.
 
+## Platform providers page (`/platform/providers`)
+
+I redesigned this page on 2026-11-24 after the cards sat in a ragged two-column grid.
+
+- **Tabs** are `CapsuleTabs` and scroll sideways on phones.
+- **Sections.** Each tab is split by `sectionsFor()` in `lib/providers/groups.ts`: one section per backend group, then catalog `section` headings for providers no group lists. A `section.after` makes it a sub-group, so the free-tier models (OpenRouter, Gemini, Cerebras) sit under Language models and the routing policy and price registry get their own "Routing and pricing" heading.
+- **Grid.** Simple key cards share a grid of up to three columns sized by a container query. Cards with a JSON field or more than four main fields (`isWideCard()`) take a full row each.
+- **Cards.** The header shows logo, name, Connected or Not configured, a docs link and the description. Base URLs, redirect URLs, scopes and the Graph version sit behind "Advanced settings" (`isAdvancedField()`, never a required field). The footer is always Configure or Update, then Test, then Sync models.
+- **Routing policy** has a "By class" view (each class as an ordered list of provider, model and timeout) and a "Raw JSON" view. Both save the same `policy` key on `ai_routing/policy`; keys the class view does not show are kept.
+- JSON textareas use a fixed, resizable height, not `field-sizing-content`, so a long policy no longer stretches the card.
+
 ## Data
 
 - **API modules and hooks.** Every call goes through a module in `src/lib/api/<domain>.ts` and a TanStack hook in `src/hooks/`. Pages never call `fetch` or `apiClient` inline.

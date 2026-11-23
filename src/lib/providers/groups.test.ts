@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { findProvider, providerCatalog } from "./catalog";
-import { sectionsFor, type ProviderGroup } from "./groups";
+import { isAdvancedField, isWideCard, sectionsFor, type ProviderGroup } from "./groups";
 import { emptyReason } from "../api/endpoints";
 
 const media = providerCatalog.find((c) => c.id === "media")!.providers;
@@ -12,19 +12,58 @@ const groups: ProviderGroup[] = [
   { id: "voice", label: "Voice", members: ["elevenlabs", "fal"], default: "elevenlabs" },
 ];
 
+// The backend's groups (marketflow-api internal/modules/admin/provider_defaults.go).
+const apiGroups: ProviderGroup[] = [
+  ...groups.slice(0, 1),
+  { id: "llm", label: "Language models", members: ["groq", "anthropic", "openai"], default: "groq" },
+  { id: "embeddings", label: "Embeddings and local model", members: ["ollama"], default: "ollama" },
+  { id: "decisions", label: "Typed decisions", members: ["typesafe"], default: "typesafe" },
+];
+
 describe("sectionsFor", () => {
   it("puts each provider once, under the first group that lists it", () => {
     const s = sectionsFor(media, groups);
-    expect(s.map((x) => x.id)).toEqual(["image", "voice", "other"]);
+    expect(s.map((x) => x.id)).toEqual(["image", "voice", "section:Routing and quality checks", "other"]);
     expect(s[0].providers.map((p) => p.id)).toEqual(["fal", "higgsfield"]);
     expect(s[0].defaultName).toBe("fal.ai");
-    // The routing and self-review settings cards sit with the ungrouped media providers.
-    expect(s[2].providers.map((p) => p.id)).toEqual(["routing", "review", "creatomate"]);
+    // The routing and self-review settings cards get their own heading after the groups.
+    expect(s[2].providers.map((p) => p.id)).toEqual(["routing", "review"]);
+    expect(s[3].providers.map((p) => p.id)).toEqual(["creatomate"]);
   });
-  it("groups web search and leaves the rest unheaded when no group fits", () => {
-    const s = sectionsFor(ai, groups);
-    expect(s[0].providers.map((p) => p.id)).toEqual(["tavily", "vertex_search"]);
-    expect(sectionsFor(ai, [])[0].label).toBe("");
+  it("puts the free-tier models right under language models and routing after the groups", () => {
+    const s = sectionsFor(ai, apiGroups);
+    expect(s.map((x) => x.label)).toEqual([
+      "Web search",
+      "Language models",
+      "Free-tier fallbacks",
+      "Embeddings and local model",
+      "Typed decisions",
+      "Routing and pricing",
+    ]);
+    expect(s[2].parentLabel).toBe("Language models");
+    expect(s[2].providers.map((p) => p.id)).toEqual(["openrouter", "gemini", "cerebras"]);
+    expect(s[5].providers.map((p) => p.id)).toEqual(["policy", "outputs"]);
+  });
+  it("still shows every provider before the groups load", () => {
+    const s = sectionsFor(ai, []);
+    expect(s.flatMap((x) => x.providers)).toHaveLength(ai.length);
+    expect(s.at(-1)!.label).toBe("Other");
+    expect(s.find((x) => x.label === "Free-tier fallbacks")?.parentLabel).toBeUndefined();
+  });
+});
+
+describe("card layout", () => {
+  it("hides endpoints behind Advanced but never a required field", () => {
+    const groq = findProvider("ai_llm", "groq")!;
+    expect(groq.fields.filter(isAdvancedField).map((f) => f.key)).toEqual(["base_url"]);
+    expect(isAdvancedField({ key: "base_url", label: "Base URL", type: "url", required: true })).toBe(false);
+  });
+  it("gives JSON and long settings cards the full row", () => {
+    expect(isWideCard(findProvider("ai_routing", "policy")!)).toBe(true);
+    expect(isWideCard(findProvider("ai_search", "vertex_search")!)).toBe(true);
+    expect(isWideCard(findProvider("media", "review")!)).toBe(true);
+    expect(isWideCard(findProvider("ai_llm", "groq")!)).toBe(false);
+    expect(isWideCard(findProvider("ai_llm", "openrouter")!)).toBe(false);
   });
 });
 

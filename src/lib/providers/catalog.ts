@@ -34,6 +34,10 @@ export interface ProviderField {
   /** For type=number. */
   min?: number;
   max?: number;
+  /** Shown under the card's "Advanced settings" disclosure. Base URLs are advanced by default. */
+  advanced?: boolean;
+  /** A dedicated editor instead of the plain control. */
+  editor?: "routing-policy";
 }
 
 export type ProviderScope = "platform" | "tenant";
@@ -70,6 +74,11 @@ export interface ProviderDef {
   };
   /** Which field keys are model selectors (become Select once sync-models runs). */
   modelFieldKeys?: string[];
+  /**
+   * A heading for a provider no backend group lists (layout only). `after` names the group whose
+   * section it follows as a sub-group; without it the section comes after every group.
+   */
+  section?: { label: string; after?: string };
   fields: ProviderField[];
 }
 
@@ -79,6 +88,11 @@ export interface ProviderCategory {
   description: string;
   providers: ProviderDef[];
 }
+
+// Section headings for providers the backend groups do not list (layout only).
+const FREE_TIER = { label: "Free-tier fallbacks", after: "llm" };
+const ROUTING_AND_PRICING = { label: "Routing and pricing" };
+const MEDIA_ROUTING = { label: "Routing and quality checks" };
 
 // ── AI providers (platform-wide) ──────────────────────────────────────────
 
@@ -310,6 +324,7 @@ const aiProviders: ProviderDef[] = [
     brandColor: "#6566F1",
     docsUrl: "https://openrouter.ai/models?max_price=0",
     capabilities: { test: true },
+    section: FREE_TIER,
     modelFieldKeys: ["main_model", "premium_model"],
     fields: [
       { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "sk-or-…" },
@@ -330,6 +345,7 @@ const aiProviders: ProviderDef[] = [
     brandColor: "#8E75B2",
     docsUrl: "https://aistudio.google.com/apikey",
     capabilities: { test: true },
+    section: FREE_TIER,
     modelFieldKeys: ["main_model"],
     fields: [
       { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "AIza…" },
@@ -348,6 +364,7 @@ const aiProviders: ProviderDef[] = [
     brandColor: "#F05A28",
     docsUrl: "https://cloud.cerebras.ai/",
     capabilities: { test: true },
+    section: FREE_TIER,
     modelFieldKeys: ["main_model"],
     fields: [
       { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "csk-…" },
@@ -379,11 +396,13 @@ const aiProviders: ProviderDef[] = [
       "Which model serves each class (nano, standard, premium, premium_plus), decide thresholds and the monthly decide spend ceiling. Empty uses the built-in defaults.",
     scope: "platform",
     brandColor: "#0f766e",
+    section: ROUTING_AND_PRICING,
     fields: [
       {
         key: "policy",
         label: "Policy (JSON)",
         type: "textarea",
+        editor: "routing-policy",
         placeholder: '{"classes":{"premium":[{"provider":"anthropic","model":"@premium"}]}}',
         help: "Merged over the defaults; only the classes you list change. Leave it empty to follow each provider's models: a model of \"\" is the provider's main model, and @fallback, @router and @premium name its other models, so Sync models moves the routing too. Prices per model family go under \"prices\".",
       },
@@ -397,6 +416,7 @@ const aiProviders: ProviderDef[] = [
       "Credit prices for every output (copy batch, poster, video tiers) and the cost-engine settings used by Creative Plan quotes. Empty uses the built-in registry.",
     scope: "platform",
     brandColor: "#7c3aed",
+    section: ROUTING_AND_PRICING,
     fields: [
       {
         key: "registry",
@@ -843,6 +863,7 @@ const mediaProviders: ProviderDef[] = [
       "Which route each scenario tries first, premium routes for the platform owner, and the most one video or poster may cost at provider prices. marketflow-ai reads it within a minute.",
     scope: "platform",
     brandColor: "#0F766E",
+    section: MEDIA_ROUTING,
     fields: [
       {
         key: "max_video_budget_usd",
@@ -880,6 +901,7 @@ const mediaProviders: ProviderDef[] = [
       "A cheap vision model checks storyboard stills, posters and finished video frames for logo placement, legibility, garbled text, the wrong brand and off-location scenes, and redoes the failing part within budget.",
     scope: "platform",
     brandColor: "#7C3AED",
+    section: MEDIA_ROUTING,
     fields: [
       onOff("enabled", "Review on", "true"),
       { key: "max_retries", label: "Retries per part", type: "number", default: "1", min: 0, max: 3, help: "0 reviews and reports only." },

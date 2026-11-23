@@ -8,6 +8,7 @@ export function Field({
   error,
   required,
   htmlFor,
+  hintId,
   className,
   action,
   children,
@@ -17,6 +18,8 @@ export function Field({
   error?: string | null;
   required?: boolean;
   htmlFor?: string;
+  /** Id on the hint line, so the control can point aria-describedby at it. */
+  hintId?: string;
   className?: string;
   /** A small control beside the label, such as "Generate with AI". */
   action?: ReactNode;
@@ -37,7 +40,11 @@ export function Field({
           {error}
         </p>
       ) : (
-        hint && <p className="text-xs text-muted-foreground">{hint}</p>
+        hint && (
+          <p id={hintId} className="text-xs leading-relaxed text-muted-foreground">
+            {hint}
+          </p>
+        )
       )}
     </div>
   );
