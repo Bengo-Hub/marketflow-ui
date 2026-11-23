@@ -2,7 +2,7 @@
 
 import { DeleteVersionButton, RestoreVersionButton } from "@/components/studio/delete-version-button";
 import { useState } from "react";
-import { Check, Clapperboard, Film, LoaderCircle, Pencil, Play, Rocket, Send, Trash2, TriangleAlert } from "lucide-react";
+import { Check, Clapperboard, Film, LoaderCircle, Pencil, Play, RefreshCw, Rocket, Send, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +17,7 @@ import {
   useApprovePlan,
   useApproveStoryboard,
   useMakeStoryboard,
+  useRecomposeEndCard,
   useRedrawActor,
   useRenderVideoAd,
   useReviseVideoAd,
@@ -134,6 +135,7 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
   const approveBoard = useApproveStoryboard(briefId);
   const redraw = useRedrawActor(briefId);
   const approvePlan = useApprovePlan(briefId);
+  const recompose = useRecomposeEndCard(briefId);
   // The platform owner and subscription-exempt tenants pay no credits: they see the provider cost.
   const { isPlatformOwner, isSubscriptionExempt } = useSubscription();
   const showUSD = !!(isPlatformOwner || isSubscriptionExempt);
@@ -360,6 +362,11 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
                 settings={Object.fromEntries(script.scenes.map((s) => [s.id, s.setting ?? ""]))}
                 endCard={endCardPreview(version)}
               />
+              {endCardPreview(version) && (
+                <Button variant="ghost" size="sm" disabled={recompose.isPending} onClick={() => recompose.mutate(version.id)}>
+                  <RefreshCw /> {recompose.isPending ? "Updating the end card..." : "Update the end card preview"}
+                </Button>
+              )}
               {q.plan_fingerprint && !q.plan_approved && (
                 <Button
                   variant="outline"

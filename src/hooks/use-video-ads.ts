@@ -59,6 +59,8 @@ export const useApproveStoryboard = (briefId: string) =>
   useAction(briefId, videoAdsApi.approveStoryboard, "Storyboard approved", "Could not approve the storyboard");
 export const useRedrawActor = (briefId: string) =>
   useAction(briefId, videoAdsApi.redrawActor, "Drawing a new presenter. It takes about a minute.", "Could not redraw the presenter");
+export const useRecomposeEndCard = (briefId: string) =>
+  useAction(briefId, videoAdsApi.recomposeEndCard, "End card preview updated", "Could not update the end card preview");
 export const useApprovePlan = (briefId: string) =>
   useAction(briefId, videoAdsApi.approvePlan, "Generation plan approved", "Could not approve the plan");
 export const useRenderVideoAd = (briefId: string) =>

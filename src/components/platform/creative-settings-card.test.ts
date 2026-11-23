@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateContacts, validateDiscardWindow, windowHours } from "./creative-settings-card";
+import { CREATIVE_SETTINGS, validateContacts, validateDiscardWindow, windowHours } from "./creative-settings-card";
 import { fileNameFrom } from "@/lib/api/creative";
 import { creditCeilingProblem } from "@/lib/api/autopilot";
 
@@ -19,6 +19,15 @@ describe("creative settings", () => {
   it("accepts only known contact kinds", () => {
     expect(validateContacts("whatsapp, phone,link")).toBeNull();
     expect(validateContacts("whatsapp,fax")).toContain("fax");
+  });
+  it("checks the logo plate settings", () => {
+    const check = (key: string, v: string) => CREATIVE_SETTINGS.find((s) => s.key === key)?.validate?.(v) ?? null;
+    expect(check("creative.logo_plate_style", "Light")).toBeNull();
+    expect(check("creative.logo_plate_style", "glow")).not.toBeNull();
+    expect(check("creative.logo_plate_opacity", "0.8")).toBeNull();
+    expect(check("creative.logo_plate_opacity", "0.2")).not.toBeNull();
+    expect(check("creative.logo_every_scene", "false")).toBeNull();
+    expect(check("creative.logo_every_scene", "yes")).not.toBeNull();
   });
 });
 

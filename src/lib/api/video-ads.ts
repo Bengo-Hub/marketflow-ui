@@ -232,6 +232,8 @@ export const videoAdsApi = {
       .post<CreativeVersion>(`${base}/versions/${id}/storyboard`, { redraw_actor: true, actor_prompt: actorPrompt || undefined })
       .then((r) => r.data),
   approveStoryboard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/storyboard/approve`).then((r) => r.data),
+  /** The end card preview made again over its own still: new words, contacts or logo plate, nothing redrawn or charged. */
+  recomposeEndCard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/end-card-preview`).then((r) => r.data),
   /** Approves the generation plan the quote showed (and the storyboard with it). */
   approvePlan: ({ id, fingerprint }: { id: string; fingerprint: string }) =>
     apiClient.post<CreativeVersion>(`${base}/versions/${id}/storyboard/approve`, { plan_fingerprint: fingerprint }).then((r) => r.data),

@@ -60,6 +60,31 @@ export const CREATIVE_SETTINGS: CreativeSetting[] = [
     validate: validateContacts,
   },
   {
+    key: "creative.logo_plate_style",
+    label: "Plate behind the logo",
+    hint: "auto picks a light plate for a dark logo and a dark one for a light logo, tinted by the brand colours. light, dark or none fix it.",
+    fallback: "auto",
+    validate: (v) => (v.trim() && !["auto", "light", "dark", "none"].includes(v.trim().toLowerCase()) ? "Use auto, light, dark or none." : null),
+  },
+  {
+    key: "creative.logo_plate_opacity",
+    label: "Logo plate opacity",
+    hint: "From 0.5 to 1. 0.86 when empty.",
+    fallback: "0.86",
+    validate: (v) => {
+      if (!v.trim()) return null;
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 0.5 && n <= 1 ? null : "A number from 0.5 to 1.";
+    },
+  },
+  {
+    key: "creative.logo_every_scene",
+    label: "Logo on every video scene",
+    hint: "true lays the logo small in the calmer top corner of every scene; the end card always shows it in full.",
+    fallback: "true",
+    validate: (v) => (v.trim() && !["true", "false"].includes(v.trim().toLowerCase()) ? "Use true or false." : null),
+  },
+  {
     key: "creative.flp_default_address",
     label: "Default address for Forever Living sellers",
     hint: "Used only for an FLP tenant in Kenya that has not given its own address.",
