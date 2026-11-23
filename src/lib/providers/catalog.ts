@@ -294,6 +294,67 @@ const aiProviders: ProviderDef[] = [
       { key: "plus_model", label: "Premium plus model (Sonnet)", type: "text", help: "The premium_plus class uses it." },
     ],
   },
+  // Free-tier fallbacks, OpenAI-compatible: marketflow-ai uses any ai_llm provider with a base
+  // URL and key once a routing policy or the media review names it. Free tiers may use prompts
+  // to train their models, so name them only in classes that carry no customer data (premium
+  // scripts and media review), never in the inbox classes.
+  {
+    id: "openrouter",
+    type: "ai_llm",
+    name: "OpenRouter (free models)",
+    description:
+      "One key for many models; ids ending in :free cost nothing (about 20 a minute, 50 a day, 1,000 a day after a USD 10 top-up). Name it in the routing policy as \"openrouter\".",
+    scope: "platform",
+    logoSlug: "openrouter",
+    logoColor: "6566F1",
+    brandColor: "#6566F1",
+    docsUrl: "https://openrouter.ai/models?max_price=0",
+    capabilities: { test: true },
+    modelFieldKeys: ["main_model", "premium_model"],
+    fields: [
+      { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "sk-or-…" },
+      { key: "base_url", label: "Base URL", type: "url", default: "https://openrouter.ai/api/v1" },
+      { key: "main_model", label: "Model", type: "text", required: true, help: "A model id from OpenRouter's free list (ends in :free). Pick a vision model to use it for the media review." },
+      { key: "premium_model", label: "Premium model", type: "text", help: "Optional, for a policy that names @premium on this provider." },
+    ],
+  },
+  {
+    id: "gemini",
+    type: "ai_llm",
+    name: "Google Gemini (free tier)",
+    description:
+      "Gemini Flash through Google's OpenAI-compatible endpoint; reads images, so it can serve the media review. The free tier may use prompts to improve Google's products. Name it as \"gemini\".",
+    scope: "platform",
+    logoSlug: "googlegemini",
+    logoColor: "8E75B2",
+    brandColor: "#8E75B2",
+    docsUrl: "https://aistudio.google.com/apikey",
+    capabilities: { test: true },
+    modelFieldKeys: ["main_model"],
+    fields: [
+      { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "AIza…" },
+      { key: "base_url", label: "Base URL", type: "url", default: "https://generativelanguage.googleapis.com/v1beta/openai/" },
+      { key: "main_model", label: "Model", type: "text", required: true, help: "For example a current Gemini Flash model id from AI Studio." },
+    ],
+  },
+  {
+    id: "cerebras",
+    type: "ai_llm",
+    name: "Cerebras (free tier)",
+    description: "Very fast open models on a free daily token allowance; text only. Name it in the routing policy as \"cerebras\".",
+    scope: "platform",
+    logoSlug: "cerebras",
+    logoColor: "F05A28",
+    brandColor: "#F05A28",
+    docsUrl: "https://cloud.cerebras.ai/",
+    capabilities: { test: true },
+    modelFieldKeys: ["main_model"],
+    fields: [
+      { key: "api_key", label: "API key", type: "password", secret: true, required: true, placeholder: "csk-…" },
+      { key: "base_url", label: "Base URL", type: "url", default: "https://api.cerebras.ai/v1" },
+      { key: "main_model", label: "Model", type: "text", required: true, help: "A model id from the Cerebras console." },
+    ],
+  },
   {
     id: "typesafe",
     type: "decide",
