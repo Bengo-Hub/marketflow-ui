@@ -340,7 +340,13 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
                   Not enough credits: {q.shortfall} short. Buy {q.suggested_bundle.units} credits for {kes(q.suggested_bundle.price_kes)} in Billing.
                 </p>
               )}
-              <GenerationPlan quote={q} shape={shape} wide={wide} settings={Object.fromEntries(script.scenes.map((s) => [s.id, s.setting ?? ""]))} />
+              <GenerationPlan
+                quote={q}
+                shape={shape}
+                wide={wide}
+                settings={Object.fromEntries(script.scenes.map((s) => [s.id, s.setting ?? ""]))}
+                endCard={endCardPreview(version)}
+              />
               {q.plan_fingerprint && !q.plan_approved && (
                 <Button
                   variant="outline"
@@ -385,7 +391,19 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
  * receive. The owner approves it before the render; any change to the script or storyboard makes a
  * new plan.
  */
-function GenerationPlan({ quote, shape, wide, settings }: { quote: VideoAdQuote; shape: string; wide: boolean; settings: Record<string, string> }) {
+function GenerationPlan({
+  quote,
+  shape,
+  wide,
+  settings,
+  endCard,
+}: {
+  quote: VideoAdQuote;
+  shape: string;
+  wide: boolean;
+  settings: Record<string, string>;
+  endCard?: { scene_id: string; url: string };
+}) {
   const scenes = quote.plan?.scenes ?? [];
   if (scenes.length === 0) return null;
   const cost = quote.plan?.cost_usd;
@@ -414,6 +432,13 @@ function GenerationPlan({ quote, shape, wide, settings }: { quote: VideoAdQuote;
                 Scene {i + 1}: {SHOT_LABEL[s.shot] ?? s.shot}. First frame: {frameLabel(s)}
                 {s.cached ? ". Kept from the last version" : s.route ? `. ${s.route}${s.tier === "premium" ? " (premium)" : ""}` : ""}
               </p>
+              {endCard && endCard.scene_id === s.scene_id && (
+                <figure className="space-y-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={endCard.url} alt="The end card as it will render" className={`${shape} w-full max-w-md rounded border object-contain`} />
+                  <figcaption className="text-muted-foreground">The end card as it will render: the words, your contacts and your logo are drawn by MarketFlow, never by the image model.</figcaption>
+                </figure>
+              )}
               {settings[s.scene_id] && (
                 <p className="break-words text-muted-foreground">
                   <span className="font-medium text-foreground">Setting:</span> {settings[s.scene_id]}
@@ -563,4 +588,11 @@ function Finished({
 /** "USD 1.20" */
 function usd(v: number): string {
   return `USD ${v.toFixed(2)}`;
+}
+
+/** The end card preview the storyboard composed (its still with the words, contacts and logo). */
+function endCardPreview(version: CreativeVersion): { scene_id: string; url: string } | undefined {
+  const sb = version.metadata?.storyboard as { end_card_preview?: { scene_id?: string; url?: string } } | undefined;
+  const p = sb?.end_card_preview;
+  return p?.url && p.scene_id ? { scene_id: p.scene_id, url: p.url } : undefined;
 }
