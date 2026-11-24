@@ -158,6 +158,203 @@ export function timeAgo(at: string, now: Date = new Date()): string {
   return `${Math.floor(mins / 60)} h ago`;
 }
 
+/*
+ * Run ads (owner, 2026-11-24): one plan for Meta, Google Ads and TikTok for an approved video.
+ * Contract: marketflow-api internal/modules/adsmanager/runads.go and runads_handler.go. Amounts are
+ * whole units of the tenant's currency; account_daily and account_total are in the account's.
+ */
+
+export type RunPlatform = "meta" | "google" | "tiktok";
+export type RunTierName = "low" | "recommended" | "high" | "custom";
+
+/** What a budget buys, with where the number came from (runads.Estimate). */
+export interface RunEstimate {
+  metric: string;
+  value: number;
+  per: "day" | "week" | "run" | string;
+  source: "platform" | "your_results" | "rule_of_thumb" | "competitors" | string;
+  label: string;
+}
+
+export interface RunTier {
+  name: RunTierName | string;
+  daily: number;
+  recommended?: boolean;
+  source: string;
+  label: string;
+  estimates: RunEstimate[];
+}
+
+/** One thing the owner does. path is a MarketFlow page under /{orgSlug}; url is a provider page. */
+export interface PlanStep {
+  label: string;
+  path?: string;
+  url?: string;
+  done?: boolean;
+}
+
+export interface FundingView {
+  /** null when the provider does not show it. */
+  can_spend: boolean | null;
+  status: string;
+  detail: string;
+  /** In the account's currency. */
+  shortfall?: number;
+  link?: string;
+}
+
+export interface PlanAccount {
+  connected_account_id: string;
+  external_id: string;
+  name: string;
+  currency: string;
+}
+
+export interface PlatformPlan {
+  platform: RunPlatform | string;
+  enabled: boolean;
+  /** automatic (Meta boost), api (Google Ads API, TikTok once approved) or guided. */
+  mode: "automatic" | "api" | "guided" | string;
+  account?: PlanAccount;
+  tier: RunTierName | string;
+  daily: number;
+  days: number;
+  total: number;
+  account_daily?: number;
+  account_total?: number;
+  tiers: RunTier[];
+  estimates: RunEstimate[];
+  funding: FundingView;
+  setup: PlanStep[];
+  steps: PlanStep[];
+  blockers: string[];
+  notes: string[];
+  launch_credits?: number;
+}
+
+export interface DaysHint {
+  days: number;
+  source: string;
+  label: string;
+}
+
+export interface RunPlan {
+  version_id: string;
+  currency: string;
+  days: number;
+  total_cap: number;
+  total: number;
+  platforms: PlatformPlan[];
+  days_hint?: DaysHint;
+  blockers: string[];
+  ready: boolean;
+  otp_required: boolean;
+  fingerprint: string;
+}
+
+export interface PlatformChoice {
+  platform: RunPlatform | string;
+  enabled?: boolean;
+  daily?: number;
+  tier?: string;
+}
+
+/** The owner's changes to the default plan; anything left out keeps the default. */
+export interface RunChoice {
+  days?: number;
+  total_cap?: number;
+  platforms?: PlatformChoice[];
+}
+
+export interface RunAdsInput extends RunChoice {
+  version_id: string;
+  fingerprint: string;
+  otp_id?: string;
+  otp_code?: string;
+}
+
+export interface PlatformResult {
+  platform: RunPlatform | string;
+  /** created, guided, failed or skipped. */
+  status: "created" | "guided" | "failed" | "skipped" | string;
+  campaign_id?: string;
+  external_id?: string;
+  message: string;
+  steps?: PlanStep[];
+}
+
+export interface RunOutcome {
+  results: PlatformResult[];
+  plan: RunPlan | null;
+  /** True when this plan had already been confirmed; nothing ran again. */
+  replayed?: boolean;
+  text: string;
+}
+
+export interface RunAdsOtp {
+  otp_id: string;
+  to_masked: string;
+  expires_at: string;
+  channel?: "whatsapp";
+}
+
+/** GET /api/v1/tenant/profile/run-ads view (runads.View). */
+export interface RunAdsView {
+  platforms: RunPlatform[];
+  tier: "low" | "recommended" | "high";
+  daily_budget: Partial<Record<RunPlatform, number>>;
+  days: number;
+  total_cap: number;
+  total_cap_kes?: number;
+  rule_of_thumb_kes: Partial<Record<RunPlatform, Partial<Record<"low" | "recommended" | "high", number>>>>;
+  tiktok_mode: "guided" | "api" | string;
+}
+
+export interface RunAdsSettingsResponse {
+  platform: RunAdsView;
+  effective: RunAdsView;
+  /** Only the keys the tenant set itself. */
+  tenant: Partial<RunAdsView>;
+  currency: string;
+  can_edit: boolean;
+}
+
+/** POST /ads/plan: the plan for an approved video with the owner's changes over the defaults. */
+export function planRunAds(versionId: string, choice: RunChoice = {}) {
+  return apiClient.post<RunPlan>(`${base}/plan`, { version_id: versionId, ...choice }).then((r) => r.data);
+}
+
+/**
+ * POST /ads/run: confirms the plan the owner saw (its fingerprint). 201 ran it, 200 with replayed
+ * means it had already run; 409 plan_changed or not_ready carry details.plan, 428 otp_required
+ * needs a WhatsApp code (runAdsOTP), 422 otp_invalid is a wrong code.
+ */
+export function runAds(input: RunAdsInput) {
+  return apiClient.post<RunOutcome>(`${base}/run`, input).then((r) => r.data);
+}
+
+/** POST /ads/run/otp: sends the WhatsApp code for the plan; the body is the run's own. */
+export function runAdsOTP(input: RunAdsInput) {
+  return apiClient.post<RunAdsOtp>(`${base}/run/otp`, input).then((r) => r.data);
+}
+
+/** POST /ads/run/{id}/done: the owner finished setting up a guided TikTok campaign. */
+export function markTikTokDone(campaignId: string) {
+  return apiClient.post<unknown>(`${base}/run/${encodeURIComponent(campaignId)}/done`).then((r) => r.data);
+}
+
+/** GET /tenant/profile/run-ads: the tenant's Run ads defaults beside the platform's. */
+export function getRunAdsSettings() {
+  return apiClient.get<RunAdsSettingsResponse>("/api/v1/tenant/profile/run-ads").then((r) => r.data);
+}
+
+/** A Run ads refusal: the HTTP status, the API's code and, for 409s, the fresh plan. */
+export function runAdsError(e: unknown): { status?: number; code?: string; plan?: RunPlan } {
+  const r = (e as { response?: { status?: number; data?: { code?: unknown; error?: unknown; details?: { plan?: RunPlan } } } })?.response;
+  const code = typeof r?.data?.code === "string" ? r.data.code : typeof r?.data?.error === "string" ? r.data.error : undefined;
+  return { status: r?.status, code, plan: r?.data?.details?.plan };
+}
+
 export const STAGE_LABEL: Record<string, string> = {
   campaign: "Setting up on Meta",
   adset: "Setting up on Meta",

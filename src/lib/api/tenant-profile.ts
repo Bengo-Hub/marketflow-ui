@@ -3,6 +3,7 @@ import type { PublicMetadata } from "./public";
 import type { BusinessTypeOption } from "@/lib/business-types";
 import type { LeadFilterResponse, LeadFilterWords } from "@/lib/leads/lead-filter-settings";
 import type { LeadResponseResponse, LeadResponseView } from "@/lib/leads/lead-response-settings";
+import type { RunAdsPatch } from "@/lib/ads/run-ads";
 
 /** GET/PATCH /api/v1/tenant/profile (marketflow-api tenant.Handler). */
 export interface TenantProfile {
@@ -53,6 +54,8 @@ export interface TenantProfileUpdate {
     lead_filter?: Partial<LeadFilterWords> | null;
     /** Item 62: the tenant's lead response overrides; null goes back to the platform defaults. */
     lead_response?: Partial<LeadResponseView> | null;
+    /** Run ads defaults (owner 2026-11-24); only these keys, null goes back to the platform defaults. */
+    run_ads?: RunAdsPatch | null;
   };
 }
 

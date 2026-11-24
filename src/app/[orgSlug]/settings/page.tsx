@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  BellRing, ChevronRight, CreditCard, FileChartColumn, Filter, Handshake, Palette, PlugZap, Quote, Rocket, ScrollText, Settings, ShieldCheck, SlidersHorizontal, UserCircle, UsersRound, Workflow,
+  BellRing, ChevronRight, CreditCard, FileChartColumn, Filter, Handshake, Megaphone, Palette, PlugZap, Quote, Rocket, ScrollText, Settings, ShieldCheck, SlidersHorizontal, UserCircle, UsersRound, Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader, ToneBadge } from "@/components/ui-kit";
@@ -37,6 +37,7 @@ const GROUPS: { title: string; tiles: Tile[] }[] = [
       { href: "/settings/agents", title: "Agents", desc: "Your marketing team members and their instructions.", icon: Workflow },
       { href: "/settings/sales-follow-up", title: "Sales follow-up", desc: "How your assistant answers leads on WhatsApp, and when you take over.", icon: Handshake },
       { href: "/settings/lead-response", title: "Lead response", desc: "The automatic follow-up to new leads, and reminders for leads nobody has contacted yet.", icon: BellRing },
+      { href: "/settings/run-ads", title: "Run ads", desc: "What a new ad plan starts with: platforms, daily budgets, days and a total cap.", icon: Megaphone },
       { href: "/settings/lead-filter", title: "Lead filter", desc: "Messages that are not leads: attachment and job requests, and businesses selling to you.", icon: Filter },
       { href: "/settings/reports", title: "Reports and emails", desc: "Your weekly report, campaign return and the line that closes your emails.", icon: FileChartColumn },
       { href: "/settings/integrations", title: "Integrations", desc: "Your Facebook page, ad accounts and calendar.", icon: PlugZap },

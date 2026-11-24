@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog, Field, GlassPanel, ToneBadge } from "@/components/ui-kit";
 import { BoostDialog } from "@/components/studio/boost-dialog";
+import { RunAdsDialog } from "@/components/studio/run-ads-dialog";
 import { BrandImagesRequired } from "@/components/media/brand-images-required";
 import { PublishDialog } from "@/components/studio/publish-dialog";
 import { useApprove, useDiscard } from "@/hooks/use-creative";
@@ -548,6 +549,7 @@ function Finished({
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [posting, setPosting] = useState(false);
   const [boosting, setBoosting] = useState(false);
+  const [running, setRunning] = useState(false);
   // The player's measured length, so the publish dialog can check TikTok's per-account limit.
   const [measured, setMeasured] = useState<number | undefined>(undefined);
   // Post and Boost: the approving roles and the app reviewer. Changing or discarding: not the reviewer.
@@ -582,7 +584,12 @@ function Finished({
       {!archived && (
         <div className="flex flex-wrap gap-2">
           {ready && canApprove && (
-            <Button disabled={approve.isPending} onClick={() => approve.mutate(version.id)}>
+            // Run ads opens straight after approving, for the roles that can run ads.
+            <Button disabled={approve.isPending} onClick={() => approve.mutate(version.id, {
+                onSuccess: () => {
+                  if (canPublish && video) setRunning(true);
+                },
+              })}>
               <Check /> Approve
             </Button>
           )}
@@ -592,8 +599,14 @@ function Finished({
             </Button>
           )}
           {version.status === "approved" && video && canPublish && (
-            <Button variant="outline" onClick={() => setBoosting(true)}>
-              <Rocket /> Boost
+            <Button variant="outline" onClick={() => setRunning(true)}>
+              <Rocket /> Run ads
+            </Button>
+          )}
+          {/* The Meta-only boost keeps its extra choices (audience, objective, more videos). */}
+          {version.status === "approved" && video && canPublish && (
+            <Button variant="ghost" onClick={() => setBoosting(true)}>
+              Boost on Meta only
             </Button>
           )}
           {!restricted && (
@@ -627,6 +640,7 @@ function Finished({
           defaultLink={funnelSlug ? adLeadUrl(funnelSlug, briefId, "facebook", "paid") : undefined}
         />
       )}
+      {running && <RunAdsDialog open={running} onOpenChange={setRunning} versionId={version.id} />}
       <ConfirmDialog
         open={confirmDiscard}
         onOpenChange={setConfirmDiscard}
