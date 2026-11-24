@@ -885,6 +885,15 @@ const mediaProviders: ProviderDef[] = [
         help: "Above this all-premium quote the dearest scenes fall back to standard. It never goes above the ceiling.",
       },
       {
+        key: "still_timeout_seconds",
+        label: "Storyboard still timeout (seconds)",
+        type: "number",
+        default: "180",
+        min: 30,
+        max: 600,
+        help: "How long one storyboard still may wait on a provider, queue included, before the next route is tried.",
+      },
+      {
         key: "prefer",
         label: "Preferred routes (JSON)",
         type: "textarea",
