@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { isTwoVoice, templateKind, templatesFor, type AdTemplate } from "./video-ads";
+import { isTwoVoice, templateKind, templatesFor, videoLengthSeconds, type AdTemplate } from "./video-ads";
+
+describe("video length for the TikTok limit", () => {
+  const script = { scenes: [{ id: "a", shot: "b_roll" as const, voiceover: "", caption: "", duration_s: 7.5 }, { id: "b", shot: "end_card" as const, voiceover: "", caption: "", duration_s: 4 }, { id: "c", shot: "b_roll" as const, voiceover: "", caption: "" }] };
+  it("prefers the measured length, rounded up", () => {
+    expect(videoLengthSeconds(30.2, script)).toBe(31);
+  });
+  it("falls back to the script's scene lengths", () => {
+    expect(videoLengthSeconds(undefined, script)).toBe(12);
+    expect(videoLengthSeconds(Number.NaN, script)).toBe(12);
+  });
+  it("is 0 when nothing is known", () => {
+    expect(videoLengthSeconds(undefined)).toBe(0);
+  });
+});
 
 const tpl = (key: string, kinds: string[]): AdTemplate => ({ key, name: key, when_to_use: "", kinds, two_voice: false });
 const list = [tpl("educate", ["template", "presenter"]), tpl("day-in-the-life", ["ugc", "presenter"]), tpl("myth-fact", ["template"])];

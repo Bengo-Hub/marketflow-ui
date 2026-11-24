@@ -31,6 +31,7 @@ import {
   frameLabel,
   SHOT_LABEL,
   VIDEO_KINDS,
+  videoLengthSeconds,
   videoParts,
   type EndCard,
   type ScriptScene,
@@ -530,6 +531,8 @@ function Finished({
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [posting, setPosting] = useState(false);
   const [boosting, setBoosting] = useState(false);
+  // The player's measured length, so the publish dialog can check TikTok's per-account limit.
+  const [measured, setMeasured] = useState<number | undefined>(undefined);
   // Post and Boost: the approving roles and the app reviewer. Changing or discarding: not the reviewer.
   const canPublish = useCanPublish();
   const restricted = useIsRestricted();
@@ -551,6 +554,7 @@ function Finished({
           playsInline
           preload="metadata"
           src={video.url}
+          onLoadedMetadata={(e) => setMeasured(e.currentTarget.duration)}
           className="mx-auto max-h-[70vh] w-full rounded-xl bg-black"
           aria-label={`Video ad version ${version.version_no}`}
         />
@@ -587,7 +591,15 @@ function Finished({
           )}
         </div>
       )}
-      {video && posting && <PublishDialog open={posting} onOpenChange={setPosting} assetId={video.id} defaultCaption={postCaption} />}
+      {video && posting && (
+        <PublishDialog
+          open={posting}
+          onOpenChange={setPosting}
+          assetId={video.id}
+          defaultCaption={postCaption}
+          videoSeconds={videoLengthSeconds(measured, videoParts(version).script)}
+        />
+      )}
       {video && boosting && (
         <BoostDialog
           open={boosting}

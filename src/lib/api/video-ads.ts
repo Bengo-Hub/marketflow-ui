@@ -189,6 +189,16 @@ export interface DeliveryOption {
   name: string;
 }
 
+/**
+ * A finished video's length in whole seconds: the player's measured length when it has loaded,
+ * else the script's scene lengths added up, else 0 (unknown; the server checks the limit too).
+ */
+export function videoLengthSeconds(measured: number | undefined, script?: VideoScript): number {
+  if (measured && Number.isFinite(measured) && measured > 0) return Math.ceil(measured);
+  const total = (script?.scenes ?? []).reduce((sum, s) => sum + (s.duration_s && s.duration_s > 0 ? s.duration_s : 0), 0);
+  return Math.ceil(total);
+}
+
 /** The parts of a video ad version the studio reads. */
 export function videoParts(v: CreativeVersion) {
   const copy = (v.copy ?? {}) as { script?: VideoScript; end_card?: EndCard };
