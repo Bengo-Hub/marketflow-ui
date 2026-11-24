@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
 import { useCanApprove, useOfferingSearch } from "@/hooks/use-creative";
-import { usePublishAccounts } from "@/hooks/use-publishing";
+import { useBestTimes, usePublishAccounts } from "@/hooks/use-publishing";
+import { PLATFORM_LABEL, cadenceLabel, type BestTimes, type Platform } from "@/lib/api/publishing";
 import { useAdAccounts } from "@/hooks/use-ads";
 import {
   autopilotApi,
@@ -52,6 +53,7 @@ import { ACCOUNTS_URL } from "@/lib/urls";
 import { RULE_TRIGGERS, ruleTriggers } from "@/lib/autopilot-triggers";
 import { HoldCategoriesEditor } from "@/components/studio/hold-categories-editor";
 import { AutopilotActivity } from "@/components/studio/autopilot-activity";
+import { PostingPlanCard } from "@/components/studio/posting-plan-card";
 
 const KEY = ["autopilot-agents"];
 const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
@@ -155,6 +157,8 @@ export default function AutopilotPage() {
       {draft && <Settings key={draft.id} agent={draft} onDone={() => { setDraft(null); refresh(); }} />}
 
       <ScheduledPosts />
+
+      <PostingPlanCard />
 
       {agents.isError ? (
         <ErrorState message={apiErrorMessage(agents.error, "Could not load your agents.")} onRetry={() => void agents.refetch()} />
@@ -470,6 +474,9 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const [cadence, setCadence] = useState<"daily" | "weekly">(cfg?.cadence ?? "weekly");
   const [weekday, setWeekday] = useState(cfg?.weekday ?? 1);
   const [time, setTime] = useState(cfg?.time ?? "09:00");
+  // New agents follow the posting plan; agents saved before it keep posting as they did.
+  const [followCadence, setFollowCadence] = useState(cfg ? cfg.follow_cadence === true : true);
+  const postingPlan = useBestTimes();
   const [objective, setObjective] = useState<AutopilotConfig["objective"]>(cfg?.objective ?? "whatsapp");
   const [credits, setCredits] = useState(cfg?.monthly_credit_ceiling ?? 100);
   const [triggers, setTriggers] = useState(() => ruleTriggers(cfg));
@@ -530,6 +537,7 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           cadence,
           weekday,
           time,
+          follow_cadence: followCadence,
           platforms: [...new Set(chosen.map((a) => a.platform))],
           connected_account_ids: paid && adAcct ? [...postIDs, adAcct] : postIDs,
           paid,
@@ -611,6 +619,14 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
             <Input id="ap-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </Field>
         </div>
+
+        <FollowCadence
+          on={followCadence}
+          onChange={setFollowCadence}
+          platforms={[...new Set(list.filter((a) => postIDs.includes(a.id)).map((a) => a.platform))]}
+          weekly={cadence === "weekly"}
+          plan={postingPlan.data}
+        />
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="What the ads ask people to do" htmlFor="ap-objective">
@@ -837,5 +853,41 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
         </div>
       </div>
     </GlassPanel>
+  );
+}
+
+/** The "follow my posting plan" choice, with each chosen platform's cadence from that plan. */
+function FollowCadence({
+  on,
+  onChange,
+  platforms,
+  weekly,
+  plan,
+}: {
+  on: boolean;
+  onChange: (on: boolean) => void;
+  platforms: Platform[];
+  weekly: boolean;
+  plan?: BestTimes;
+}) {
+  const perWeek = (p: Platform) => {
+    const c = plan?.platforms[p]?.cadence;
+    return !c ? 0 : c.per === "week" ? c.count : Math.ceil((c.count * 7) / 30);
+  };
+  const tooFew = on && weekly && platforms.some((p) => perWeek(p) > 1);
+  return (
+    <div className="space-y-1">
+      <label className="flex items-start gap-2 text-sm">
+        <Checkbox className="mt-0.5" checked={on} onCheckedChange={(v) => onChange(v === true)} />
+        <span>
+          Follow my posting plan
+          <span className="block text-xs text-muted-foreground">
+            Drafts only while a platform still needs posts, and posts each one at its best time. Runs that are not needed cost nothing.
+            {plan && platforms.length > 0 && <> Plan: {platforms.map((p) => `${PLATFORM_LABEL[p]} ${cadenceLabel(plan.platforms[p].cadence)}`).join(", ")}.</>}
+          </span>
+        </span>
+      </label>
+      {tooFew && <p className="text-xs text-warning">A weekly agent makes one video a week. Choose daily to reach the plan&apos;s posts.</p>}
+    </div>
   );
 }

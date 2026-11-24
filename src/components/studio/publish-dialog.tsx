@@ -12,9 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, ToneBadge } from "@/components/ui-kit";
-import { usePublishAccounts, useSchedulePost } from "@/hooks/use-publishing";
+import { useBestTimes, usePublishAccounts, useSchedulePost } from "@/hooks/use-publishing";
 import { apiErrorMessage } from "@/lib/api/errors";
-import { CAPTION_LIMIT, PLATFORM_LABEL, publishingApi, type PublishAccount } from "@/lib/api/publishing";
+import { CAPTION_LIMIT, PLATFORM_LABEL, publishingApi, windowLabel, type PublishAccount } from "@/lib/api/publishing";
+
+const bestFmt = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
 import { reconnectToDeleteHint } from "@/lib/studio/delete-from-platform";
 
 /** The local date and time a datetime-local input shows, for a Date. */
@@ -68,6 +70,10 @@ export function PublishDialog({
     staleTime: 0, // TikTok asks for fresh creator info each time the options are shown
   });
   const tiktokBlock = tiktokAccount ? tiktokProblem(tiktokDraft, creator.data, videoSeconds, tiktokConsent) : null;
+  // The posting plan's best times for the picked platforms (marketflow-api postingplan).
+  const plan = useBestTimes(open);
+  const [bestTime, setBestTime] = useState(false);
+  const pickedPlatforms = useMemo(() => [...new Set(pickedAccounts.map((a) => a.platform))], [pickedAccounts]);
   const whenDate = new Date(when);
   const whenInvalid = later && (Number.isNaN(whenDate.getTime()) || whenDate.getTime() < openedAt);
 
@@ -94,6 +100,7 @@ export function PublishDialog({
         connected_account_ids: picked,
         caption: caption.trim(),
         scheduled_at: later ? whenDate.toISOString() : undefined,
+        best_time: bestTime || undefined,
         made_for_kids: youtube && kids,
         ...(tiktokAccount && creator.data
           ? { tiktok: tiktokOptions(tiktokDraft, creator.data), tiktok_consent: tiktokConsent }
@@ -178,6 +185,41 @@ export function PublishDialog({
                 <Input id="publish-when" type="datetime-local" value={when} min={toLocalInput(new Date(openedAt))} onChange={(e) => setWhen(e.target.value)} />
               </Field>
             )}
+            {pickedPlatforms.length > 0 && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                <label className="flex items-start gap-2 text-sm">
+                  <Checkbox className="mt-0.5" checked={bestTime} onCheckedChange={(on) => setBestTime(on === true)} />
+                  <span>
+                    Post at each platform&apos;s best time
+                    <span className="block text-xs text-muted-foreground">
+                      Each post waits for its platform&apos;s next best window{later ? " after the time above" : ""}
+                      {plan.data ? `, in ${plan.data.timezone}` : ""}.
+                    </span>
+                  </span>
+                </label>
+                {plan.data && (
+                  <ul className="space-y-1 text-xs text-muted-foreground">
+                    {pickedPlatforms.map((p) => {
+                      const info = plan.data.platforms[p];
+                      if (!info) return null;
+                      const next = new Date(info.next_best_time);
+                      return (
+                        <li key={p} className="flex flex-wrap items-center gap-x-2">
+                          <span className="font-medium text-foreground">{PLATFORM_LABEL[p]}</span>
+                          <span>next best time {bestFmt.format(next)}</span>
+                          {later && (
+                            <button type="button" className="text-primary hover:underline" onClick={() => setWhen(toLocalInput(next))}>
+                              Use it
+                            </button>
+                          )}
+                          <span className="basis-full">{info.windows.map(windowLabel).join("; ")}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
 
           {youtube && (
@@ -218,7 +260,7 @@ export function PublishDialog({
             Cancel
           </Button>
           <Button onClick={submit} disabled={schedule.isPending || picked.length === 0 || whenInvalid || caption.length > CAPTION_LIMIT || !!tiktokBlock}>
-            {schedule.isPending ? "Working..." : later ? "Schedule" : "Post now"}
+            {schedule.isPending ? "Working..." : later || bestTime ? "Schedule" : "Post now"}
           </Button>
         </DialogFooter>
       </DialogContent>

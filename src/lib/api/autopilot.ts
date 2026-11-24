@@ -36,6 +36,12 @@ export interface AutopilotConfig {
   /** The days the CPL stop judges, today included (1 to 14, default 3). */
   stop_cpl_days?: number;
   end_date?: string;
+  /**
+   * Follow the business's posting plan (GET /publishing/best-times): a run starts only while a
+   * platform is short of its posts for the week or month, and each platform posts at its next
+   * best-time window after the veto window.
+   */
+  follow_cadence?: boolean;
 }
 
 /** The CPL stop's window limits, as the API checks them. */

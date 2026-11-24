@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { CalendarClock, CalendarDays, ExternalLink, RotateCcw, X } from "lucide-react";
 import { DeleteFromPlatform } from "@/components/studio/delete-from-platform";
+import { PostingPlanCard } from "@/components/studio/posting-plan-card";
 import { toLocalInput } from "@/components/studio/publish-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -115,6 +116,8 @@ export default function PublishingCalendarPage() {
           )}
         </div>
       )}
+
+      <PostingPlanCard />
     </div>
   );
 }

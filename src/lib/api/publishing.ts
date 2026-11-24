@@ -57,6 +57,8 @@ export interface ScheduleInput {
   caption: string;
   /** Omit to post now. */
   scheduled_at?: string;
+  /** Moves each platform's post to its next best-time window at or after scheduled_at (or now). */
+  best_time?: boolean;
   made_for_kids: boolean;
   /** Required when a TikTok account is picked. */
   tiktok?: TikTokOptions;
@@ -114,7 +116,59 @@ export const publishingApi = {
   move: (id: string, scheduledAt: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/move`, { scheduled_at: scheduledAt }).then((r) => r.data),
   /** Deletes a published post from its platform; repeating it answers the same job. */
   deleteFromPlatform: (id: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/delete-from-platform`).then((r) => r.data),
+  /** The posting plan: best-time windows and cadence per platform (marketflow-api postingplan). */
+  bestTimes: () => apiClient.get<BestTimes>(`${base}/best-times`).then((r) => r.data),
+  /** Saves the business's own windows or cadence; a platform set to null goes back to the default. */
+  saveBestTimes: (data: BestTimesUpdate) => apiClient.put<BestTimes>(`${base}/best-times`, data).then((r) => r.data),
 };
+
+/** A span of local time: days are "weekdays", "weekend", "daily" or a list like "mon,wed,fri". */
+export interface PostingWindow {
+  days: string;
+  start: string;
+  end: string;
+}
+
+export interface PostingCadence {
+  count: number;
+  per: "week" | "month";
+}
+
+export type PlanSource = "default" | "platform" | "tenant";
+
+export interface BestTimesPlatform {
+  windows: PostingWindow[];
+  windows_source: PlanSource;
+  cadence: PostingCadence;
+  cadence_source: PlanSource;
+  next_best_time: string;
+  booked: { week: number; month: number };
+  due: boolean;
+}
+
+export interface BestTimes {
+  timezone: string;
+  platforms: Record<Platform, BestTimesPlatform>;
+  defaults: { windows: Record<Platform, PostingWindow[]>; cadence: Record<Platform, PostingCadence> };
+}
+
+export interface BestTimesUpdate {
+  windows?: Partial<Record<Platform, PostingWindow[] | null>>;
+  cadence?: Partial<Record<Platform, PostingCadence | null>>;
+}
+
+const DAYS_LABEL: Record<string, string> = { weekdays: "Weekdays", weekend: "Weekends", daily: "Every day" };
+
+/** "Weekdays 12:00 to 14:00". */
+export function windowLabel(w: PostingWindow): string {
+  const days = DAYS_LABEL[w.days] ?? w.days.split(",").map((d) => d.trim().slice(0, 1).toUpperCase() + d.trim().slice(1, 3)).join(", ");
+  return `${days} ${w.start} to ${w.end}`;
+}
+
+/** "3 a week". */
+export function cadenceLabel(c: PostingCadence): string {
+  return c.count === 0 ? "No posts" : `${c.count} a ${c.per}`;
+}
 
 export const PLATFORM_LABEL: Record<Platform, string> = {
   facebook: "Facebook",
