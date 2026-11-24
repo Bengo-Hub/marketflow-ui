@@ -19,6 +19,7 @@ import { usePublicLink } from "@/hooks/use-public-link";
 import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import type { Offering, PublicMetadata, Socials } from "@/lib/api/public";
 import type { TenantProfile, TenantProfileUpdate } from "@/lib/api/tenant-profile";
+import { CurrencySelect } from "@/components/money/currency-select";
 
 /** The public metadata keys this form edits (marketflow-api tenant.PublicMetadataKeys). */
 type Meta = Pick<
@@ -115,6 +116,9 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
     business_type: initialBusinessType(data.business_type, typeChosen),
   });
   const [meta, setMeta] = useState<Meta>(prefill.meta);
+  // The owner's own currency (metadata.currency); empty follows the country, then the platform.
+  const ownCurrency = typeof data.metadata?.currency === "string" ? data.metadata.currency : "";
+  const [currency, setCurrency] = useState(ownCurrency);
 
   const isFLP = data.business_type === "flp";
   const errors = useMemo(() => {
@@ -152,7 +156,11 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
       business_type: changedBusinessType(data.business_type, form.business_type, typeChosen),
       // Offerings are only the Forever tenant's seeded list (shown, hidden, ordered); nothing
       // else writes them, so other tenants never send a list.
-      metadata: isFLP ? { ...meta, socials } : { ...withoutOfferings(meta), socials },
+      metadata: {
+        ...(isFLP ? { ...meta, socials } : { ...withoutOfferings(meta), socials }),
+        // Sent only when changed; null goes back to the country or platform default.
+        ...(currency !== ownCurrency ? { currency: currency || null } : {}),
+      },
     });
   };
 
@@ -251,6 +259,13 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
           </Field>
           <Field label="Country">
             <CountrySelect value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
+          </Field>
+          <Field
+            label="Currency"
+            htmlFor="pf-currency"
+            hint={`Budgets, prices and reports show in this currency. Leave it on the default to follow your country${data.currency && data.currency_source !== "tenant" ? ` (now ${data.currency})` : ""}.`}
+          >
+            <CurrencySelect id="pf-currency" value={currency} onChange={setCurrency} emptyLabel="Default for my country" />
           </Field>
           <Field label="Contact email" hint="Shown when there is no WhatsApp number." error={errors.contact_email} htmlFor="pf-email">
             <Input id="pf-email" type="email" autoComplete="email" value={meta.contact_email ?? ""} onChange={(e) => setM({ contact_email: e.target.value })} />

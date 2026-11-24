@@ -15,9 +15,11 @@ import { ContactProfilePanel } from "@/components/crm/contact-profile-panel";
 import { CapsuleTabs, ConfirmDialog, ErrorState, Field, GlassPanel, StatCard, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
 import { useContact360, useDeleteContact, useUpdateContact } from "@/hooks/use-contacts";
 import { CONTACT_TYPES, contactName, type Contact, type ContactUpdate } from "@/lib/api/contacts";
+import { useTenantCurrency } from "@/hooks/use-tenant-profile";
+import { formatMoneyText } from "@/lib/money";
 
 const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
-const money = (v?: number, c = "KES") => (v == null ? "" : `${c} ${new Intl.NumberFormat("en-KE").format(v)}`);
+const money = (v: number | undefined, c: string) => (v == null ? "" : formatMoneyText(v, c));
 
 /** Summaries from POS, Books and loyalty are free-form; show their scalar values as label and value. */
 function SummaryList({ data }: { data?: Record<string, unknown> }) {
@@ -85,6 +87,7 @@ export default function ContactDetailPage() {
   const { orgSlug, id } = useParams<{ orgSlug: string; id: string }>();
   const router = useRouter();
   const v = useContact360(id);
+  const tenantCurrency = useTenantCurrency();
   const del = useDeleteContact();
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -133,8 +136,8 @@ export default function ContactDetailPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Orders" value={(c.total_orders ?? 0).toLocaleString()} hint={c.last_order_at ? `Last ${when.format(new Date(c.last_order_at))}` : undefined} />
-            <StatCard label="Open deals" value={d.open_deals.length} hint={money(d.open_deals.reduce((s, x) => s + (x.value ?? 0), 0))} />
-            <StatCard label="Won deals" value={d.won_deals.length} hint={money(d.won_deals.reduce((s, x) => s + (x.value ?? 0), 0))} />
+            <StatCard label="Open deals" value={d.open_deals.length} hint={money(d.open_deals.reduce((s, x) => s + (x.value ?? 0), 0), d.open_deals[0]?.currency || tenantCurrency)} />
+            <StatCard label="Won deals" value={d.won_deals.length} hint={money(d.won_deals.reduce((s, x) => s + (x.value ?? 0), 0), d.won_deals[0]?.currency || tenantCurrency)} />
             <StatCard label="In follow-up sequences" value={d.nurture_active.length} />
           </div>
 

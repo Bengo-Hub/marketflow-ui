@@ -16,6 +16,10 @@ export interface TenantProfile {
   flp_language?: string | null;
   /** The tenant's own view includes private keys too; the form only edits the public ones. */
   metadata?: PublicMetadata & Record<string, unknown>;
+  /** The currency every amount is shown and entered in (marketflow-api resolves it). */
+  currency?: string;
+  /** Where it came from: the owner's choice, the SSO country, or the platform default. */
+  currency_source?: "tenant" | "country" | "platform";
 }
 
 export interface TenantProfileUpdate {
@@ -41,6 +45,8 @@ export interface TenantProfileUpdate {
     /** Private: where the business is, so its ads show scenes from its own town. */
     business_address?: string;
     business_city?: string;
+    /** The owner's currency; null or "" goes back to the country or platform default. */
+    currency?: string | null;
   };
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseHandoffAmount, salesSettingsFrom, salesSettingsPatch } from "./follow-up-settings";
+import { amountSetting, parseHandoffAmount, salesSettingsFrom, salesSettingsPatch } from "./follow-up-settings";
 
 describe("sales follow-up settings", () => {
   it("defaults to answering leads with no hand-off amount", () => {
@@ -21,5 +21,15 @@ describe("sales follow-up settings", () => {
 
   it("saves both keys, clearing the amount with null", () => {
     expect(salesSettingsPatch({ autoReply: true, handoffValue: null })).toEqual({ sales_auto_reply: true, sales_handoff_value: null });
+  });
+});
+
+describe("amountSetting", () => {
+  it("saves a money field's value as a setting", () => {
+    expect(amountSetting(150000)).toBe(150000);
+    expect(amountSetting(2500.6)).toBe(2501);
+    expect(amountSetting(0)).toBeNull();
+    expect(amountSetting(null)).toBeNull();
+    expect(amountSetting(1e12)).toBeUndefined();
   });
 });

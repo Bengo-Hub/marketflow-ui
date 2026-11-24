@@ -89,6 +89,5 @@ export const campaignsApi = {
     apiClient.post<SendSMSResult>(`/api/v1/${tenantId}/campaigns/${campaignId}/send-sms`, payload).then((r) => r.data),
 };
 
-export function formatMoney(amount: number | null | undefined, currency?: string | null): string {
-  return new Intl.NumberFormat("en-KE", { style: "currency", currency: currency || "KES", maximumFractionDigits: 2 }).format(amount ?? 0);
-}
+/** Kept for existing imports; the one formatter is in @/lib/money (shared-ui-lib's). */
+export { formatMoney } from "@/lib/money";

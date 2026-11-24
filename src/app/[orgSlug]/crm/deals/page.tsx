@@ -13,7 +13,10 @@ import { CustomFieldsPanel } from "@/components/crm/custom-fields-panel";
 import { RecordPicker, type RecordRef } from "@/components/crm/record-picker";
 import { CapsuleTabs, EmptyState, ErrorState, Field, PageHeader, StatusBadge } from "@/components/ui-kit";
 import { useBoard, useCreateDeal, useDeal, useDealAction, usePipelines, useSetupPipeline } from "@/hooks/use-deals";
-import { formatMoney } from "@/lib/api/campaigns";
+import { formatMoney } from "@/lib/money";
+import { useTenantCurrency } from "@/hooks/use-tenant-profile";
+import { MoneyInput } from "@bengo-hub/shared-ui-lib/payments";
+import { CurrencySelect } from "@/components/money/currency-select";
 import type { Deal } from "@/lib/api/deals";
 import { sortedStages, type PipelineStage } from "@/lib/api/pipelines";
 
@@ -23,8 +26,10 @@ function NewDeal({ pipelineId, stages, onDone }: { pipelineId: string; stages: P
   const create = useCreateDeal();
   const [title, setTitle] = useState("");
   const [stageId, setStageId] = useState(stages[0]?.id ?? "");
-  const [value, setValue] = useState("");
-  const [currency, setCurrency] = useState("KES");
+  const [value, setValue] = useState<number | null>(null);
+  const tenantCurrency = useTenantCurrency();
+  const [picked, setCurrency] = useState("");
+  const currency = picked || tenantCurrency;
   const [close, setClose] = useState("");
   const [record, setRecord] = useState<RecordRef | null>(null);
   return (
@@ -36,9 +41,9 @@ function NewDeal({ pipelineId, stages, onDone }: { pipelineId: string; stages: P
           <p className="mb-1.5 text-sm font-medium">Stage</p>
           <CapsuleTabs label="Stage" value={stageId} onChange={setStageId} options={stages.map((s) => ({ value: s.id, label: s.name }))} />
         </div>
-        <div className="grid grid-cols-[1fr_6rem] gap-3 sm:grid-cols-[1fr_6rem_1fr]">
-          <Field label="Value" htmlFor="dl-v"><Input id="dl-v" type="number" inputMode="decimal" min={0} value={value} onChange={(e) => setValue(e.target.value)} /></Field>
-          <Field label="Currency" htmlFor="dl-c"><Input id="dl-c" maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} /></Field>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Field label="Currency" htmlFor="dl-c"><CurrencySelect id="dl-c" value={currency} onChange={setCurrency} /></Field>
+          <Field label="Value" htmlFor="dl-v"><MoneyInput id="dl-v" currency={currency} min={0} value={value} onChange={setValue} /></Field>
           <Field label="Expected close" className="col-span-2 sm:col-span-1" htmlFor="dl-d"><Input id="dl-d" type="date" value={close} onChange={(e) => setClose(e.target.value)} /></Field>
         </div>
       </div>
@@ -52,7 +57,7 @@ function NewDeal({ pipelineId, stages, onDone }: { pipelineId: string; stages: P
                 title: title.trim(),
                 pipeline_id: pipelineId,
                 stage_id: stageId,
-                value: value ? Number(value) : undefined,
+                value: value ?? undefined,
                 currency,
                 expected_close_date: close || undefined,
                 ...(record?.type === "contact" ? { contact_id: record.id } : record?.type === "lead" ? { lead_id: record.id } : {}),
@@ -111,7 +116,8 @@ function DealSheet({ id, stages, onClose }: { id: string; stages: PipelineStage[
 
 function Column({ stage, deals, loading, onOpen }: { stage: PipelineStage; deals: Deal[]; loading: boolean; onOpen: (id: string) => void }) {
   const total = deals.reduce((s, d) => s + (d.value ?? 0), 0);
-  const currency = deals[0]?.currency ?? "KES";
+  const tenantCurrency = useTenantCurrency();
+  const currency = deals[0]?.currency || tenantCurrency;
   return (
     <section className="glass flex w-72 shrink-0 snap-start flex-col rounded-[1.25rem] p-3 sm:w-80" aria-label={stage.name}>
       <header className="mb-3 px-1">

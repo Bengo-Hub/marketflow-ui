@@ -15,6 +15,9 @@ import { useCanApprove, useOfferingSearch } from "@/hooks/use-creative";
 import { useBestTimes, usePublishAccounts } from "@/hooks/use-publishing";
 import { PLATFORM_LABEL, cadenceLabel, type BestTimes, type Platform } from "@/lib/api/publishing";
 import { useAdAccounts } from "@/hooks/use-ads";
+import { useTenantCurrency } from "@/hooks/use-tenant-profile";
+import { MoneyInput } from "@bengo-hub/shared-ui-lib/payments";
+import { formatBudget } from "@/lib/money";
 import {
   autopilotApi,
   autopilotPlanRefusal,
@@ -58,7 +61,6 @@ import { PostingPlanCard } from "@/components/studio/posting-plan-card";
 const KEY = ["autopilot-agents"];
 const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
 const inputClass = "min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm";
-const amount = new Intl.NumberFormat("en-KE", { maximumFractionDigits: 0 });
 /** A number input's value: empty or unreadable is 0, which the checks then refuse. */
 const num = (v: string) => (v.trim() === "" || !Number.isFinite(Number(v)) ? 0 : Number(v));
 
@@ -338,6 +340,11 @@ function DryRunPreview({ agentId }: { agentId: string }) {
 function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent; plan: AutopilotPlan | undefined; onEdit: () => void; onChange: () => void }) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const cfg = a.metadata?.autopilot;
+  // Paid budgets are in the ad account's currency; the tenant's currency until it is known.
+  const tenantCurrency = useTenantCurrency();
+  const cardAds = useAdAccounts(!!cfg?.paid);
+  const cardCurrency =
+    cardAds.data?.find((x) => (cfg?.connected_account_ids ?? []).includes(x.connected_account_id))?.currency || tenantCurrency;
   const offerings = a.metadata?.autopilot_offerings ?? [];
   const latest = useQuery({ queryKey: [...KEY, a.id, "latest-run"], queryFn: () => autopilotApi.latestRun(a.id), enabled: !!cfg });
   const versions = a.metadata?.versions ?? [];
@@ -384,7 +391,7 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
             )}
             {cfg?.paid && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Paid ads: {amount.format(cfg.per_ad_budget ?? 0)} per ad over {cfg.period_days} day{cfg.period_days === 1 ? "" : "s"}, at most {amount.format(cfg.monthly_ad_ceiling ?? 0)} a month on your ad account.
+                Paid ads: {formatBudget(cfg.per_ad_budget, cardCurrency)} per ad over {cfg.period_days} day{cfg.period_days === 1 ? "" : "s"}, at most {formatBudget(cfg.monthly_ad_ceiling, cardCurrency)} a month on your ad account.
               </p>
             )}
             {cfg?.end_date && <p className="mt-1 text-xs text-muted-foreground">Last day: {cfg.end_date}</p>}
@@ -449,7 +456,7 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
           {a.is_active && <ToneBadge tone="success">On</ToneBadge>}
         </div>
         {previewing && <DryRunPreview agentId={a.id} />}
-        {showActivity && <AutopilotActivity agentId={a.id} orgSlug={orgSlug} />}
+        {showActivity && <AutopilotActivity agentId={a.id} orgSlug={orgSlug} currency={cardCurrency} />}
         {previous.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>Earlier settings:</span>
@@ -496,6 +503,10 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const [adChoice, setAdChoice] = useState<string | null>(null);
   const adAcct = adChoice ?? (adAccounts.data ?? []).find((a) => acctIDs.includes(a.connected_account_id))?.connected_account_id ?? "";
   const chosenAd = adAccounts.data?.find((a) => a.connected_account_id === adAcct);
+  // Budgets and the CPL stop are in the paying ad account's currency (the API compares them
+  // there); the tenant's currency until an account is chosen.
+  const tenantCurrency = useTenantCurrency();
+  const adCurrency = chosenAd?.currency || tenantCurrency;
   const postIDs = acctIDs.filter((id) => !adIDs.has(id));
   const creditProblem = creditCeilingProblem(credits);
   const budgetProblems = [
@@ -647,7 +658,7 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
             htmlFor="ap-stop-cpl"
             hint="For boosts of this agent's videos. Leave at 0 for no limit. You get an email when a boost is paused."
           >
-            <Input id="ap-stop-cpl" type="number" min={0} value={stopCPL} onChange={(e) => setStopCPL(Math.max(0, Number(e.target.value) || 0))} />
+            <MoneyInput id="ap-stop-cpl" currency={adCurrency} min={0} value={stopCPL || null} placeholder="0" onChange={(v) => setStopCPL(Math.max(0, v ?? 0))} />
           </Field>
           {stopCPL > 0 && (
             <Field label="Judged over the last days" htmlFor="ap-stop-days" hint={`1 to ${STOP_CPL_MAX_DAYS} days, today included. A boost is judged once it has run that long.`}>
@@ -702,13 +713,13 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
               {adAccounts.isError && <p className="text-sm text-destructive">{apiErrorMessage(adAccounts.error, "Could not load your ad accounts")}</p>}
               <div className="grid gap-3 sm:grid-cols-3">
                 <Field label="Budget per ad" htmlFor="ap-per-ad" required error={paid && !(perAd > 0) ? "Enter the budget for each ad." : null} hint={chosenAd?.currency ? `In ${chosenAd.currency}, for the whole run of the ad.` : "In your ad account's currency, for the whole run of the ad."}>
-                  <Input id="ap-per-ad" type="number" min={1} step={1} value={perAd || ""} onChange={(e) => setPerAd(num(e.target.value))} />
+                  <MoneyInput id="ap-per-ad" currency={adCurrency} wholeOnly min={1} value={perAd || null} onChange={(v) => setPerAd(v ?? 0)} />
                 </Field>
                 <Field label="Days each ad runs" htmlFor="ap-period" required error={paid && !(periodDays >= 1 && periodDays <= MAX_PERIOD_DAYS) ? `1 to ${MAX_PERIOD_DAYS} days.` : null} hint={`1 to ${MAX_PERIOD_DAYS} days.`}>
                   <Input id="ap-period" type="number" min={1} max={MAX_PERIOD_DAYS} step={1} value={periodDays || ""} onChange={(e) => setPeriodDays(num(e.target.value))} />
                 </Field>
                 <Field label="Most ad spend a month" htmlFor="ap-ad-ceiling" required error={paid && adCeiling > 0 && perAd > adCeiling ? "Below the budget per ad." : paid && !(adCeiling > 0) ? "Enter the monthly ceiling." : null} hint="Checked against what the agent's ads really spent this month.">
-                  <Input id="ap-ad-ceiling" type="number" min={1} step={1} value={adCeiling || ""} onChange={(e) => setAdCeiling(num(e.target.value))} />
+                  <MoneyInput id="ap-ad-ceiling" currency={adCurrency} wholeOnly min={1} value={adCeiling || null} onChange={(v) => setAdCeiling(v ?? 0)} />
                 </Field>
               </div>
             </div>

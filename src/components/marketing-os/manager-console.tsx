@@ -30,6 +30,7 @@ import { BrandImagesRequired } from "@/components/media/brand-images-required";
 import { isBrandImagesRequired } from "@/lib/api/brand-images";
 import { cn } from "@/lib/utils";
 import { fieldLabel, unfilledFields } from "@/lib/templates/fill";
+import { formatBudget } from "@/lib/money";
 
 const MAX_ASK = 2000;
 
@@ -49,7 +50,7 @@ const ENTITY_LABELS: Record<string, string> = {
 
 function entityValue(key: string, v: unknown): string {
   if (Array.isArray(v)) return v.join(", ");
-  if (key === "budget_kes") return `KES ${Number(v).toLocaleString()}`;
+  if (key === "budget_kes") return formatBudget(Number(v), "KES");
   if (key === "period_days") return `${v} days`;
   return String(v);
 }
@@ -159,14 +160,14 @@ function PlanView({
         <div className="rounded-lg border p-3">
           <p className="text-muted-foreground text-xs">Ad budget</p>
           <p className="font-medium">
-            {plan.ad_budget_kes > 0 ? `KES ${plan.ad_budget_kes.toLocaleString()} over ${plan.days} days` : "Organic only"}
+            {plan.ad_budget_kes > 0 ? `${formatBudget(plan.ad_budget_kes, "KES")} over ${plan.days} days` : "Organic only"}
           </p>
         </div>
         <div className="rounded-lg border p-3">
           <p className="text-muted-foreground text-xs">Ads the budget can test</p>
           <p className="font-medium">
             {plan.ad_budget_kes > 0 ? `${plan.max_live_ads} at once` : "Not running paid ads"}
-            {plan.daily_per_ad_kes ? `, KES ${Math.round(plan.daily_per_ad_kes).toLocaleString()} a day each` : ""}
+            {plan.daily_per_ad_kes ? `, ${formatBudget(plan.daily_per_ad_kes, "KES")} a day each` : ""}
           </p>
         </div>
         <div className="rounded-lg border p-3">

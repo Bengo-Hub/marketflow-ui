@@ -15,15 +15,20 @@ import {
   CAMPAIGN_CHANNELS, CAMPAIGN_PLATFORMS, CAMPAIGN_STATUSES, CAMPAIGN_TYPES, formatMoney, runsOnAdPlatform, type Campaign, type CampaignInput,
 } from "@/lib/api/campaigns";
 import { useIsRestricted } from "@/hooks/use-access";
+import { useTenantCurrency } from "@/hooks/use-tenant-profile";
+import { MoneyInput } from "@bengo-hub/shared-ui-lib/payments";
+import { CurrencySelect } from "@/components/money/currency-select";
 import { GoogleAdsPanel } from "@/components/campaigns/google-ads-panel";
 
-const empty: CampaignInput = { name: "", campaign_type: "lead_gen", platform: "meta", channel: "whatsapp", currency: "KES" };
+// A new campaign starts in the tenant's currency (the form fills it when currency is empty).
+const empty: CampaignInput = { name: "", campaign_type: "lead_gen", platform: "meta", channel: "whatsapp", currency: "" };
 const label = (v: string) => (v === "sms" ? "SMS" : v === "lead_gen" ? "Lead generation" : v === "re_engagement" ? "Re-engagement" : humanize(v));
 
 function CampaignForm({ initial, id, onDone }: { initial: CampaignInput; id?: string; onDone: () => void }) {
   const save = useSaveCampaign();
   const [f, setF] = useState<CampaignInput>(initial);
-  const num = (v: string) => (v === "" ? undefined : Math.max(0, Number(v)));
+  const tenantCurrency = useTenantCurrency();
+  const cur = f.currency || tenantCurrency;
   const datesBad = !!(f.start_date && f.end_date && f.end_date < f.start_date);
   return (
     <>
@@ -46,14 +51,14 @@ function CampaignForm({ initial, id, onDone }: { initial: CampaignInput; id?: st
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Currency" htmlFor="cf-cur">
+            <CurrencySelect id="cf-cur" value={cur} onChange={(c) => setF({ ...f, currency: c })} />
+          </Field>
           <Field label="Daily budget" htmlFor="cf-bd">
-            <Input id="cf-bd" type="number" inputMode="decimal" min={0} value={f.budget_daily ?? ""} onChange={(e) => setF({ ...f, budget_daily: num(e.target.value) })} />
+            <MoneyInput id="cf-bd" currency={cur} min={0} value={f.budget_daily ?? null} onChange={(v) => setF({ ...f, budget_daily: v ?? undefined })} />
           </Field>
           <Field label="Total budget" htmlFor="cf-bt">
-            <Input id="cf-bt" type="number" inputMode="decimal" min={0} value={f.budget_total ?? ""} onChange={(e) => setF({ ...f, budget_total: num(e.target.value) })} />
-          </Field>
-          <Field label="Currency" htmlFor="cf-cur">
-            <Input id="cf-cur" maxLength={3} value={f.currency ?? ""} onChange={(e) => setF({ ...f, currency: e.target.value.toUpperCase() })} />
+            <MoneyInput id="cf-bt" currency={cur} min={0} value={f.budget_total ?? null} onChange={(v) => setF({ ...f, budget_total: v ?? undefined })} />
           </Field>
           <Field label="Starts" htmlFor="cf-sd">
             <Input id="cf-sd" type="date" value={f.start_date?.slice(0, 10) ?? ""} onChange={(e) => setF({ ...f, start_date: e.target.value || undefined })} />
@@ -74,6 +79,7 @@ function CampaignForm({ initial, id, onDone }: { initial: CampaignInput; id?: st
                 data: {
                   ...f,
                   name: f.name.trim(),
+                  currency: cur,
                   // The API takes RFC 3339 times.
                   start_date: f.start_date ? new Date(`${f.start_date.slice(0, 10)}T00:00:00`).toISOString() : undefined,
                   end_date: f.end_date ? new Date(`${f.end_date.slice(0, 10)}T23:59:59`).toISOString() : undefined,

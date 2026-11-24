@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fieldLabel, fillTemplate, templateFields, unfilledFields } from "./fill";
+import { fieldLabel, fillTemplate, isMoneyField, templateFields, unfilledFields } from "./fill";
+import { formatMoneyText } from "@/lib/money";
 
 describe("template fields", () => {
   const t = "Write ads for ${offering} on ${platforms} this week, budget ${budget}. Lead with ${offering}.";
@@ -19,5 +20,22 @@ describe("template fields", () => {
   it("labels a field for the form", () => {
     expect(fieldLabel("offering")).toBe("Offering");
     expect(fieldLabel("target_audience")).toBe("Target audience");
+  });
+});
+
+describe("money fields", () => {
+  it("knows which slots are amounts", () => {
+    expect(isMoneyField("budget")).toBe(true);
+    expect(isMoneyField("price")).toBe(true);
+    expect(isMoneyField("offering")).toBe(false);
+  });
+
+  it("a budget reaches the team with its currency", () => {
+    const text = fillTemplate("Write ads for ${offering}, budget ${budget}.", {
+      offering: "Shea butter",
+      budget: formatMoneyText(3000, "KES"),
+    });
+    expect(text).toBe("Write ads for Shea butter, budget KES 3,000.");
+    expect(fillTemplate("budget ${budget}", { budget: formatMoneyText(12.5, "USD") })).toBe("budget USD 12.50");
   });
 });

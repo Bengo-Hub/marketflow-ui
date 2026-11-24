@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { tenantProfileApi, type TenantProfileUpdate } from "@/lib/api/tenant-profile";
 import { apiErrorMessage } from "@/lib/api/errors";
+import { FALLBACK_CURRENCY } from "@/lib/money";
 
 export function useTenantProfile() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -13,6 +14,15 @@ export function useTenantProfile() {
     queryFn: tenantProfileApi.get,
     staleTime: 30_000,
   });
+}
+
+/**
+ * The tenant's currency for every amount shown or entered: the owner's choice in Settings, else
+ * the SSO country's currency, else the platform default (resolved by marketflow-api).
+ */
+export function useTenantCurrency(): string {
+  const profile = useTenantProfile();
+  return profile.data?.currency || FALLBACK_CURRENCY;
 }
 
 /** The business types an owner can pick; the list changes only with a release. */

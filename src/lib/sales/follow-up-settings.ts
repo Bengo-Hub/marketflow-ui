@@ -35,6 +35,16 @@ export function parseHandoffAmount(text: string): number | null | undefined {
   return n === 0 ? null : Math.round(n);
 }
 
+/**
+ * The value a money field saves as a setting: null for empty or 0 (no amount), undefined when
+ * it is above the API's cap, else the whole amount.
+ */
+export function amountSetting(v: number | null | undefined): number | null | undefined {
+  if (v == null || v === 0) return null;
+  if (!Number.isFinite(v) || v > MAX_HANDOFF_VALUE) return undefined;
+  return Math.round(v);
+}
+
 /** The metadata patch that saves the settings (null clears the amount). */
 export function salesSettingsPatch(s: SalesFollowUpSettings) {
   return { sales_auto_reply: s.autoReply, sales_handoff_value: s.handoffValue };

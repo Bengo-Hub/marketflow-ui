@@ -12,6 +12,9 @@ import { CapsuleTabs, Field, ToneBadge } from "@/components/ui-kit";
 import { toast } from "sonner";
 import { useAdAccounts, useAdQuote, useBoost, useBoostAction, useBoostOtp, useLaunchBoost } from "@/hooks/use-ads";
 import { useIsRestricted } from "@/hooks/use-access";
+import { useTenantCurrency } from "@/hooks/use-tenant-profile";
+import { MoneyInput } from "@bengo-hub/shared-ui-lib/payments";
+import { formatMoneyText } from "@/lib/money";
 import { useDebouncedValue } from "@bengo-hub/shared-ui-lib/search";
 import { usePublishAccounts } from "@/hooks/use-publishing";
 import {
@@ -31,7 +34,8 @@ import { apiErrorMessage } from "@/lib/api/errors";
 import { ACCOUNTS_URL } from "@/lib/urls";
 import { AUDIENCE_PRESETS, audienceFor } from "@/lib/studio/audience-presets";
 
-const money = (n: number, cur: string) => `${cur} ${n.toLocaleString("en-KE")}`;
+// Boost amounts in prose carry the currency code: "KES 3,000" (shared-ui-lib's formatter).
+const money = (n: number, cur: string) => formatMoneyText(n, cur);
 
 /** What to say after a wrong code: the API's reason when it is readable, then what is left. */
 export function codeErrorText(apiText: string, left: number): string {
@@ -110,6 +114,9 @@ export function BoostDialog({
   });
   // M-Pesa on Meta is offered only on KES accounts.
   const hasKES = (accounts.data ?? []).some((a) => a.active && a.currency === "KES");
+  // The budget is in the chosen ad account's currency (Meta bills it there).
+  const tenantCurrency = useTenantCurrency();
+  const budgetCurrency = accounts.data?.find((a) => a.connected_account_id === acct)?.currency || tenantCurrency;
 
   // A boost at or above the business's limit needs a code sent to the owner's WhatsApp. The body
   // is kept as first sent, so the code confirms exactly that boost.
@@ -305,8 +312,8 @@ export function BoostDialog({
               </Field>
             )}
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Total budget" htmlFor="boost-budget" hint={q ? q.currency : undefined}>
-                <Input id="boost-budget" type="number" min={1} value={budget} onChange={(e) => setBudget(Math.max(0, Number(e.target.value)))} />
+              <Field label="Total budget" htmlFor="boost-budget">
+                <MoneyInput id="boost-budget" currency={q?.currency || budgetCurrency} wholeOnly min={1} value={budget || null} onChange={(v) => setBudget(Math.max(0, v ?? 0))} />
               </Field>
               <Field label="Days" htmlFor="boost-days">
                 <Input id="boost-days" type="number" min={1} max={90} value={days} onChange={(e) => setDays(Math.min(90, Math.max(1, Number(e.target.value))))} />

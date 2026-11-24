@@ -8,7 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import { ErrorState, Field, GlassPanel, PageHeader } from "@/components/ui-kit";
 import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import type { TenantProfile } from "@/lib/api/tenant-profile";
-import { parseHandoffAmount } from "@/lib/sales/follow-up-settings";
+import { MoneyInput } from "@bengo-hub/shared-ui-lib/payments";
+import { amountSetting } from "@/lib/sales/follow-up-settings";
+import { FALLBACK_CURRENCY } from "@/lib/money";
 import { MAX_EMAIL_FOOTER, reportSettingsFrom, reportSettingsPatch } from "@/lib/reports/report-settings";
 
 /** Sprint 7 #48, #52 and #54: the weekly report email, the average sale value and the email footer. */
@@ -23,11 +25,12 @@ function ReportSettingsForm({ data }: { data: TenantProfile }) {
   const save = useUpdateTenantProfile();
   const initial = reportSettingsFrom(data.metadata);
   const [weeklyReport, setWeeklyReport] = useState(initial.weeklyReport);
-  const [amount, setAmount] = useState(initial.averageSaleValue ? String(initial.averageSaleValue) : "");
+  const currency = data.currency || FALLBACK_CURRENCY;
+  const [amount, setAmount] = useState<number | null>(initial.averageSaleValue || null);
   const [footer, setFooter] = useState(initial.emailFooter);
-  // The same amount reader as the sales hand-off: 2500, 2,500 or 2.5k.
-  const parsed = parseHandoffAmount(amount);
-  const amountError = parsed === undefined ? "Enter an amount such as 2500 or 2.5k, or leave it empty." : undefined;
+  // Empty or 0 uses the won-deal average; the API caps the amount like the sales hand-off.
+  const parsed = amountSetting(amount);
+  const amountError = parsed === undefined ? "Enter a smaller amount, or leave it empty." : undefined;
   const footerError = footer.trim().length > MAX_EMAIL_FOOTER ? `Keep it to ${MAX_EMAIL_FOOTER} characters.` : undefined;
 
   const onSubmit = (e: React.FormEvent) => {
@@ -62,12 +65,12 @@ function ReportSettingsForm({ data }: { data: TenantProfile }) {
         description="A converted lead without a won deal counts at this value when the dashboard works out what each campaign brought back."
       >
         <Field
-          label="Average sale value (KES)"
+          label={`Average sale value (${currency})`}
           hint="Leave it empty to use the average of your won deals over the last 180 days."
           error={amountError}
           htmlFor="rs-amount"
         >
-          <Input id="rs-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="For example: 2500" />
+          <MoneyInput id="rs-amount" currency={currency} wholeOnly min={0} value={amount} onChange={setAmount} placeholder="For example: 2,500" />
         </Field>
       </GlassPanel>
 

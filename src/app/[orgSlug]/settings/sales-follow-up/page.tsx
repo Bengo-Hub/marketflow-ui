@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { Handshake, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@bengo-hub/shared-ui-lib/payments";
 import { Switch } from "@/components/ui/switch";
 import { ErrorState, Field, GlassPanel, PageHeader } from "@/components/ui-kit";
 import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import type { TenantProfile } from "@/lib/api/tenant-profile";
-import { parseHandoffAmount, salesSettingsFrom, salesSettingsPatch } from "@/lib/sales/follow-up-settings";
+import { amountSetting, salesSettingsFrom, salesSettingsPatch } from "@/lib/sales/follow-up-settings";
+import { FALLBACK_CURRENCY } from "@/lib/money";
 
 /** Sprint 23 L45: how the assistant follows up leads who reply on WhatsApp. */
 export default function SalesFollowUpSettingsPage() {
@@ -22,9 +23,11 @@ function SalesFollowUpForm({ data }: { data: TenantProfile }) {
   const save = useUpdateTenantProfile();
   const initial = salesSettingsFrom(data.metadata);
   const [autoReply, setAutoReply] = useState(initial.autoReply);
-  const [amount, setAmount] = useState(initial.handoffValue ? String(initial.handoffValue) : "");
-  const parsed = parseHandoffAmount(amount);
-  const amountError = parsed === undefined ? "Enter an amount such as 100000 or 100k, or leave it empty." : undefined;
+  const currency = data.currency || FALLBACK_CURRENCY;
+  const [amount, setAmount] = useState<number | null>(initial.handoffValue || null);
+  // Empty or 0 hands over only when asked; the API caps the amount.
+  const parsed = amountSetting(amount);
+  const amountError = parsed === undefined ? "Enter a smaller amount, or leave it empty." : undefined;
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,12 +58,12 @@ function SalesFollowUpForm({ data }: { data: TenantProfile }) {
 
       <GlassPanel title="When you take over" description="A lead who asks for a person always comes to you, and the assistant stops answering them.">
         <Field
-          label="Hand over at this budget (KES)"
+          label={`Hand over at this budget (${currency})`}
           hint="A lead who mentions a budget at or above this amount comes straight to you. Leave it empty to hand over only when asked."
           error={amountError}
           htmlFor="sf-amount"
         >
-          <Input id="sf-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="For example: 100000" />
+          <MoneyInput id="sf-amount" currency={currency} wholeOnly min={0} value={amount} onChange={setAmount} placeholder="For example: 100,000" />
         </Field>
         <p className="mt-3 text-sm text-muted-foreground">You and your MarketFlow admins get an email with the lead&apos;s message and a link to the lead.</p>
       </GlassPanel>

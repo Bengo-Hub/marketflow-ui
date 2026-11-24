@@ -5,16 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import { ErrorState, ToneBadge } from "@/components/ui-kit";
 import { autopilotApi } from "@/lib/api/autopilot";
 import { apiErrorMessage } from "@/lib/api/errors";
+import { formatBudget } from "@/lib/money";
 import { costPerLead, draftHref, draftStep, runStatus, runTrigger, skipReason, weekIsEmpty } from "@/lib/studio/autopilot-dashboard";
 
 const when = new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" });
-const money = new Intl.NumberFormat("en-KE", { maximumFractionDigits: 0 });
-
 /**
  * One ad autopilot's activity (Sprint 20): its drafts waiting for the owner, its last seven days
  * and its recent runs. The scheduled posts with their veto countdown are on the page above.
+ * Spend is in the ad account's currency, passed in by the card.
  */
-export function AutopilotActivity({ agentId, orgSlug }: { agentId: string; orgSlug: string }) {
+export function AutopilotActivity({ agentId, orgSlug, currency }: { agentId: string; orgSlug: string; currency: string }) {
+  const money = { format: (n: number) => formatBudget(n, currency) };
   const dashboard = useQuery({
     queryKey: ["autopilot-agents", agentId, "dashboard"],
     queryFn: () => autopilotApi.dashboard(agentId),

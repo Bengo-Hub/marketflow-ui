@@ -30,3 +30,10 @@ export function fieldLabel(name: string): string {
   const s = name.replace(/_/g, " ");
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+/** Template slots that hold an amount of money; they take the money field and carry the currency. */
+export const MONEY_FIELDS = ["budget", "price", "amount"] as const;
+
+export function isMoneyField(name: string): boolean {
+  return (MONEY_FIELDS as readonly string[]).includes(name);
+}

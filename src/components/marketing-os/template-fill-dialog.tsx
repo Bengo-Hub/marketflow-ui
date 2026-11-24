@@ -4,18 +4,23 @@ import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { MultiSelectCombobox, SearchableCombobox } from "@bengo-hub/shared-ui-lib/combobox";
+import { MoneyInput } from "@bengo-hub/shared-ui-lib/payments";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePublishAccounts } from "@/hooks/use-publishing";
+import { useTenantCurrency } from "@/hooks/use-tenant-profile";
 import { marketingOsApi, type Template } from "@/lib/api/marketing-os";
 import { PLATFORM_LABEL } from "@/lib/api/publishing";
-import { fieldLabel, fillTemplate, templateFields } from "@/lib/templates/fill";
+import { formatMoneyText } from "@/lib/money";
+import { fieldLabel, fillTemplate, isMoneyField, templateFields } from "@/lib/templates/fill";
 
 /**
  * Asks for a template's fields before it goes to the manager. The offering choices come from
- * the brand context and the platforms from the connected accounts; anything else is typed.
+ * the brand context and the platforms from the connected accounts; a budget or price takes the
+ * shared money field in the tenant's currency and reaches the team as "KES 5,000"; anything
+ * else is typed.
  * Use is enabled only once every field has a value, so a raw ${field} is never sent.
  */
 export function TemplateFillDialog({
@@ -39,6 +44,8 @@ export function TemplateFillDialog({
   const accounts = usePublishAccounts(!!template && wantsPlatforms);
   const [values, setValues] = useState<Record<string, string>>({});
   const [platforms, setPlatforms] = useState<string[]>([]);
+  const [amounts, setAmounts] = useState<Record<string, number | null>>({});
+  const currency = useTenantCurrency();
 
   const offerOptions = (ctx.data?.offers ?? []).filter(Boolean).map((o) => ({ value: o, label: o }));
   const platformOptions = [...new Set((accounts.data ?? []).filter((a) => a.enabled && !a.needs_reconnect).map((a) => a.platform))].map(
@@ -47,11 +54,17 @@ export function TemplateFillDialog({
 
   const filled: Record<string, string> = { ...values };
   if (wantsPlatforms && platformOptions.length > 0) filled.platforms = platforms.join(" and ");
+  for (const f of fields) {
+    if (!isMoneyField(f)) continue;
+    const v = amounts[f];
+    filled[f] = v != null && v > 0 ? formatMoneyText(v, currency) : "";
+  }
   const missing = fields.filter((f) => !(filled[f] ?? "").trim());
   const set = (k: string, v: string) => setValues((s) => ({ ...s, [k]: v }));
   const close = () => {
     setValues({});
     setPlatforms([]);
+    setAmounts({});
     onClose();
   };
 
@@ -78,6 +91,15 @@ export function TemplateFillDialog({
                   }}
                   createLabel="Use"
                   placeholder="Choose what to promote"
+                />
+              ) : isMoneyField(f) ? (
+                <MoneyInput
+                  currency={currency}
+                  value={amounts[f] ?? null}
+                  onChange={(v) => setAmounts((s) => ({ ...s, [f]: v }))}
+                  min={1}
+                  placeholder="5,000"
+                  aria-label={`${fieldLabel(f)} in ${currency}`}
                 />
               ) : f === "platforms" && platformOptions.length > 0 ? (
                 <MultiSelectCombobox options={platformOptions} values={platforms} onChange={setPlatforms} placeholder="Choose the platforms" />

@@ -7,6 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { CapsuleTabs, Field } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/lib/api/errors";
+import { MoneyInput } from "@bengo-hub/shared-ui-lib/payments";
+import { formatBudget } from "@/lib/money";
 import { marketingOsApi, type CreativePlan } from "@/lib/api/marketing-os";
 import {
   briefPlan,
@@ -27,7 +29,7 @@ import {
  */
 export function CreativePlanStep({ onChange }: { onChange: (plan: BriefPlan | null) => void }) {
   const [input, setInput] = useState<PlanQuoteInput>(DEFAULT_PLAN_INPUT);
-  const [budgetText, setBudgetText] = useState("0");
+  const [budget, setBudget] = useState<number | null>(0);
   const [daysText, setDaysText] = useState("7");
   const [plan, setPlan] = useState<CreativePlan | null>(null);
   const [chosen, setChosen] = useState<number | null>(null);
@@ -62,14 +64,17 @@ export function CreativePlanStep({ onChange }: { onChange: (plan: BriefPlan | nu
   return (
     <div className="space-y-3 rounded-lg border border-border p-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Ad budget (KES)" htmlFor="plan-budget" hint="0 for posts without paid ads.">
-          <Input
+        {/* The plan engine prices in KES (ad_budget_kes), so this field is always KES. */}
+        <Field label="Ad budget" htmlFor="plan-budget" hint="0 for posts without paid ads.">
+          <MoneyInput
             id="plan-budget"
-            inputMode="numeric"
-            value={budgetText}
-            onChange={(e) => {
-              setBudgetText(e.target.value);
-              update({ ad_budget_kes: e.target.value.trim() === "" ? Number.NaN : Number(e.target.value) });
+            currency="KES"
+            wholeOnly
+            min={0}
+            value={budget}
+            onChange={(v) => {
+              setBudget(v);
+              update({ ad_budget_kes: v == null ? Number.NaN : v });
             }}
           />
         </Field>
@@ -114,7 +119,7 @@ export function CreativePlanStep({ onChange }: { onChange: (plan: BriefPlan | nu
           {plan.max_live_ads > 0 && (
             <p className="text-xs text-muted-foreground">
               The budget can test up to {plan.max_live_ads} live ad{plan.max_live_ads === 1 ? "" : "s"}
-              {plan.daily_per_ad_kes ? `, about KES ${plan.daily_per_ad_kes} a day each` : ""}.
+              {plan.daily_per_ad_kes ? `, about ${formatBudget(plan.daily_per_ad_kes, "KES")} a day each` : ""}.
             </p>
           )}
           {planOptions(plan).map((o, i) => (
