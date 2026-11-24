@@ -27,6 +27,7 @@ describe("tenant domains", () => {
   it("serves the public page at the root and leaves other paths alone", () => {
     expect(tenantRewritePath("/", "acme")).toBe("/p/acme");
     expect(tenantRewritePath("/book", "acme")).toBe("/book/acme");
+    expect(tenantRewritePath("/testimonial", "acme")).toBe("/t/acme");
     expect(tenantRewritePath("/f/spring-offer", "acme")).toBeNull();
     expect(tenantRewritePath("/s/abc123", "acme")).toBeNull();
     expect(tenantRewritePath("/_next/static/x.js", "acme")).toBeNull();

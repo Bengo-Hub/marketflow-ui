@@ -52,3 +52,16 @@ export function useMoveTestimonial() {
     onError: (e) => toast.error(apiErrorMessage(e, "Could not reorder")),
   });
 }
+
+/** Approves (publishing it) or rejects a customer's or website testimonial. */
+export function useReviewTestimonial() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, approve }: { id: string; approve: boolean }) => (approve ? testimonialsApi.approve(id) : testimonialsApi.reject(id)),
+    onSuccess: (_t, v) => {
+      toast.success(v.approve ? "Approved and shown on your page" : "Declined. It will not be shown.");
+      void qc.invalidateQueries({ queryKey: ["testimonials"] });
+    },
+    onError: (e) => toast.error(apiErrorMessage(e, "Could not save the review")),
+  });
+}

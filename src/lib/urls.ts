@@ -30,6 +30,11 @@ export function publicProfileUrl(slug: string): string {
   return `${APP_URL}/p/${encodeURIComponent(slug)}`;
 }
 
+/** The business's testimonial link, where customers share their experience for review. */
+export function testimonialLinkUrl(slug: string): string {
+  return `${APP_URL}/t/${encodeURIComponent(slug)}`;
+}
+
 export function funnelUrl(slug: string): string {
   return `${APP_URL}/f/${encodeURIComponent(slug)}`;
 }

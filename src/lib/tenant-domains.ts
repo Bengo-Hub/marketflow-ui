@@ -38,6 +38,8 @@ export function tenantRewritePath(pathname: string, slug: string): string | null
   if (isPassthrough(pathname)) return null;
   if (pathname === "/" || pathname === "") return `/p/${slug}`;
   if (pathname === "/book" || pathname === "/book/") return `/book/${slug}`;
+  // The testimonial link on the business's own domain: example.com/testimonial.
+  if (pathname === "/testimonial" || pathname === "/testimonial/") return `/t/${slug}`;
   return null;
 }
 
