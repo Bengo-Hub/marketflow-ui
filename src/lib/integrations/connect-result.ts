@@ -31,6 +31,8 @@ const reasons: Record<string, (name: string) => string> = {
     n === "TikTok for Business"
       ? "That TikTok login has no TikTok ads account yet. Create one (it is free and takes a few minutes), then connect again with the same login."
       : "That Google account cannot reach a Google Ads account that runs ads. Create a Google Ads account on this Google account (it is free to open), or sign in with the Google account that already has one, then connect again.",
+  account_not_enabled: () =>
+    "Google Ads found your account but it is not set up yet. Finish the setup in Google Ads (confirm billing and submit your first campaign), wait a few minutes, then connect again. A cancelled account shows the same message.",
   account_read_failed: () =>
     "Google Ads did not list your accounts just now. Please connect again in a few minutes.",
   no_channel: () =>
@@ -50,7 +52,10 @@ export const connectProviders = Object.keys(providerNames);
 
 /** Where to set up the missing account, for the errors a layperson cannot fix inside MarketFlow. */
 const helpLinks: Record<string, Record<string, { label: string; href: string }>> = {
-  google_ads: { no_account: { label: "Create a Google Ads account", href: "https://ads.google.com/home/" } },
+  google_ads: {
+    no_account: { label: "Create a Google Ads account", href: "https://ads.google.com/home/" },
+    account_not_enabled: { label: "Open Google Ads", href: "https://ads.google.com/aw/overview" },
+  },
   tiktok: { no_account: { label: "Create a TikTok ads account", href: "https://ads.tiktok.com/" } },
   youtube: { no_channel: { label: "Create a YouTube channel", href: "https://www.youtube.com/create_channel" } },
 };
