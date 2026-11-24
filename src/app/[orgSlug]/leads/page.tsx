@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Download, Loader2, Search, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { SearchableCombobox } from "@bengo-hub/shared-ui-lib/combobox";
@@ -18,13 +18,18 @@ import { apiErrorMessage } from "@/lib/api/errors";
 import { LEAD_STATUSES, leadName, leadsApi, type Lead, type LeadFilters } from "@/lib/api/leads";
 import { datedFilename, saveBlob } from "@/lib/download";
 import { leadAdSource } from "@/lib/leads/ad-source";
+import { uncontactedFor } from "@/lib/leads/lead-response-settings";
 
 const dateFmt = new Intl.DateTimeFormat("en-KE", { day: "numeric", month: "short", year: "numeric" });
 
 export default function LeadsPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const router = useRouter();
-  const [status, setStatus] = useState<string>("all");
+  // The reminder emails link to ?status=new, the leads still waiting for a reply.
+  const initialStatus = useSearchParams().get("status");
+  const [status, setStatus] = useState<string>(
+    initialStatus && (LEAD_STATUSES as readonly string[]).includes(initialStatus) ? initialStatus : "all",
+  );
   const [source, setSource] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -101,6 +106,11 @@ export default function LeadsPage() {
       render: (l) => (
         <span className="inline-flex flex-wrap gap-1.5">
           <StatusBadge status={l.status} />
+          {uncontactedFor(l.status, l.created_at) && (
+            <ToneBadge tone="warning">
+              <span title="No one has contacted this lead yet">Uncontacted for {uncontactedFor(l.status, l.created_at)}</span>
+            </ToneBadge>
+          )}
           {l.lead_type === "recruit" && <ToneBadge tone="primary">Recruit</ToneBadge>}
         </span>
       ),
