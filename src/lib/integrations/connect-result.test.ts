@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectErrorText } from "./connect-result";
+import { connectErrorHelp, connectErrorText } from "./connect-result";
 
 describe("connectErrorText", () => {
   it("explains the reasons a Meta connect returns with", () => {
@@ -18,5 +18,12 @@ describe("connectErrorText", () => {
   });
   it("returns null when there is no error", () => {
     expect(connectErrorText("meta", null)).toBeNull();
+  });
+  it("links laypeople to create the missing account", () => {
+    expect(connectErrorHelp("google_ads", "no_account")?.href).toBe("https://ads.google.com/home/");
+    expect(connectErrorHelp("tiktok", "no_account")?.href).toBe("https://ads.tiktok.com/");
+    expect(connectErrorText("tiktok", "no_account")).toContain("no TikTok ads account");
+    expect(connectErrorHelp("meta", "no_pages")).toBeNull();
+    expect(connectErrorHelp("google_ads", null)).toBeNull();
   });
 });

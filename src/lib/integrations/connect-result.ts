@@ -27,8 +27,10 @@ const reasons: Record<string, (name: string) => string> = {
       : n === "Google Ads"
       ? "Google Ads needs its permission ticked on Google's screen. Click Connect and leave it ticked."
       : `${n} needs both permissions on Google's screen: uploading videos, and managing the videos MarketFlow posts. Click Connect and leave both ticked.`,
-  no_account: () =>
-    "That Google account cannot reach a Google Ads account that runs ads. Sign in with the Google account that has access to your Google Ads account, then connect again.",
+  no_account: (n) =>
+    n === "TikTok for Business"
+      ? "That TikTok login has no TikTok ads account yet. Create one (it is free and takes a few minutes), then connect again with the same login."
+      : "That Google account cannot reach a Google Ads account that runs ads. Create a Google Ads account on this Google account (it is free to open), or sign in with the Google account that already has one, then connect again.",
   account_read_failed: () =>
     "Google Ads did not list your accounts just now. Please connect again in a few minutes.",
   no_channel: () =>
@@ -45,3 +47,16 @@ export function connectErrorText(provider: string, reason: string | null): strin
 }
 
 export const connectProviders = Object.keys(providerNames);
+
+/** Where to set up the missing account, for the errors a layperson cannot fix inside MarketFlow. */
+const helpLinks: Record<string, Record<string, { label: string; href: string }>> = {
+  google_ads: { no_account: { label: "Create a Google Ads account", href: "https://ads.google.com/home/" } },
+  tiktok: { no_account: { label: "Create a TikTok ads account", href: "https://ads.tiktok.com/" } },
+  youtube: { no_channel: { label: "Create a YouTube channel", href: "https://www.youtube.com/create_channel" } },
+};
+
+/** A sign-up link to show next to a failed connect, or null. */
+export function connectErrorHelp(provider: string, reason: string | null): { label: string; href: string } | null {
+  if (!reason) return null;
+  return helpLinks[provider]?.[reason] ?? null;
+}

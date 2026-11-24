@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProviderLogo } from "@/components/providers/provider-logo";
 import { tenantIntegrations } from "@/lib/providers/catalog";
-import { connectErrorText, connectProviders } from "@/lib/integrations/connect-result";
+import { connectErrorHelp, connectErrorText, connectProviders } from "@/lib/integrations/connect-result";
 import { ConnectedAccounts } from "@/components/providers/connected-accounts";
 import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
 import { useMyAccess } from "@/hooks/use-access";
@@ -111,8 +111,9 @@ export default function IntegrationsPage() {
       )}
       {/* Failure banners: the callback returns ?<provider>=error&reason=<code>. */}
       {connectProviders.map((p) => {
-        const text = params.get(p) === "error" ? connectErrorText(p, params.get("reason") ?? "") : null;
-        return text ? <Banner key={p} text={text} /> : null;
+        const failed = params.get(p) === "error";
+        const text = failed ? connectErrorText(p, params.get("reason") ?? "") : null;
+        return text ? <Banner key={p} text={text} help={connectErrorHelp(p, params.get("reason"))} /> : null;
       })}
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -242,7 +243,7 @@ export default function IntegrationsPage() {
   );
 }
 
-function Banner({ ok, text }: { ok?: boolean; text: string }) {
+function Banner({ ok, text, help }: { ok?: boolean; text: string; help?: { label: string; href: string } | null }) {
   return (
     <div
       className={`rounded border px-3 py-2 text-sm ${
@@ -252,6 +253,11 @@ function Banner({ ok, text }: { ok?: boolean; text: string }) {
       }`}
     >
       {ok ? "✓ " : ""}{text}
+      {help && (
+        <a href={help.href} target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-1 font-medium underline">
+          {help.label} <ExternalLink className="size-3.5" aria-hidden />
+        </a>
+      )}
     </div>
   );
 }
