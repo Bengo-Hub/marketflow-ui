@@ -20,8 +20,7 @@ export function defaultPostCaption(
   metadata: Record<string, unknown> | undefined,
   contacts: readonly string[] = [],
 ): string {
-  const parts = [caption.trim(), contacts.join("
-"), leadUrl?.trim() ?? ""].filter(Boolean);
+  const parts = [caption.trim(), contacts.join("\n"), leadUrl?.trim() ?? ""].filter(Boolean);
   const line = ppbCaptionLine(metadata);
   if (line && !parts.some((p) => p.includes(line))) parts.push(line);
   return parts.join("\n\n");
