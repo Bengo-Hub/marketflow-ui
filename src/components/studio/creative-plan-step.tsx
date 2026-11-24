@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTenantCurrency } from "@/hooks/use-tenant-profile";
+import { tenantProfileApi } from "@/lib/api/tenant-profile";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -12,7 +14,11 @@ import { formatBudget } from "@/lib/money";
 import { marketingOsApi, type CreativePlan } from "@/lib/api/marketing-os";
 import {
   briefPlan,
+  budgetToKES,
   DEFAULT_PLAN_INPUT,
+  planBudgetCurrency,
+  type PlanBudgetEntry,
+  type PlanRateState,
   optionPriceLine,
   PLAN_PLATFORMS,
   PLAN_TIERS,
@@ -34,47 +40,81 @@ export function CreativePlanStep({ onChange }: { onChange: (plan: BriefPlan | nu
   const [plan, setPlan] = useState<CreativePlan | null>(null);
   const [chosen, setChosen] = useState<number | null>(null);
 
-  const problems = planInputProblems(input);
+  // The budget is typed in the tenant's currency and converted to KES for the plan engine with
+  // treasury's rate (fresh or its last one). With no rate the field falls back to KES and says so.
+  const tenantCurrency = useTenantCurrency();
+  const needsRate = tenantCurrency.toUpperCase() !== "KES";
+  const rateQuery = useQuery({
+    queryKey: ["kes-rate", tenantCurrency],
+    queryFn: () => tenantProfileApi.kesRate(tenantCurrency),
+    enabled: needsRate,
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+  const rate: PlanRateState = !needsRate
+    ? { status: "ready", kesPer: 1 }
+    : rateQuery.data
+      ? { status: "ready", kesPer: rateQuery.data.kes_per }
+      : rateQuery.isError
+        ? { status: "missing" }
+        : { status: "loading" };
+  const { currency: budgetCurrency, note: rateNote } = planBudgetCurrency(tenantCurrency, rate);
+  const kesPer = budgetCurrency === "KES" ? 1 : rate.status === "ready" ? rate.kesPer : undefined;
+  const budgetKES = budgetToKES(budget, budgetCurrency, kesPer);
+  const entry: PlanBudgetEntry | undefined = budget != null && kesPer ? { amount: budget, currency: budgetCurrency, kes_per: kesPer } : undefined;
+  const quoteInput: PlanQuoteInput = { ...input, ad_budget_kes: budgetKES };
+
+  const rateLoading = budgetCurrency !== "KES" && rate.status === "loading";
+  const problems = rateLoading ? [] : planInputProblems(quoteInput);
   const quote = useMutation({
-    mutationFn: () => marketingOsApi.planQuote(input),
-    onSuccess: (p) => {
+    mutationFn: (body: PlanQuoteInput) => marketingOsApi.planQuote(body),
+    onSuccess: (p, body) => {
       setPlan(p);
       setChosen(0);
-      onChange(briefPlan(p, 0, input));
+      onChange(briefPlan(p, 0, body, new Date(), entry));
     },
   });
 
   // Any change to the inputs makes the quote stale: the owner asks again before choosing.
-  const update = (next: Partial<PlanQuoteInput>) => {
-    setInput((cur) => ({ ...cur, ...next }));
+  const dropQuote = () => {
     if (plan) {
       setPlan(null);
       setChosen(null);
       onChange(null);
     }
   };
+  const update = (next: Partial<PlanQuoteInput>) => {
+    setInput((cur) => ({ ...cur, ...next }));
+    dropQuote();
+  };
   const togglePlatform = (value: string, on: boolean) =>
     update({ platforms: on ? [...input.platforms, value] : input.platforms.filter((p) => p !== value) });
   const choose = (i: number) => {
     if (!plan) return;
     setChosen(i);
-    onChange(briefPlan(plan, i, input));
+    onChange(briefPlan(plan, i, quoteInput, new Date(), entry));
   };
+
+  const budgetHint =
+    rateNote ??
+    (budgetCurrency !== "KES" && Number.isFinite(budgetKES) && budgetKES > 0 && kesPer
+      ? `About ${formatBudget(budgetKES, "KES")} at 1 ${budgetCurrency} = ${formatBudget(kesPer, "KES")}. Plans are worked out in KES. 0 for posts without paid ads.`
+      : "0 for posts without paid ads.");
 
   return (
     <div className="space-y-3 rounded-lg border border-border p-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        {/* The plan engine prices in KES (ad_budget_kes), so this field is always KES. */}
-        <Field label="Ad budget" htmlFor="plan-budget" hint="0 for posts without paid ads.">
+        <Field label="Ad budget" htmlFor="plan-budget" hint={budgetHint}>
           <MoneyInput
             id="plan-budget"
-            currency="KES"
+            currency={budgetCurrency}
             wholeOnly
             min={0}
             value={budget}
+            disabled={rateLoading}
             onChange={(v) => {
               setBudget(v);
-              update({ ad_budget_kes: v == null ? Number.NaN : v });
+              dropQuote();
             }}
           />
         </Field>
@@ -110,7 +150,12 @@ export function CreativePlanStep({ onChange }: { onChange: (plan: BriefPlan | nu
           ))}
         </ul>
       )}
-      <Button size="sm" variant="outline" disabled={problems.length > 0 || quote.isPending} onClick={() => quote.mutate()}>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={rateLoading || problems.length > 0 || quote.isPending}
+        onClick={() => quote.mutate(quoteInput)}
+      >
         {quote.isPending ? "Working it out..." : plan ? "Plan again" : "Get a plan"}
       </Button>
       {quote.isError && <p className="text-xs text-destructive">{apiErrorMessage(quote.error, "Could not work out a plan right now.")}</p>}

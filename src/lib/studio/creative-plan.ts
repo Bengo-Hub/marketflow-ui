@@ -37,12 +37,48 @@ export const DEFAULT_PLAN_INPUT: PlanQuoteInput = { ad_budget_kes: 0, days: 7, p
 export function planInputProblems(in_: PlanQuoteInput): string[] {
   const out: string[] = [];
   if (!Number.isFinite(in_.ad_budget_kes) || in_.ad_budget_kes < 0 || !Number.isInteger(in_.ad_budget_kes)) {
-    out.push("The ad budget is a whole amount in KES, 0 for no paid ads.");
+    out.push("Enter the ad budget as a whole amount, 0 for no paid ads.");
   }
   if (!Number.isInteger(in_.days) || in_.days < 1 || in_.days > 366) out.push("The period is 1 to 366 days.");
   if (in_.platforms.length === 0) out.push("Choose at least one place for the ads.");
   if (!PLAN_TIERS.some((t) => t.value === in_.tier)) out.push("Choose what to make.");
   return out;
+}
+
+/**
+ * The budget as the owner typed it. The plan engine prices in KES, so a budget in the tenant's
+ * own currency is converted with treasury's rate (marketflow-api GET /tenant/profile/kes-rate)
+ * before the quote, and the brief keeps what was typed beside the KES amount.
+ */
+export interface PlanBudgetEntry {
+  amount: number;
+  currency: string;
+  /** KES per unit of currency used for the conversion (1 for KES). */
+  kes_per: number;
+}
+
+/** Where the rate for the tenant's currency stands. */
+export type PlanRateState = { status: "loading" } | { status: "ready"; kesPer: number } | { status: "missing" };
+
+/**
+ * The currency the budget is typed in: the tenant's own when it is KES or treasury has a rate,
+ * else KES (the plan engine's currency), with a note saying why.
+ */
+export function planBudgetCurrency(tenantCurrency: string, rate: PlanRateState): { currency: string; note?: string } {
+  const cur = (tenantCurrency || "KES").toUpperCase();
+  if (cur === "KES") return { currency: "KES" };
+  if (rate.status === "missing") {
+    return { currency: "KES", note: `There is no ${cur} exchange rate right now, so enter the budget in KES.` };
+  }
+  return { currency: cur };
+}
+
+/** The KES amount for the quote: whole KES, NaN when there is no usable rate or amount. */
+export function budgetToKES(amount: number | null, currency: string, kesPer: number | undefined): number {
+  if (amount == null || !Number.isFinite(amount)) return Number.NaN;
+  if (currency.toUpperCase() === "KES") return Math.round(amount);
+  if (!kesPer || !Number.isFinite(kesPer) || kesPer <= 0) return Number.NaN;
+  return Math.round(amount * kesPer);
 }
 
 /** The plan's options in the order shown: the recommended one first. */
@@ -60,14 +96,23 @@ export interface BriefPlan {
   max_live_ads: number;
   daily_per_ad_kes?: number;
   notes?: string[];
+  /** The budget as typed when it was not KES (input.ad_budget_kes is its KES amount). */
+  budget_entry?: PlanBudgetEntry;
   quoted_at: string;
 }
 
 /** The metadata.plan for the option at index (0 is the recommended one); null for an index out of range. */
-export function briefPlan(plan: CreativePlan, index: number, input: PlanQuoteInput, now: Date = new Date()): BriefPlan | null {
+export function briefPlan(
+  plan: CreativePlan,
+  index: number,
+  input: PlanQuoteInput,
+  now: Date = new Date(),
+  entry?: PlanBudgetEntry,
+): BriefPlan | null {
   const option = planOptions(plan)[index];
   if (!option) return null;
   return {
+    ...(entry && entry.currency.toUpperCase() !== "KES" ? { budget_entry: entry } : {}),
     input,
     option,
     recommended: index === 0,

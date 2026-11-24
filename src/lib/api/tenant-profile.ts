@@ -1,6 +1,7 @@
 import { apiClient } from "./client";
 import type { PublicMetadata } from "./public";
 import type { BusinessTypeOption } from "@/lib/business-types";
+import type { LeadFilterResponse, LeadFilterWords } from "@/lib/leads/lead-filter-settings";
 
 /** GET/PATCH /api/v1/tenant/profile (marketflow-api tenant.Handler). */
 export interface TenantProfile {
@@ -47,7 +48,16 @@ export interface TenantProfileUpdate {
     business_city?: string;
     /** The owner's currency; null or "" goes back to the country or platform default. */
     currency?: string | null;
+    /** Item 61: the tenant's own words that mark a submission as not a lead; null clears them. */
+    lead_filter?: Partial<LeadFilterWords> | null;
   };
+}
+
+/** GET /api/v1/tenant/profile/kes-rate: KES per unit of a currency (treasury's rate). */
+export interface KESRate {
+  currency: string;
+  kes_per: number;
+  source: "treasury" | "same";
 }
 
 export const tenantProfileApi = {
@@ -58,4 +68,11 @@ export const tenantProfileApi = {
     apiClient
       .get<{ business_types: BusinessTypeOption[] }>("/api/v1/tenant/profile/business-types")
       .then((r) => r.data.business_types ?? []),
+  /** The platform's lead filter words (read only) and the tenant's own (item 61). */
+  leadFilter: () => apiClient.get<LeadFilterResponse>("/api/v1/tenant/profile/lead-filter").then((r) => r.data),
+  /** KES per unit of currency (default the tenant's); 503 no_rate when treasury has none. */
+  kesRate: (currency?: string) =>
+    apiClient
+      .get<KESRate>("/api/v1/tenant/profile/kes-rate", { params: currency ? { currency } : undefined })
+      .then((r) => r.data),
 };
