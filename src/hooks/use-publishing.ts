@@ -70,7 +70,8 @@ export function useDeleteFromPlatform() {
 export function useMovePost() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, scheduledAt }: { id: string; scheduledAt: string }) => publishingApi.move(id, scheduledAt),
+    mutationFn: ({ id, scheduledAt, bestTime }: { id: string; scheduledAt: string; bestTime?: boolean }) =>
+      publishingApi.move(id, scheduledAt, bestTime),
     onSuccess: () => {
       toast.success("Post moved");
       void qc.invalidateQueries({ queryKey: ["publish-jobs"] });

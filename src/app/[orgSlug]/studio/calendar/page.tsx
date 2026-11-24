@@ -12,10 +12,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
 import { useMyAccess } from "@/hooks/use-access";
-import { useCancelPost, useMovePost, usePublishAccounts, usePublishJobs, useRetryPost } from "@/hooks/use-publishing";
+import { useBestTimes, useCancelPost, useMovePost, usePublishAccounts, usePublishJobs, useRetryPost } from "@/hooks/use-publishing";
 import { isRestricted } from "@/lib/access/role-access";
 import { apiErrorMessage } from "@/lib/api/errors";
-import { JOB_STATUS_LABEL, PLATFORM_LABEL, type JobStatus, type PublishJob } from "@/lib/api/publishing";
+import { JOB_STATUS_LABEL, PLATFORM_LABEL, windowLabel, type JobStatus, type PublishJob } from "@/lib/api/publishing";
+
+const bestTimeFmt = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
 
 type Range = "upcoming" | "past";
 
@@ -124,14 +126,27 @@ export default function PublishingCalendarPage() {
 
 function MoveForm({ job: j, onDone }: { job: PublishJob; onDone: () => void }) {
   const move = useMovePost();
+  const plan = useBestTimes();
   const [when, setWhen] = useState(() => toLocalInput(new Date(j.planned_at)));
   const [openedAt] = useState(() => Date.now());
   const picked = new Date(when).getTime();
+  const info = plan.data?.platforms[j.platform];
   return (
     <div className="space-y-4">
       <Field label="New date and time" htmlFor="move-when">
         <Input id="move-when" type="datetime-local" value={when} min={toLocalInput(new Date(openedAt))} onChange={(e) => setWhen(e.target.value)} />
       </Field>
+      {info && (
+        <div className="space-y-1 rounded-lg bg-muted/40 p-2 text-xs text-muted-foreground">
+          <p>
+            <span className="font-medium text-foreground">{PLATFORM_LABEL[j.platform]}</span> best times: {info.windows.map(windowLabel).join("; ")}
+            {plan.data ? ` (${plan.data.timezone})` : ""}.
+          </p>
+          <button type="button" className="text-primary hover:underline" onClick={() => setWhen(toLocalInput(new Date(info.next_best_time)))}>
+            Use the next best time, {bestTimeFmt.format(new Date(info.next_best_time))}
+          </button>
+        </div>
+      )}
       {move.isError && (
         <p role="alert" className="text-sm text-destructive">
           {apiErrorMessage(move.error, "Could not move the post.")}
@@ -144,6 +159,20 @@ function MoveForm({ job: j, onDone }: { job: PublishJob; onDone: () => void }) {
         >
           {move.isPending ? "Moving..." : "Move post"}
         </Button>
+        {info && (
+          <Button
+            variant="outline"
+            disabled={move.isPending}
+            onClick={() =>
+              move.mutate(
+                { id: j.id, scheduledAt: new Date(picked > openedAt ? when : Date.now()).toISOString(), bestTime: true },
+                { onSuccess: onDone },
+              )
+            }
+          >
+            Move to the best time after this
+          </Button>
+        )}
         <Button variant="ghost" onClick={onDone}>
           Cancel
         </Button>

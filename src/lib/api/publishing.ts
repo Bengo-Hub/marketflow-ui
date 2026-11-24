@@ -113,7 +113,9 @@ export const publishingApi = {
     apiClient.get<JobPage>(`${base}/jobs`, { params: { ...params, limit: 50 } }).then((r) => r.data),
   cancel: (id: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/cancel`).then((r) => r.data),
   retry: (id: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/retry`).then((r) => r.data),
-  move: (id: string, scheduledAt: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/move`, { scheduled_at: scheduledAt }).then((r) => r.data),
+  /** bestTime moves it to its platform's next best-time window at or after scheduledAt (server-side, the posting plan). */
+  move: (id: string, scheduledAt: string, bestTime = false) =>
+    apiClient.post<PublishJob>(`${base}/jobs/${id}/move`, { scheduled_at: scheduledAt, best_time: bestTime || undefined }).then((r) => r.data),
   /** Deletes a published post from its platform; repeating it answers the same job. */
   deleteFromPlatform: (id: string) => apiClient.post<PublishJob>(`${base}/jobs/${id}/delete-from-platform`).then((r) => r.data),
   /** The posting plan: best-time windows and cadence per platform (marketflow-api postingplan). */
