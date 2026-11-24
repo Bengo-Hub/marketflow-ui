@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Lock } from "lucide-react";
 import { createPublicLead } from "@/lib/api/public";
 import type { FunnelField } from "./types";
 
@@ -19,9 +19,18 @@ export function FunnelForm({
   ctaText,
   fields,
   variant,
+  id,
+  prominent = false,
+  businessName,
 }: {
   tenantSlug: string;
   funnelSlug: string;
+  /** The anchor the page's sticky call to action scrolls to. */
+  id?: string;
+  /** The page's main form: one column, a full-width button and the privacy line under it. */
+  prominent?: boolean;
+  /** Names who will reply, in the privacy line and the thank-you note. */
+  businessName?: string;
   /** The A/B version the visitor saw (Sprint 7 #53), recorded on the lead. */
   variant?: "a" | "b";
   title?: string;
@@ -74,26 +83,31 @@ export function FunnelForm({
     }
   }
 
+  const shell = prominent
+    ? "scroll-mt-6 rounded-[1.5rem] border border-border/70 bg-card p-5 shadow-soft ring-1 ring-primary/10 sm:p-7"
+    : "glass scroll-mt-6 rounded-[1.5rem] p-6 sm:p-8";
+  const span = prominent ? "" : "md:col-span-2";
+
   if (done) {
     return (
-      <section role="status" className="glass rounded-[1.5rem] p-8 text-center">
+      <section id={id} role="status" className={`${shell} text-center`}>
         <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
         <h2 className="mt-3 font-display text-xl font-semibold">Thank you, we have your details</h2>
-        <p className="mt-1 text-sm text-muted-foreground">We will be in touch shortly.</p>
+        <p className="mt-1 text-sm text-muted-foreground">{businessName ? `${businessName} will be in touch shortly.` : "We will be in touch shortly."}</p>
       </section>
     );
   }
 
   return (
-    <section className="glass rounded-[1.5rem] p-6 sm:p-8">
+    <section id={id} className={shell}>
       {title && <h2 className="font-display text-xl font-semibold">{title}</h2>}
       {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
-      <form onSubmit={onSubmit} className="mt-6 grid gap-4 md:grid-cols-2" noValidate={false}>
+      <form onSubmit={onSubmit} className={`mt-5 grid gap-4 ${prominent ? "" : "md:grid-cols-2"}`} noValidate={false}>
         {fields.map((f) => {
           const type = INPUT_TYPES.has(f.type ?? "") ? f.type : "text";
           const id = `ff-${f.key}`;
           return (
-            <label key={f.key} htmlFor={id} className={f.type === "textarea" ? "block md:col-span-2" : "block"}>
+            <label key={f.key} htmlFor={id} className={f.type === "textarea" ? `block ${span}` : "block"}>
               <span className="mb-1.5 block text-sm font-medium">
                 {f.label}
                 {f.required && <span className="ml-1 text-destructive">*</span>}
@@ -112,6 +126,7 @@ export function FunnelForm({
                 <input
                   id={id}
                   type={type}
+                  inputMode={type === "tel" ? "tel" : type === "email" ? "email" : undefined}
                   required={f.required}
                   placeholder={f.placeholder}
                   autoComplete={f.key === "email" ? "email" : f.key === "phone" ? "tel" : f.key === "first_name" ? "given-name" : f.key === "last_name" ? "family-name" : undefined}
@@ -124,7 +139,7 @@ export function FunnelForm({
           );
         })}
         {asksPhone && (
-          <label className="flex min-h-11 items-start gap-3 text-sm md:col-span-2">
+          <label className={`flex min-h-11 items-start gap-3 text-sm ${span}`}>
             <input
               type="checkbox"
               checked={waConsent}
@@ -135,19 +150,27 @@ export function FunnelForm({
           </label>
         )}
         {error && (
-          <p role="alert" className="text-sm text-destructive md:col-span-2">
+          <p role="alert" className={`text-sm text-destructive ${span}`}>
             {error}
           </p>
         )}
-        <div className="md:col-span-2">
+        <div className={span}>
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-7 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary-dark disabled:opacity-60"
+            className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-7 text-base font-semibold text-primary-foreground shadow-soft transition-colors hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60 ${
+              prominent ? "w-full" : "w-full sm:w-auto"
+            }`}
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {submitting ? "Sending..." : ctaText || "Send"}
           </button>
+          {prominent && (
+            <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+              <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {businessName ? `Only ${businessName} sees your details, to reply to you.` : "Your details are used only to reply to you."}
+            </p>
+          )}
         </div>
       </form>
     </section>
