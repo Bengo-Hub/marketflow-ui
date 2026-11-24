@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog, Field, GlassPanel, ToneBadge } from "@/components/ui-kit";
+import { FacePicker } from "@/components/studio/face-picker";
 import { BoostDialog } from "@/components/studio/boost-dialog";
 import { RunAdsDialog } from "@/components/studio/run-ads-dialog";
 import { BrandImagesRequired } from "@/components/media/brand-images-required";
@@ -163,6 +164,8 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
   const { isPlatformOwner, isSubscriptionExempt } = useSubscription();
   const showUSD = !!(isPlatformOwner || isSubscriptionExempt);
   const [newActor, setNewActor] = useState("");
+  const [newFace, setNewFace] = useState<string | undefined>(undefined);
+  const currentFace = typeof version.metadata?.face_id === "string" ? version.metadata.face_id : "";
   const render = useRenderVideoAd(briefId);
   const shape = aspectClass(version.format);
   const wide = version.format === "1920x1080";
@@ -348,7 +351,12 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
                   <Field label="New presenter (optional description)" htmlFor={`actor-${version.id}`} hint="Leave empty to redraw from the same description.">
                     <Input id={`actor-${version.id}`} maxLength={300} value={newActor} onChange={(e) => setNewActor(e.target.value)} />
                   </Field>
-                  <Button variant="outline" disabled={redraw.isPending} onClick={() => redraw.mutate({ id: version.id, actorPrompt: newActor.trim() })}>
+                  <FacePicker value={newFace ?? currentFace} onChange={setNewFace} />
+                  <Button
+                    variant="outline"
+                    disabled={redraw.isPending}
+                    onClick={() => redraw.mutate({ id: version.id, actorPrompt: newActor.trim(), faceId: newFace })}
+                  >
                     {redraw.isPending ? "Starting..." : "Draw a new presenter"}
                   </Button>
                 </div>

@@ -17,6 +17,7 @@ import { AIFieldButton } from "@/components/marketing-os/ai-field-button";
 import { ActorNamesFields } from "@/components/marketing-os/actor-names-fields";
 import { AILabelPanel } from "@/components/marketing-os/ai-label-panel";
 import { ContactProfilesPanel } from "@/components/marketing-os/contact-profiles-panel";
+import { BrandFacesPanel } from "@/components/media/brand-faces-panel";
 import { BrandImagesPanel } from "@/components/media/brand-images-panel";
 import { ScreenshotsPanel } from "@/components/media/screenshots-panel";
 import { brandFormValues, mergeItems } from "@/lib/brand-form";
@@ -255,6 +256,13 @@ function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string })
         description="When a video scene shows a laptop, tablet, till or phone, your real screen goes on it. We never draw an invented screen. No screenshots, nothing changes."
       >
         <ScreenshotsPanel />
+      </GlassPanel>
+
+      <GlassPanel
+        title="Brand faces"
+        description="Let your AI presenter look like people in your own pictures who agreed. Each person is a consent record you can end at any time."
+      >
+        <BrandFacesPanel />
       </GlassPanel>
 
       <AILabelPanel />

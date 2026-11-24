@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SearchableCombobox } from "@bengo-hub/shared-ui-lib/combobox";
 import { BrandImagesRequired } from "@/components/media/brand-images-required";
+import { FacePicker } from "@/components/studio/face-picker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,7 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
   const [delivery, setDelivery] = useState<Delivery>("ad");
   const [voice, setVoice] = useState("");
   const [actor, setActor] = useState("");
+  const [face, setFace] = useState("");
   const [photos, setPhotos] = useState(offerPhotos.join("\n"));
   const [clips, setClips] = useState("");
   const [music, setMusic] = useState("");
@@ -73,6 +75,7 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
             delivery,
             voice: voice || undefined,
             actor_prompt: presenter && actor.trim() ? actor.trim() : undefined,
+            face_id: presenter && face ? face : undefined,
             photo_urls: photoList,
             footage_urls: clipList,
             music_url: musicURL || undefined,
@@ -141,6 +144,7 @@ export function VideoAdForm({ brief }: { brief: CreativeBrief }) {
             <Input id="va-actor" value={actor} maxLength={300} placeholder="A warm Kenyan mother in her thirties" onChange={(e) => setActor(e.target.value)} />
           </Field>
         )}
+        {presenter && <FacePicker value={face} onChange={setFace} />}
         <Field label="Your photos" htmlFor="va-photos" hint={`Links, one per line, up to ${MAX_PHOTOS}. Product scenes always show your own photos.`}>
           <Textarea id="va-photos" rows={3} value={photos} onChange={(e) => setPhotos(e.target.value)} />
         </Field>

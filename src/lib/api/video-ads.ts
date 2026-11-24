@@ -24,6 +24,8 @@ export interface VideoAdInput {
   voice_gender?: "female" | "male";
   voice_accent?: string;
   actor_prompt?: string;
+  /** A person who agreed to be the presenter's look (brand faces). */
+  face_id?: string;
   photo_urls?: string[];
   footage_urls?: string[];
   cta?: string;
@@ -237,9 +239,10 @@ export const videoAdsApi = {
     apiClient.put<CreativeVersion>(`${base}/versions/${id}/script`, data).then((r) => r.data),
   storyboard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/storyboard`).then((r) => r.data),
   /** A new storyboard with a newly drawn presenter (optionally from a new description). */
-  redrawActor: ({ id, actorPrompt }: { id: string; actorPrompt?: string }) =>
+  redrawActor: ({ id, actorPrompt, faceId }: { id: string; actorPrompt?: string; faceId?: string }) =>
     apiClient
-      .post<CreativeVersion>(`${base}/versions/${id}/storyboard`, { redraw_actor: true, actor_prompt: actorPrompt || undefined })
+      // face_id "" goes back to a presenter not modelled on anyone; leaving it out keeps the choice.
+      .post<CreativeVersion>(`${base}/versions/${id}/storyboard`, { redraw_actor: true, actor_prompt: actorPrompt || undefined, face_id: faceId })
       .then((r) => r.data),
   approveStoryboard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/storyboard/approve`).then((r) => r.data),
   /** The end card preview made again over its own still: new words, contacts or logo plate, nothing redrawn or charged. */

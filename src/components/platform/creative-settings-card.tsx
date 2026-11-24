@@ -101,6 +101,22 @@ export function validateScreens(v: string): string | null {
   return null;
 }
 
+/** The brand face limits: enabled, up to 20 people and up to 1095 days. */
+export function validateBrandFaces(v: string): string | null {
+  if (!v.trim()) return null;
+  let f: { enabled?: unknown; max_faces?: unknown; max_days?: unknown };
+  try {
+    f = JSON.parse(v);
+  } catch {
+    return "Not valid JSON.";
+  }
+  if (!f || typeof f !== "object" || Array.isArray(f) || typeof f.enabled !== "boolean") return "enabled must be true or false.";
+  const within = (n: unknown, max: number) => n === undefined || (Number.isInteger(n) && Number(n) >= 1 && Number(n) <= max);
+  if (!within(f.max_faces, 20)) return "max_faces is 1 to 20.";
+  if (!within(f.max_days, 1095)) return "max_days is 1 to 1095.";
+  return null;
+}
+
 export const CREATIVE_SETTINGS: CreativeSetting[] = [
   {
     key: "creative.discard_purge_after",
@@ -155,6 +171,13 @@ export const CREATIVE_SETTINGS: CreativeSetting[] = [
     hint: 'JSON: {"enabled": true, "max_scenes": 2}. A scene showing a laptop, tablet, till or phone carries one of the tenant\'s own screenshots. Nothing happens for a tenant with none.',
     fallback: '{"enabled": true, "max_scenes": 2}',
     validate: validateScreens,
+  },
+  {
+    key: "creative.brand_faces",
+    label: "Brand faces",
+    hint: 'JSON: {"enabled": true, "max_faces": 5, "max_days": 365}. enabled false stops every face at once; a tenant still has to opt in and record each person\'s consent.',
+    fallback: '{"enabled": true, "max_faces": 5, "max_days": 365}',
+    validate: validateBrandFaces,
   },
   {
     key: "creative.landmark_lookup",
