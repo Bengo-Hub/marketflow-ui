@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CREATIVE_SETTINGS, validateContacts, validateDiscardWindow, validateLandmarks, windowHours } from "./creative-settings-card";
+import { CREATIVE_SETTINGS, validateContacts, validateBranding, validateDiscardWindow, validateLandmarks, windowHours } from "./creative-settings-card";
 import { fileNameFrom } from "@/lib/api/creative";
 import { creditCeilingProblem } from "@/lib/api/autopilot";
 
@@ -48,5 +48,17 @@ describe("downloads and budgets", () => {
     expect(creditCeilingProblem(0)).not.toBeNull();
     expect(creditCeilingProblem(5001)).not.toBeNull();
     expect(creditCeilingProblem(1.5)).not.toBeNull();
+  });
+});
+
+describe("in-scene branding", () => {
+  it("checks the branding rules", () => {
+    expect(validateBranding("")).toBeNull();
+    expect(validateBranding('{"enabled": true, "max_scenes": 2, "kinds": ["presenter"], "max_width": 0.15}')).toBeNull();
+    expect(validateBranding('{"enabled": false}')).toBeNull();
+    expect(validateBranding('{"max_scenes": 2}')).toContain("enabled");
+    expect(validateBranding('{"enabled": true, "max_scenes": 5}')).toContain("max_scenes");
+    expect(validateBranding('{"enabled": true, "kinds": ["product"]}')).toContain("kinds");
+    expect(validateBranding('{"enabled": true, "max_width": 0.9}')).toContain("max_width");
   });
 });

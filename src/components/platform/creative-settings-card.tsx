@@ -66,6 +66,27 @@ export function validateLandmarks(v: string): string | null {
   return null;
 }
 
+const BRANDING_KINDS = ["establishing", "presenter", "end_card"];
+
+/** The in-scene branding rules: enabled, up to 3 scenes, known kinds and a logo width share of 0.05 to 0.3. */
+export function validateBranding(v: string): string | null {
+  if (!v.trim()) return null;
+  let b: { enabled?: unknown; max_scenes?: unknown; kinds?: unknown; max_width?: unknown };
+  try {
+    b = JSON.parse(v);
+  } catch {
+    return "Not valid JSON.";
+  }
+  if (!b || typeof b !== "object" || Array.isArray(b)) return "Use an object like {\"enabled\": true}.";
+  if (typeof b.enabled !== "boolean") return "enabled must be true or false.";
+  if (b.max_scenes !== undefined && (typeof b.max_scenes !== "number" || b.max_scenes < 1 || b.max_scenes > 3)) return "max_scenes is 1 to 3.";
+  if (b.kinds !== undefined && (!Array.isArray(b.kinds) || b.kinds.some((k) => !BRANDING_KINDS.includes(String(k))))) {
+    return `kinds are ${BRANDING_KINDS.join(", ")}.`;
+  }
+  if (b.max_width !== undefined && (typeof b.max_width !== "number" || b.max_width < 0.05 || b.max_width > 0.3)) return "max_width is 0.05 to 0.3.";
+  return null;
+}
+
 export const CREATIVE_SETTINGS: CreativeSetting[] = [
   {
     key: "creative.discard_purge_after",
@@ -105,6 +126,14 @@ export const CREATIVE_SETTINGS: CreativeSetting[] = [
     hint: "true lays the logo small in the calmer top corner of every scene; the end card always shows it in full.",
     fallback: "true",
     validate: (v) => (v.trim() && !["true", "false"].includes(v.trim().toLowerCase()) ? "Use true or false." : null),
+  },
+  {
+    key: "creative.branding",
+    label: "Logo in the scenes",
+    hint: 'JSON: {"enabled": true, "max_scenes": 3, "kinds": ["establishing", "presenter", "end_card"], "max_width": 0.18}. The real logo is printed on a blank banner or wall panel in up to 3 key scenes, never on product close-ups, and only when the self-review passes it.',
+    fallback: "",
+    multiline: true,
+    validate: validateBranding,
   },
   {
     key: "creative.landmark_lookup",
@@ -169,7 +198,7 @@ export function CreativeSettingsCard({ tenantId }: { tenantId: string | null }) 
                     value={value}
                     rows={6}
                     className="font-mono text-xs"
-                    placeholder="Empty keeps the built-in landmarks"
+                    placeholder="Empty keeps the built-in default"
                     onChange={(e) => setEdits((v) => ({ ...v, [s.key]: e.target.value }))}
                   />
                 ) : (
