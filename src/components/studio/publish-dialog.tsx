@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, ToneBadge } from "@/components/ui-kit";
 import { useBestTimes, usePublishAccounts, useSchedulePost } from "@/hooks/use-publishing";
+import { useTenantProfile } from "@/hooks/use-tenant-profile";
+import { aiLabelOn } from "@/lib/ai-label";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { CAPTION_LIMIT, PLATFORM_LABEL, publishingApi, windowLabel, type PublishAccount } from "@/lib/api/publishing";
 
@@ -48,7 +50,12 @@ export function PublishDialog({
   const accounts = usePublishAccounts(open);
   const schedule = useSchedulePost();
   const [picked, setPicked] = useState<string[]>([]);
-  const [caption, setCaption] = useState(defaultCaption ?? "");
+  // Until it is edited the caption follows the default, which gains the contacts once they load.
+  const [edited, setCaption] = useState<string | null>(null);
+  const caption = edited ?? defaultCaption ?? "";
+  const profile = useTenantProfile();
+  const [aiTick, setAITick] = useState<boolean | null>(null);
+  const ai = aiTick ?? aiLabelOn(profile.data?.metadata);
   const [later, setLater] = useState(false);
   // "Now" is fixed when the dialog opens, so render stays pure; the server moves a past time to now.
   const [openedAt] = useState(() => Date.now());
@@ -102,6 +109,7 @@ export function PublishDialog({
         scheduled_at: later ? whenDate.toISOString() : undefined,
         best_time: bestTime || undefined,
         made_for_kids: youtube && kids,
+        ai_generated: ai,
         ...(tiktokAccount && creator.data
           ? { tiktok: tiktokOptions(tiktokDraft, creator.data), tiktok_consent: tiktokConsent }
           : {}),
@@ -121,7 +129,7 @@ export function PublishDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Post this video</DialogTitle>
-          <DialogDescription>It goes to your own pages and channels, labelled as AI-made where the platform asks for it.</DialogDescription>
+          <DialogDescription>It goes to your own pages and channels.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -221,6 +229,16 @@ export function PublishDialog({
               </div>
             )}
           </div>
+
+          <label className="flex items-start gap-2 text-sm">
+            <Checkbox className="mt-0.5" checked={ai} onCheckedChange={(on) => setAITick(on === true)} />
+            <span>
+              Made with AI
+              <span className="block text-xs text-muted-foreground">
+                Turns on each platform&apos;s own AI label for this post. Meta, TikTok and YouTube ask for it on realistic AI video.
+              </span>
+            </span>
+          </label>
 
           {youtube && (
             <label className="flex items-start gap-2 text-sm">

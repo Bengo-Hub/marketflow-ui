@@ -1,5 +1,5 @@
 /**
- * The Studio publish dialog's default caption: the ad's words, the lead page link, and for a
+ * The Studio publish dialog's default caption: the ad's words, the end card's contacts, the lead page link, and for a
  * pharmacy's medicine ad its PPB approval line (pharmacy hand-off 2026-11-14), so the post always
  * shows "PPB approval ref. ...". The line comes from the approved version's
  * metadata.ppb_approval.caption_line (marketflow-api creative.MetaPPBApproval).
@@ -14,8 +14,14 @@ export function ppbCaptionLine(metadata: Record<string, unknown> | undefined): s
 }
 
 /** Joins the caption parts with blank lines; the PPB line always comes last and only once. */
-export function defaultPostCaption(caption: string, leadUrl: string | undefined, metadata: Record<string, unknown> | undefined): string {
-  const parts = [caption.trim(), leadUrl?.trim() ?? ""].filter(Boolean);
+export function defaultPostCaption(
+  caption: string,
+  leadUrl: string | undefined,
+  metadata: Record<string, unknown> | undefined,
+  contacts: readonly string[] = [],
+): string {
+  const parts = [caption.trim(), contacts.join("
+"), leadUrl?.trim() ?? ""].filter(Boolean);
   const line = ppbCaptionLine(metadata);
   if (line && !parts.some((p) => p.includes(line))) parts.push(line);
   return parts.join("\n\n");

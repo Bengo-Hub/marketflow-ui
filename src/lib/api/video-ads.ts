@@ -250,6 +250,8 @@ export const videoAdsApi = {
   /** Approves the generation plan the quote showed (and the storyboard with it). */
   approvePlan: ({ id, fingerprint }: { id: string; fingerprint: string }) =>
     apiClient.post<CreativeVersion>(`${base}/versions/${id}/storyboard/approve`, { plan_fingerprint: fingerprint }).then((r) => r.data),
+  /** The end card's contacts as caption lines (marketflow-api creative.ContactLines). */
+  captionContacts: (id: string) => apiClient.get<{ lines: string[] }>(`${base}/versions/${id}/caption-contacts`).then((r) => r.data.lines),
   quote: (id: string) => apiClient.get<VideoAdQuote>(`${base}/versions/${id}/quote`).then((r) => r.data),
   render: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/render`).then((r) => r.data),
   revision: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/revision`).then((r) => r.data),

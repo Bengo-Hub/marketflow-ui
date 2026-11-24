@@ -28,3 +28,12 @@ describe("adWords", () => {
     expect(adWords(undefined)).toBe("");
   });
 });
+
+describe("caption contacts", () => {
+  it("puts the end card's contacts between the ad's words and the link", () => {
+    expect(defaultPostCaption("Digitika\nMessage us", "https://x.test/f/a", undefined, ["WhatsApp: +254 700 000 000", "Email: a@x.test"])).toBe(
+      "Digitika\nMessage us\n\nWhatsApp: +254 700 000 000\nEmail: a@x.test\n\nhttps://x.test/f/a",
+    );
+    expect(defaultPostCaption("Digitika", undefined, undefined, [])).toBe("Digitika");
+  });
+});

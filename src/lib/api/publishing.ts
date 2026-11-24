@@ -60,6 +60,8 @@ export interface ScheduleInput {
   /** Moves each platform's post to its next best-time window at or after scheduled_at (or now). */
   best_time?: boolean;
   made_for_kids: boolean;
+  /** Each platform's own AI label on this post; omitted follows the business's setting. */
+  ai_generated?: boolean;
   /** Required when a TikTok account is picked. */
   tiktok?: TikTokOptions;
   /** The person agreed to TikTok's Music Usage Confirmation (and Branded Content Policy). */
