@@ -1062,6 +1062,29 @@ const researchProviders: ProviderDef[] = [
   },
 ];
 
+// ── Billing page (paid providers) ─────────────────────────────────────────
+
+/**
+ * The platform pays the AI, media and research providers directly, so a balance alert links to
+ * the provider's own billing page. Every keyed provider in those groups gets this field; empty
+ * uses marketflow-api's default for that provider, shown as the placeholder.
+ */
+export const BILLING_URL_FIELD: ProviderField = {
+  key: "billing_url",
+  label: "Billing page",
+  type: "url",
+  advanced: true,
+  help: "Where balance alerts send you to add funds. Empty uses the provider's own billing page.",
+};
+
+export function withBillingPage(list: ProviderDef[]): ProviderDef[] {
+  return list.map((p) =>
+    p.scope === "platform" && p.fields.some((f) => f.key === "api_key") && !p.fields.some((f) => f.key === BILLING_URL_FIELD.key)
+      ? { ...p, fields: [...p.fields, BILLING_URL_FIELD] }
+      : p,
+  );
+}
+
 // ── Categorised export for the Platform UI ────────────────────────────────
 
 export const providerCatalog: ProviderCategory[] = [
@@ -1069,7 +1092,7 @@ export const providerCatalog: ProviderCategory[] = [
     id: "ai",
     label: "AI & intelligence",
     description: "Language models, embeddings, and live web search used by agentic RAG.",
-    providers: aiProviders,
+    providers: withBillingPage(aiProviders),
   },
   {
     id: "ads",
@@ -1081,13 +1104,13 @@ export const providerCatalog: ProviderCategory[] = [
     id: "media",
     label: "Media generation",
     description: "Creative Studio providers: images, video, voice and assembly. Pay as you go first.",
-    providers: mediaProviders,
+    providers: withBillingPage(mediaProviders),
   },
   {
     id: "research",
     label: "Market research",
     description: "Competitor ads and customer complaints for Find, Flip, Fix. Free tiers first.",
-    providers: researchProviders,
+    providers: withBillingPage(researchProviders),
   },
   {
     id: "scheduling",

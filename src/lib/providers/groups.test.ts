@@ -55,8 +55,14 @@ describe("sectionsFor", () => {
 describe("card layout", () => {
   it("hides endpoints behind Advanced but never a required field", () => {
     const groq = findProvider("ai_llm", "groq")!;
-    expect(groq.fields.filter(isAdvancedField).map((f) => f.key)).toEqual(["base_url"]);
+    expect(groq.fields.filter(isAdvancedField).map((f) => f.key)).toEqual(["base_url", "billing_url"]);
     expect(isAdvancedField({ key: "base_url", label: "Base URL", type: "url", required: true })).toBe(false);
+  });
+  it("gives every paid platform provider a billing page field, and config-only cards none", () => {
+    for (const [type, id] of [["ai_llm", "openai"], ["ai_llm", "anthropic"], ["media", "fal"], ["media", "higgsfield"], ["media", "elevenlabs"]]) {
+      expect(findProvider(type, id)!.fields.filter((f) => f.key === "billing_url")).toHaveLength(1);
+    }
+    expect(findProvider("ai_routing", "policy")!.fields.some((f) => f.key === "billing_url")).toBe(false);
   });
   it("gives JSON and long settings cards the full row", () => {
     expect(isWideCard(findProvider("ai_routing", "policy")!)).toBe(true);

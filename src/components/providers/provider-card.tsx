@@ -93,10 +93,13 @@ export function ProviderCard({
   const settingsQ = useQuery({
     queryKey: ["provider-settings", provider.type, provider.id],
     queryFn: async () => {
-      const r = await apiClient.get<{ data: { key: string; value: string; is_secret: boolean; is_encrypted: boolean }[] }>(
+      const r = await apiClient.get<{
+        data: { key: string; value: string; is_secret: boolean; is_encrypted: boolean }[];
+        defaults?: Record<string, string>;
+      }>(
         `/api/v1/admin/providers/settings?type=${encodeURIComponent(provider.type)}&name=${encodeURIComponent(provider.id)}`,
       );
-      return r.data.data ?? [];
+      return { rows: r.data.data ?? [], defaults: r.data.defaults ?? {} };
     },
     enabled: configured,
   });
@@ -112,7 +115,7 @@ export function ProviderCard({
   const initial = useMemo(() => {
     const out: Record<string, string> = {};
     for (const f of provider.fields) if (f.default !== undefined) out[f.key] = f.default;
-    for (const s of settingsQ.data ?? []) {
+    for (const s of settingsQ.data?.rows ?? []) {
       if (!s.is_secret && !s.is_encrypted) out[s.key] = s.value;
     }
     return out;
@@ -224,7 +227,7 @@ export function ProviderCard({
         id={`${cardId}-${f.key}`}
         field={f}
         value={values[f.key] ?? ""}
-        placeholder={f.placeholder ?? (f.secret && configured ? "•••••••• (leave blank to keep)" : undefined)}
+        placeholder={f.placeholder ?? settingsQ.data?.defaults[f.key] ?? (f.secret && configured ? "•••••••• (leave blank to keep)" : undefined)}
         modelChoices={isModelField && modelChoices.length > 0 ? modelChoices : null}
         onChange={(v) => set(f.key, v)}
       />
