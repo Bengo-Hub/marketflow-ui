@@ -97,6 +97,9 @@ export function VideoAdCard({
     >
       {busy && <Progress stage={parts.stage} />}
       {version.error && <p className="mb-3 text-sm text-destructive">{version.error}</p>}
+      {version.status === "failed" && parts.stage === "render" && !archived && !restricted && (
+        <RetryRender briefId={briefId} versionId={version.id} />
+      )}
       {version.status === "script_ready" && !archived && !restricted && <ScriptReview briefId={briefId} version={version} />}
       {canApprove && !version.approved_at && (
         <div className="flex justify-end">
@@ -108,6 +111,20 @@ export function VideoAdCard({
         <Finished briefId={briefId} version={version} canApprove={canApprove} archived={archived} funnelSlug={funnelSlug} otherVideos={otherVideos} />
       )}
     </GlassPanel>
+  );
+}
+
+/** A failed render runs again with the same approved script, storyboard and plan; the failed
+ * attempt was refunded, so this is charged once like the first press. */
+function RetryRender({ briefId, versionId }: { briefId: string; versionId: string }) {
+  const render = useRenderVideoAd(briefId);
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-3">
+      <Button disabled={render.isPending} onClick={() => render.mutate(versionId)}>
+        Try again
+      </Button>
+      <span className="text-sm text-muted-foreground">Nothing was charged for the failed try. The same approved plan is used.</span>
+    </div>
   );
 }
 
