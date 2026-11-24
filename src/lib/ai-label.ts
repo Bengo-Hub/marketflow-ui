@@ -7,7 +7,7 @@
  */
 
 export const AI_LABEL_EXPLANATION =
-  "Show an 'AI-generated' label on your videos and posts. Some platforms require it; you are responsible for following their rules.";
+  "Mark your posts as AI-made with each platform's own label. Some platforms require it; you are responsible for following their rules.";
 
 /** Anything but "off" is on, so an unset value keeps the label. */
 export function aiLabelOn(meta: Record<string, unknown> | undefined): boolean {
@@ -18,4 +18,17 @@ export function aiLabelOn(meta: Record<string, unknown> | undefined): boolean {
 /** The profile metadata patch that saves the choice. */
 export function aiLabelPatch(on: boolean): { ai_label: "on" | "off" } {
   return { ai_label: on ? "on" : "off" };
+}
+
+export const AI_TEXT_EXPLANATION =
+  "Draw a small 'AI-generated' line on videos with an AI presenter. Off by default. Posts still carry each platform's own AI label.";
+
+/** The on-screen note (marketflow-api creative.AILabelTextKey): off unless the owner turned it on. */
+export function aiTextOn(meta: Record<string, unknown> | undefined): boolean {
+  const v = meta?.ai_label_text;
+  return aiLabelOn(meta) && typeof v === "string" && v.trim().toLowerCase() === "on";
+}
+
+export function aiTextPatch(on: boolean): { ai_label_text: "on" | "off" } {
+  return { ai_label_text: on ? "on" : "off" };
 }

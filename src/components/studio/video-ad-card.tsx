@@ -41,7 +41,7 @@ import {
   type VideoAdQuote,
   type VideoScript,
 } from "@/lib/api/video-ads";
-import { defaultPostCaption } from "@/lib/studio/post-caption";
+import { adWords, defaultPostCaption } from "@/lib/studio/post-caption";
 import { adLeadUrl } from "@/lib/urls";
 
 const SHOTS: Shot[] = ["presenter", "product_clip", "b_roll", "owner_footage", "end_card"];
@@ -556,7 +556,7 @@ function Finished({
   const canPublish = useCanPublish();
   const restricted = useIsRestricted();
   const ready = version.status === "ready";
-  const caption = [version.copy?.headline, version.copy?.subline, version.copy?.cta].filter(Boolean).join("\n");
+  const caption = adWords(version.copy as Record<string, unknown> | undefined);
   // A post ends with the ad's lead page, tagged so its leads show they came from this ad.
   // A pharmacy's medicine ad ends with its PPB approval line (pharmacy hand-off 2026-11-14).
   const postCaption = defaultPostCaption(

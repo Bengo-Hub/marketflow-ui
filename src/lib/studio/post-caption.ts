@@ -20,3 +20,13 @@ export function defaultPostCaption(caption: string, leadUrl: string | undefined,
   if (line && !parts.some((p) => p.includes(line))) parts.push(line);
   return parts.join("\n\n");
 }
+
+/** The ad's own words, one per line. A poster keeps them on the copy, a video ad on its end card. */
+export function adWords(copy: Record<string, unknown> | null | undefined): string {
+  const card = copy?.end_card && typeof copy.end_card === "object" ? (copy.end_card as Record<string, unknown>) : {};
+  return ["headline", "subline", "cta"]
+    .map((k) => copy?.[k] ?? card[k])
+    .filter((v): v is string => typeof v === "string" && v.trim() !== "")
+    .map((v) => v.trim())
+    .join("\n");
+}

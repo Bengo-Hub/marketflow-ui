@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultPostCaption, ppbCaptionLine } from "./post-caption";
+import { adWords, defaultPostCaption, ppbCaptionLine } from "./post-caption";
 
 const ppb = { ppb_approval: { reference: "PPB/ADV/123", caption_line: "PPB approval ref. PPB/ADV/123" } };
 
@@ -17,5 +17,14 @@ describe("default post caption", () => {
     expect(ppbCaptionLine(ppb)).toBe("PPB approval ref. PPB/ADV/123");
     expect(ppbCaptionLine({ ppb_approval: "x" })).toBe("");
     expect(ppbCaptionLine(undefined)).toBe("");
+  });
+});
+
+// 2026-11-25: a video ad's caption was only its link, which became the YouTube title.
+describe("adWords", () => {
+  it("reads a video ad's end card and a poster's copy", () => {
+    expect(adWords({ end_card: { headline: "Digitika", subline: " Ages 6 to 16 ", cta: "Message us" }, script: {} })).toBe("Digitika\nAges 6 to 16\nMessage us");
+    expect(adWords({ headline: "Poster", cta: "Call" })).toBe("Poster\nCall");
+    expect(adWords(undefined)).toBe("");
   });
 });

@@ -41,6 +41,7 @@ export interface TenantProfileUpdate {
     sales_handoff_value?: number | null;
     /** The owner's AI label choice (owner 2026-11-14); unset means on. */
     ai_label?: "on" | "off";
+    ai_label_text?: "on" | "off";
     /** Sprint 7 report settings (Settings, Reports and emails); null clears a value. */
     weekly_report?: "on" | "off";
     average_sale_value?: number | null;
