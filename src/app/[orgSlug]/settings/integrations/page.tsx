@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useParams, useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import { integrationsApi, needsReconnect } from "@/lib/api/integrations";
 
 export default function IntegrationsPage() {
   const qc = useQueryClient();
+  const { orgSlug } = useParams<{ orgSlug: string }>();
   const params = useSearchParams();
   // Owner 2026-11-12: connecting is admin only (the app reviewer may connect Meta); the API decides.
   const { data: access } = useMyAccess();
@@ -69,6 +71,9 @@ export default function IntegrationsPage() {
         <p className="text-sm text-muted-foreground">
           Connect the tools you already use. Shared infrastructure credentials (AI models,
           OAuth app secrets) are managed by the platform — you&apos;ll never see them here.
+        </p>
+        <p className="mt-1 text-sm">
+          <Link className="underline" href={`/${orgSlug}/settings/ads-setup`}>Check what your ad accounts still need</Link>
         </p>
       </div>
 
