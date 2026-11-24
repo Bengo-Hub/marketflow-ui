@@ -5,7 +5,7 @@ export function leadAdSource(lead: { metadata?: Record<string, unknown> }): stri
   let label = "";
   if (has("meta_ad_id") || has("adset_id") || has("meta_form_id")) label = "Meta ad";
   else if (has("ttclid")) label = "TikTok ad click";
-  else if (has("gclid")) label = "Google ad click";
+  else if (has("gclid") || has("wbraid") || has("gbraid"))label = "Google ad click";
   else if (has("fbclid")) label = "Facebook ad click";
   if (label && has("creative_version_id")) label += " · creative";
   return label;

@@ -8,6 +8,7 @@ describe("leadAdSource", () => {
   it("names click ids from public forms", () => {
     expect(leadAdSource({ metadata: { ttclid: "t" } })).toBe("TikTok ad click");
     expect(leadAdSource({ metadata: { gclid: "g" } })).toBe("Google ad click");
+    expect(leadAdSource({ metadata: { wbraid: "w" } })).toBe("Google ad click");
     expect(leadAdSource({ metadata: { fbclid: "f" } })).toBe("Facebook ad click");
   });
   it("is empty without ad data", () => {

@@ -25,7 +25,7 @@ const reasons: Record<string, (name: string) => string> = {
     n === "TikTok"
       ? "TikTok needs every permission on its screen to post your videos. Click Connect and leave them all ticked."
       : n === "Google Ads"
-      ? "Google Ads needs its permission ticked on Google's screen. Click Connect and leave it ticked."
+      ? "MarketFlow needs the Google Ads permission ticked on Google's screen. Click Connect and leave every permission ticked."
       : `${n} needs both permissions on Google's screen: uploading videos, and managing the videos MarketFlow posts. Click Connect and leave both ticked.`,
   no_account: (n) =>
     n === "TikTok for Business"
@@ -48,7 +48,16 @@ export function connectErrorText(provider: string, reason: string | null): strin
   return msg ? msg(name) : `${name} could not be connected. Please try again; if it keeps failing, contact Codevertex support.`;
 }
 
-export const connectProviders = Object.keys(providerNames);
+/** Text for a finished Google Ads connect; conversions=off means that permission was left unticked. */
+export function googleAdsConnectedText(account: string | null, conversions: string | null): string {
+  const name = `Google Ads connected${account ? `: ${account}` : ""}.`;
+  if (conversions === "off") {
+    return `${name} Its results are on the Campaigns page. MarketFlow may not send your conversions to Google, because that permission was left unticked. To switch it on, connect again and leave every permission ticked.`;
+  }
+  return `${name} Its results are on the Campaigns page, where you can also send your leads back to it as conversions.`;
+}
+
+export const connectProviders =Object.keys(providerNames);
 
 /** Where to set up the missing account, for the errors a layperson cannot fix inside MarketFlow. */
 const helpLinks: Record<string, Record<string, { label: string; href: string }>> = {

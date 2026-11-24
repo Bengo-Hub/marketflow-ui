@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { CapsuleTabs, EmptyState, ErrorState, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { formatMoney } from "@/lib/api/campaigns";
-import { GOOGLE_PERIODS, googleAdsApi, periodLabel, type GooglePeriod } from "@/lib/api/google-ads";
+import { GOOGLE_PERIODS, conversionProblem, googleAdsApi, periodLabel, type GooglePeriod } from "@/lib/api/google-ads";
 
 /**
  * Google Ads on the Campaigns page: the business's own account results (read only) and which
@@ -27,6 +27,7 @@ export function GoogleAdsPanel({ orgSlug, canEdit }: { orgSlug: string; canEdit:
 
   if (accounts.isLoading || list.length === 0) return null;
   const current = list.find((a) => a.connected_account_id === accountID) ?? list[0];
+  const problem = conversionProblem(current);
 
   return (
     <section className="rounded-xl border bg-card" aria-labelledby="google-ads-heading">
@@ -55,6 +56,12 @@ export function GoogleAdsPanel({ orgSlug, canEdit }: { orgSlug: string; canEdit:
         </p>
       ) : (
         <>
+          {problem && (
+            <p role="status" className="border-b p-4 text-sm text-destructive">
+              {problem.text}{" "}
+              {problem.reconnect && <Link className="underline" href={`/${orgSlug}/settings/integrations`}>Open Integrations</Link>}
+            </p>
+          )}
           <Results id={current.connected_account_id} period={period} />
           <Mapping id={current.connected_account_id} canEdit={canEdit} />
         </>

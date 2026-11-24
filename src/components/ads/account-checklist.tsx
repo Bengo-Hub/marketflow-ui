@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, RefreshCw, Wrench } from "lucide-react";
 import { toast } from "sonner";
@@ -65,7 +66,12 @@ export function AccountChecklist({ account }: { account: SetupAccount }) {
                 )}
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
-                {it.link && (
+                {it.link?.url.startsWith("/") && (
+                  <Link href={it.link.url} className="inline-flex min-h-9 items-center rounded-lg border px-3 text-sm font-medium hover:bg-muted">
+                    {it.link.label}
+                  </Link>
+                )}
+                {it.link && !it.link.url.startsWith("/") && (
                   <a
                     href={it.link.url}
                     target="_blank"

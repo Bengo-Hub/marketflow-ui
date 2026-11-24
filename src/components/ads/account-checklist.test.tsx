@@ -52,6 +52,21 @@ describe("AccountChecklist", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("bad number");
   });
 
+  it("opens a MarketFlow page in the same tab and a provider page in a new one", async () => {
+    vi.spyOn(adsSetupApi, "checklist").mockResolvedValue({
+      ...list(),
+      items: [
+        { ...ok, status: "action", link: { label: "Reconnect Google Ads", url: "/shop/settings/integrations" } },
+        { ...call, link: { label: "Open assets", url: "https://ads.google.com/aw" } },
+      ],
+    });
+    show();
+    const inside = await screen.findByRole("link", { name: "Reconnect Google Ads" });
+    expect(inside.getAttribute("href")).toBe("/shop/settings/integrations");
+    expect(inside.getAttribute("target")).toBeNull();
+    expect(screen.getByRole("link", { name: /Open assets/ }).getAttribute("target")).toBe("_blank");
+  });
+
   it("offers no fix to a member who may not change it", async () => {
     vi.spyOn(adsSetupApi, "checklist").mockResolvedValue(list(false));
     show();

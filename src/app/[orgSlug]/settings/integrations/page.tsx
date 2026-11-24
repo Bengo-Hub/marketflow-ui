@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProviderLogo } from "@/components/providers/provider-logo";
 import { tenantIntegrations } from "@/lib/providers/catalog";
-import { connectErrorHelp, connectErrorText, connectProviders } from "@/lib/integrations/connect-result";
+import { connectErrorHelp, connectErrorText, connectProviders, googleAdsConnectedText } from "@/lib/integrations/connect-result";
 import { ConnectedAccounts } from "@/components/providers/connected-accounts";
 import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
 import { useMyAccess } from "@/hooks/use-access";
@@ -99,7 +99,7 @@ export default function IntegrationsPage() {
       {params.get("google_ads") === "connected" && (
         <Banner
           ok
-          text={`Google Ads connected${params.get("account") ? `: ${params.get("account")}` : ""}. Its results are on the Campaigns page, where you can also send your leads back to it as conversions.`}
+          text={googleAdsConnectedText(params.get("account"), params.get("conversions"))}
         />
       )}
       {params.get("youtube") === "connected" && (

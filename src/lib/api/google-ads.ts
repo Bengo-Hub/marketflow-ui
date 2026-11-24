@@ -19,6 +19,20 @@ export interface GoogleAdsAccount {
   status: string;
   test_account?: boolean;
   conversion_actions: Record<string, string>;
+  /** The connection lacks the permission to send conversions: connect again. */
+  conversions_blocked?: boolean;
+  last_upload?: { status: "sent" | "accepted" | "failed" | "reconnect" | "unknown"; reason?: string; event?: string; at: string };
+}
+
+/** What stops this account's conversions, in plain words, or null. */
+export function conversionProblem(a: GoogleAdsAccount): { text: string; reconnect: boolean } | null {
+  if (a.conversions_blocked) {
+    return { text: "MarketFlow may not send your conversions to Google yet. Reconnect Google Ads and leave every permission ticked.", reconnect: true };
+  }
+  const u = a.last_upload;
+  if (u?.status === "reconnect") return { text: u.reason ?? "Reconnect Google Ads.", reconnect: true };
+  if (u?.status === "failed") return { text: `Google did not count the last conversion. ${u.reason ?? ""}`.trim(), reconnect: false };
+  return null;
 }
 
 export interface GoogleCampaign {
