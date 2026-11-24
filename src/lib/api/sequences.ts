@@ -5,13 +5,14 @@ import type { Paginated } from "./types";
 export const SEQUENCE_TRIGGERS = [
   { value: "lead.created", label: "When a new lead arrives" },
   { value: "contact.dormant", label: "When a customer goes quiet" },
+  { value: "lead.converted", label: "When a lead becomes a customer" },
 ] as const;
 
 export const STEP_CHANNELS = ["whatsapp", "sms", "email"] as const;
 
 /** Placeholders the worker fills in step text ({{first_name}} and so on, worker/template_vars.go). */
 export const TEMPLATE_VARS = [
-  "first_name", "last_name", "full_name", "fbo_name", "whatsapp_link", "profile_link", "shop_link", "product_link", "join_link",
+  "first_name", "last_name", "full_name", "fbo_name", "whatsapp_link", "profile_link", "shop_link", "product_link", "join_link", "booking_link", "testimonial_link",
 ] as const;
 
 /** One message of a sequence, as the worker reads it. */
