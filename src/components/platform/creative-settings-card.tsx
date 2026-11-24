@@ -87,6 +87,20 @@ export function validateBranding(v: string): string | null {
   return null;
 }
 
+/** The real product screen rules: enabled and up to 4 scenes. */
+export function validateScreens(v: string): string | null {
+  if (!v.trim()) return null;
+  let s: { enabled?: unknown; max_scenes?: unknown };
+  try {
+    s = JSON.parse(v);
+  } catch {
+    return "Not valid JSON.";
+  }
+  if (!s || typeof s !== "object" || Array.isArray(s) || typeof s.enabled !== "boolean") return "enabled must be true or false.";
+  if (s.max_scenes !== undefined && (!Number.isInteger(s.max_scenes) || Number(s.max_scenes) < 1 || Number(s.max_scenes) > 4)) return "max_scenes is 1 to 4.";
+  return null;
+}
+
 export const CREATIVE_SETTINGS: CreativeSetting[] = [
   {
     key: "creative.discard_purge_after",
@@ -134,6 +148,13 @@ export const CREATIVE_SETTINGS: CreativeSetting[] = [
     fallback: "",
     multiline: true,
     validate: validateBranding,
+  },
+  {
+    key: "creative.screens",
+    label: "Real app screens in the scenes",
+    hint: 'JSON: {"enabled": true, "max_scenes": 2}. A scene showing a laptop, tablet, till or phone carries one of the tenant\'s own screenshots. Nothing happens for a tenant with none.',
+    fallback: '{"enabled": true, "max_scenes": 2}',
+    validate: validateScreens,
   },
   {
     key: "creative.landmark_lookup",

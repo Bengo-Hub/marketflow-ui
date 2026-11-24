@@ -18,6 +18,7 @@ import { ActorNamesFields } from "@/components/marketing-os/actor-names-fields";
 import { AILabelPanel } from "@/components/marketing-os/ai-label-panel";
 import { ContactProfilesPanel } from "@/components/marketing-os/contact-profiles-panel";
 import { BrandImagesPanel } from "@/components/media/brand-images-panel";
+import { ScreenshotsPanel } from "@/components/media/screenshots-panel";
 import { brandFormValues, mergeItems } from "@/lib/brand-form";
 import { useBrandDraft } from "@/hooks/use-onboarding";
 import { cn } from "@/lib/utils";
@@ -247,6 +248,13 @@ function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string })
         description="Three to five pictures of your business: the shop, your team, your products in use. Video ads and presenter videos need them. They stay private to your business."
       >
         <BrandImagesPanel />
+      </GlassPanel>
+
+      <GlassPanel
+        title="Screenshots of your app"
+        description="When a video scene shows a laptop, tablet, till or phone, your real screen goes on it. We never draw an invented screen. No screenshots, nothing changes."
+      >
+        <ScreenshotsPanel />
       </GlassPanel>
 
       <AILabelPanel />

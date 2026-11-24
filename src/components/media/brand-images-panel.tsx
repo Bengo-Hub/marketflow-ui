@@ -58,7 +58,7 @@ export function BrandImagesPanel({ onChange }: { onChange?: (count: number) => v
 
   if (list.isError) return <ErrorState message={apiErrorMessage(list.error, "Could not load your brand images.")} onRetry={() => void list.refetch()} />;
   if (list.isLoading) return <div className="h-32 animate-pulse rounded-xl bg-muted" />;
-  const d = list.data ?? { ...BRAND_IMAGE_DEFAULTS, images: [] };
+  const d = list.data ?? { ...BRAND_IMAGE_DEFAULTS, images: [], screenshots: [] };
   return (
     <div className="space-y-3">
       {d.images.length < d.max && (

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { describeImport, isBrandImagesRequired } from "./brand-images";
+import { describeImport, isBrandImagesRequired, screenshotQuery } from "./brand-images";
+
+describe("screenshots", () => {
+  it("sends the device and the no customer data statement", () => {
+    expect(screenshotQuery("auto")).toBe("kind=screenshot&device=&no_customer_data=true");
+    expect(screenshotQuery("pos")).toContain("device=pos");
+  });
+});
 
 describe("website import message", () => {
   const base = { sites: ["https://example.com"], found: 4, added: [], skipped: {}, total: 0, min: 3 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CREATIVE_SETTINGS, validateContacts, validateBranding, validateDiscardWindow, validateLandmarks, windowHours } from "./creative-settings-card";
+import { CREATIVE_SETTINGS, validateContacts, validateBranding, validateDiscardWindow, validateLandmarks, validateScreens, windowHours } from "./creative-settings-card";
 import { fileNameFrom } from "@/lib/api/creative";
 import { creditCeilingProblem } from "@/lib/api/autopilot";
 
@@ -48,6 +48,15 @@ describe("downloads and budgets", () => {
     expect(creditCeilingProblem(0)).not.toBeNull();
     expect(creditCeilingProblem(5001)).not.toBeNull();
     expect(creditCeilingProblem(1.5)).not.toBeNull();
+  });
+});
+
+describe("real app screens", () => {
+  it("checks the screen rules", () => {
+    expect(validateScreens("")).toBeNull();
+    expect(validateScreens('{"enabled": true, "max_scenes": 3}')).toBeNull();
+    expect(validateScreens('{"enabled": "yes"}')).toContain("enabled");
+    expect(validateScreens('{"enabled": true, "max_scenes": 9}')).toContain("max_scenes");
   });
 });
 
