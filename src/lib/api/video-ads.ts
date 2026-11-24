@@ -234,6 +234,9 @@ export const videoAdsApi = {
   approveStoryboard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/storyboard/approve`).then((r) => r.data),
   /** The end card preview made again over its own still: new words, contacts or logo plate, nothing redrawn or charged. */
   recomposeEndCard: (id: string) => apiClient.post<CreativeVersion>(`${base}/versions/${id}/end-card-preview`).then((r) => r.data),
+  /** Places the scenes again from the current address and landmarks; only moved scenes are drawn again. */
+  resetSettings: (id: string) =>
+    apiClient.post<{ version: CreativeVersion; changed: number }>(`${base}/versions/${id}/settings`).then((r) => r.data),
   /** Approves the generation plan the quote showed (and the storyboard with it). */
   approvePlan: ({ id, fingerprint }: { id: string; fingerprint: string }) =>
     apiClient.post<CreativeVersion>(`${base}/versions/${id}/storyboard/approve`, { plan_fingerprint: fingerprint }).then((r) => r.data),

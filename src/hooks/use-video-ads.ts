@@ -61,6 +61,13 @@ export const useRedrawActor = (briefId: string) =>
   useAction(briefId, videoAdsApi.redrawActor, "Drawing a new presenter. It takes about a minute.", "Could not redraw the presenter");
 export const useRecomposeEndCard = (briefId: string) =>
   useAction(briefId, videoAdsApi.recomposeEndCard, "End card preview updated", "Could not update the end card preview");
+export const useResetSettings = (briefId: string) =>
+  useAction(
+    briefId,
+    videoAdsApi.resetSettings,
+    "Scenes placed again. Only the scenes that moved are drawn again.",
+    "Could not place the scenes again",
+  );
 export const useApprovePlan = (briefId: string) =>
   useAction(briefId, videoAdsApi.approvePlan, "Generation plan approved", "Could not approve the plan");
 export const useRenderVideoAd = (briefId: string) =>

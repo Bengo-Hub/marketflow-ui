@@ -19,6 +19,7 @@ import {
   useMakeStoryboard,
   useRecomposeEndCard,
   useRedrawActor,
+  useResetSettings,
   useRenderVideoAd,
   useReviseVideoAd,
   useSaveScript,
@@ -136,6 +137,7 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
   const redraw = useRedrawActor(briefId);
   const approvePlan = useApprovePlan(briefId);
   const recompose = useRecomposeEndCard(briefId);
+  const placeAgain = useResetSettings(briefId);
   // The platform owner and subscription-exempt tenants pay no credits: they see the provider cost.
   const { isPlatformOwner, isSubscriptionExempt } = useSubscription();
   const showUSD = !!(isPlatformOwner || isSubscriptionExempt);
@@ -365,6 +367,11 @@ function ScriptReview({ briefId, version }: { briefId: string; version: Creative
               {endCardPreview(version) && (
                 <Button variant="ghost" size="sm" disabled={recompose.isPending} onClick={() => recompose.mutate(version.id)}>
                   <RefreshCw /> {recompose.isPending ? "Updating the end card..." : "Update the end card preview"}
+                </Button>
+              )}
+              {!q.plan_approved && (
+                <Button variant="ghost" size="sm" disabled={placeAgain.isPending} onClick={() => placeAgain.mutate(version.id)}>
+                  <RefreshCw /> {placeAgain.isPending ? "Placing the scenes..." : "Place the scenes again from the address"}
                 </Button>
               )}
               {q.plan_fingerprint && !q.plan_approved && (

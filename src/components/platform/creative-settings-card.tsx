@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Clapperboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/ui-kit";
 import { useServiceConfig, useUpsertServiceConfig } from "@/hooks/use-admin";
 
@@ -14,6 +15,8 @@ export interface CreativeSetting {
   hint: string;
   fallback: string;
   validate?: (v: string) => string | null;
+  /** A long value, such as JSON, edited in a text area. */
+  multiline?: boolean;
 }
 
 /** Hours in a window: a number of hours ("72") or a Go duration in hours and minutes ("24h", "1h30m"). */
@@ -42,6 +45,25 @@ export function validateContacts(v: string): string | null {
     .map((s) => s.trim().toLowerCase())
     .filter((s) => s && !CONTACT_KINDS.includes(s));
   return bad.length ? `Unknown: ${bad.join(", ")}. Use ${CONTACT_KINDS.join(", ")}.` : null;
+}
+
+/** The landmark registry is a JSON object of areas, each with a list of landmarks. */
+export function validateLandmarks(v: string): string | null {
+  if (!v.trim()) return null;
+  let reg: unknown;
+  try {
+    reg = JSON.parse(v);
+  } catch {
+    return "Not valid JSON.";
+  }
+  if (!reg || typeof reg !== "object" || Array.isArray(reg)) return 'Use an object keyed by area, like {"kisumu cbd": {...}}.';
+  for (const [area, entry] of Object.entries(reg as Record<string, unknown>)) {
+    const e = entry as { landmarks?: unknown };
+    if (!e || typeof e !== "object" || !Array.isArray(e.landmarks) || e.landmarks.some((l) => typeof l !== "string")) {
+      return `${area}: landmarks must be a list of descriptions.`;
+    }
+  }
+  return null;
 }
 
 export const CREATIVE_SETTINGS: CreativeSetting[] = [
@@ -85,6 +107,21 @@ export const CREATIVE_SETTINGS: CreativeSetting[] = [
     validate: (v) => (v.trim() && !["true", "false"].includes(v.trim().toLowerCase()) ? "Use true or false." : null),
   },
   {
+    key: "creative.landmark_lookup",
+    label: "Look up landmarks near the address",
+    hint: "true lets the script writer read what the web says is near the business's address, once a week per tenant.",
+    fallback: "true",
+    validate: (v) => (v.trim() && !["true", "false"].includes(v.trim().toLowerCase()) ? "Use true or false." : null),
+  },
+  {
+    key: "creative.landmarks",
+    label: "Landmarks by town or area",
+    hint: 'JSON keyed by area: {"kisumu cbd": {"aliases": ["kisumu"], "landmarks": ["..."], "look": "...", "street_life": "..."}}. Used for outdoor shots and backgrounds only. Empty keeps the built-in Kisumu CBD and Nairobi CBD entries.',
+    fallback: "",
+    multiline: true,
+    validate: validateLandmarks,
+  },
+  {
     key: "creative.flp_default_address",
     label: "Default address for Forever Living sellers",
     hint: "Used only for an FLP tenant in Kenya that has not given its own address.",
@@ -126,12 +163,23 @@ export function CreativeSettingsCard({ tenantId }: { tenantId: string | null }) 
           return (
             <Field key={s.key} label={s.label} hint={s.hint} error={error} htmlFor={`cs-${s.key}`}>
               <div className="flex gap-2">
-                <Input
-                  id={`cs-${s.key}`}
-                  value={value}
-                  placeholder={s.fallback}
-                  onChange={(e) => setEdits((v) => ({ ...v, [s.key]: e.target.value }))}
-                />
+                {s.multiline ? (
+                  <Textarea
+                    id={`cs-${s.key}`}
+                    value={value}
+                    rows={6}
+                    className="font-mono text-xs"
+                    placeholder="Empty keeps the built-in landmarks"
+                    onChange={(e) => setEdits((v) => ({ ...v, [s.key]: e.target.value }))}
+                  />
+                ) : (
+                  <Input
+                    id={`cs-${s.key}`}
+                    value={value}
+                    placeholder={s.fallback}
+                    onChange={(e) => setEdits((v) => ({ ...v, [s.key]: e.target.value }))}
+                  />
+                )}
                 <Button
                   variant="outline"
                   disabled={!!error || value === stored || upsert.isPending}

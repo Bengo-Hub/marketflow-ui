@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CREATIVE_SETTINGS, validateContacts, validateDiscardWindow, windowHours } from "./creative-settings-card";
+import { CREATIVE_SETTINGS, validateContacts, validateDiscardWindow, validateLandmarks, windowHours } from "./creative-settings-card";
 import { fileNameFrom } from "@/lib/api/creative";
 import { creditCeilingProblem } from "@/lib/api/autopilot";
 
@@ -28,6 +28,13 @@ describe("creative settings", () => {
     expect(check("creative.logo_plate_opacity", "0.2")).not.toBeNull();
     expect(check("creative.logo_every_scene", "false")).toBeNull();
     expect(check("creative.logo_every_scene", "yes")).not.toBeNull();
+  });
+  it("checks the landmark registry", () => {
+    expect(validateLandmarks("")).toBeNull();
+    expect(validateLandmarks('{"kisumu cbd": {"landmarks": ["Mega Plaza towers"], "street_life": "matatus"}}')).toBeNull();
+    expect(validateLandmarks("{oops")).toBe("Not valid JSON.");
+    expect(validateLandmarks('["kisumu"]')).not.toBeNull();
+    expect(validateLandmarks('{"kisumu": {"landmarks": "Mega Plaza"}}')).toContain("kisumu");
   });
 });
 
