@@ -142,11 +142,11 @@ export function isAdmin(access: Access): boolean {
 }
 
 /**
- * Delete a published post from its platform (owner 2026-11-14): the approving roles and the app
- * reviewer, who shows instagram_manage_contents in App Review. Mirrors marketflow-api's CanDelete.
+ * Delete a published post from its platform: admins (owner 2026-11-25) and the app reviewer, who
+ * shows instagram_manage_contents in App Review. Mirrors marketflow-api's CanDelete.
  */
 export function canDeleteFromPlatform(access: Access): boolean {
-  return canPublish(access);
+  return isAdmin(access) || isRestricted(access);
 }
 
 /**

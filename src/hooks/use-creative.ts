@@ -74,13 +74,13 @@ export function useCanApprove(): boolean {
 }
 
 /**
- * Delete from platform (owner 2026-11-14): the approving roles, plus the Meta app reviewer, who
- * must be able to show instagram_manage_contents in App Review. The API checks the same roles.
+ * Delete from platform: admins (owner 2026-11-25), plus the Meta app reviewer, who must be able to
+ * show instagram_manage_contents in App Review. The API checks the same roles.
  */
 export function useCanDeleteFromPlatform(): boolean {
-  const canApprove = useCanApprove();
+  const platformOwner = useAuthStore((s) => s.user?.isPlatformOwner ?? false);
   const access = useMyAccess();
-  return canApprove || canDeleteFromPlatform(access.data);
+  return platformOwner || canDeleteFromPlatform(access.data);
 }
 
 export function useCreateBrief() {

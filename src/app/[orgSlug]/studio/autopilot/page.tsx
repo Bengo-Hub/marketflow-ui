@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
+import { AdminNotice } from "@/components/layout/admin-only";
 import { useAdminLocked } from "@/hooks/use-access";
 import { useCanApprove, useOfferingSearch } from "@/hooks/use-creative";
 import { useBestTimes, usePublishAccounts } from "@/hooks/use-publishing";
@@ -135,7 +136,9 @@ export default function AutopilotPage() {
   });
   const [draft, setDraft] = useState<AutopilotAgent | null>(null);
   const list = agents.data ?? [];
-  const mayCreate = canCreateAgents(plan.data);
+  // Creating, hiring and switching Autopilot agents is an admin's (owner 2026-11-25).
+  const locked = useAdminLocked();
+  const mayCreate = !locked && canCreateAgents(plan.data);
 
   return (
     <div className="space-y-6">
@@ -155,6 +158,7 @@ export default function AutopilotPage() {
         }
       />
 
+      {locked && <AdminNotice text="You can view the agents. Only a MarketFlow admin can create, hire or switch them." />}
       <PlanBanner plan={plan.data} />
 
       {draft && <Settings key={draft.id} agent={draft} onDone={() => { setDraft(null); refresh(); }} />}
@@ -184,7 +188,7 @@ export default function AutopilotPage() {
               <div key={t.id} className="flex flex-col gap-2 rounded-lg border border-border p-3">
                 <p className="text-sm font-medium">{t.name}</p>
                 <p className="flex-1 text-sm text-muted-foreground">{t.description}</p>
-                <Button size="sm" variant="outline" disabled={hire.isPending || (t.kind === "ad_autopilot" && !mayCreate)} onClick={() => hire.mutate(t.id)}>
+                <Button size="sm" variant="outline" disabled={locked || hire.isPending || (t.kind === "ad_autopilot" && !mayCreate)} onClick={() => hire.mutate(t.id)}>
                   Hire
                 </Button>
               </div>
@@ -425,7 +429,7 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
               </p>
             )}
           </div>
-          <Switch checked={a.is_active} disabled={setActive.isPending || !cfg || blockedOn} onCheckedChange={(v: boolean) => setActive.mutate(v)} aria-label={`Switch ${a.name} on or off`} />
+          <Switch checked={a.is_active} disabled={locked || setActive.isPending || !cfg || blockedOn} onCheckedChange={(v: boolean) => setActive.mutate(v)} aria-label={`Switch ${a.name} on or off`} />
         </div>
         {cfg && blockedOn && plan && (
           <p className="text-xs text-muted-foreground">

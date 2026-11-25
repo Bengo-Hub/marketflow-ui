@@ -101,9 +101,9 @@ describe("isRestricted, canPublish and canConnectIntegration", () => {
     expect(canPublish(access("", { platform_owner: true }))).toBe(true);
   });
 
-  it("lets the approving roles and the reviewer delete a post from the platform, not viewers", () => {
+  it("lets admins and the reviewer delete a post from the platform, not members or viewers", () => {
     expect(canDeleteFromPlatform(admin)).toBe(true);
-    expect(canDeleteFromPlatform(member)).toBe(true);
+    expect(canDeleteFromPlatform(member)).toBe(false);
     expect(canDeleteFromPlatform(reviewer)).toBe(true);
     expect(canDeleteFromPlatform(viewer)).toBe(false);
     expect(canDeleteFromPlatform(undefined)).toBe(false);
