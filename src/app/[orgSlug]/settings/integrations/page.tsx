@@ -12,7 +12,7 @@ import { tenantIntegrations } from "@/lib/providers/catalog";
 import { connectErrorHelp, connectErrorText, connectProviders, googleAdsConnectedText } from "@/lib/integrations/connect-result";
 import { ConnectedAccounts } from "@/components/providers/connected-accounts";
 import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
-import { useMyAccess } from "@/hooks/use-access";
+import { useAdminLocked, useMyAccess } from "@/hooks/use-access";
 import { canConnectIntegration, isRestricted } from "@/lib/access/role-access";
 import { integrationsApi, needsReconnect } from "@/lib/api/integrations";
 
@@ -23,6 +23,7 @@ export default function IntegrationsPage() {
   // Owner 2026-11-12: connecting is admin only (the app reviewer may connect Meta); the API decides.
   const { data: access } = useMyAccess();
   const restricted = isRestricted(access);
+  const locked = useAdminLocked();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["integrations"],
@@ -212,7 +213,7 @@ export default function IntegrationsPage() {
                         <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
                       </Button>
                     )}
-                    {!restricted && (
+                    {!restricted && !locked && (
                       <Button
                         variant="outline"
                         size="sm"

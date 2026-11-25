@@ -14,7 +14,7 @@ import { useCampaignAction, useCampaigns, useSaveCampaign } from "@/hooks/use-ca
 import {
   CAMPAIGN_CHANNELS, CAMPAIGN_PLATFORMS, CAMPAIGN_STATUSES, CAMPAIGN_TYPES, formatMoney, runsOnAdPlatform, type Campaign, type CampaignInput,
 } from "@/lib/api/campaigns";
-import { useIsRestricted } from "@/hooks/use-access";
+import { useAdminLocked, useIsRestricted } from "@/hooks/use-access";
 import { useTenantCurrency } from "@/hooks/use-tenant-profile";
 import { MoneyInput } from "@bengo-hub/shared-ui-lib/payments";
 import { CurrencySelect } from "@/components/money/currency-select";
@@ -109,6 +109,8 @@ export default function CampaignsPage() {
   const counts = list.data?.lead_counts ?? {};
   // The app reviewer sees results and pauses or resumes a boost; nothing else here changes.
   const restricted = useIsRestricted();
+  // The Google Ads conversion mapping is an integration setting: an admin's.
+  const locked = useAdminLocked();
   const boostMenu = (c: Campaign) =>
     runsOnAdPlatform(c) && (c.status === "active" || c.status === "paused") ? (
       <Button
@@ -212,7 +214,7 @@ export default function CampaignsPage() {
         {list.data && <div className="px-4 pb-4"><Pager page={page} limit={list.data.limit || 20} total={list.data.total} onPage={setPage} /></div>}
       </div>
 
-      <GoogleAdsPanel orgSlug={orgSlug} canEdit={!restricted} />
+      <GoogleAdsPanel orgSlug={orgSlug} canEdit={!locked} />
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>

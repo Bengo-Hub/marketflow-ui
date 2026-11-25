@@ -13,6 +13,7 @@ import { ActivityTimeline } from "@/components/crm/activity-timeline";
 import { CustomFieldsPanel } from "@/components/crm/custom-fields-panel";
 import { ContactProfilePanel } from "@/components/crm/contact-profile-panel";
 import { CapsuleTabs, ConfirmDialog, ErrorState, Field, GlassPanel, StatCard, StatusBadge, ToneBadge, humanize } from "@/components/ui-kit";
+import { useAdminLocked } from "@/hooks/use-access";
 import { useContact360, useDeleteContact, useUpdateContact } from "@/hooks/use-contacts";
 import { CONTACT_TYPES, contactName, type Contact, type ContactUpdate } from "@/lib/api/contacts";
 import { useTenantCurrency } from "@/hooks/use-tenant-profile";
@@ -89,6 +90,7 @@ export default function ContactDetailPage() {
   const v = useContact360(id);
   const tenantCurrency = useTenantCurrency();
   const del = useDeleteContact();
+  const locked = useAdminLocked();
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const d = v.data;
@@ -130,7 +132,7 @@ export default function ContactDetailPage() {
               {c.phone && <a href={`tel:${c.phone}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background/70 px-4 text-sm font-medium hover:bg-muted"><Phone className="h-4 w-4" /> Call</a>}
               {c.email && <a href={`mailto:${c.email}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background/70 px-4 text-sm font-medium hover:bg-muted"><Mail className="h-4 w-4" /> Email</a>}
               <Button variant="outline" onClick={() => setEditing(true)}><Pencil /> Edit</Button>
-              <Button variant="ghost" size="icon" aria-label="Delete contact" onClick={() => setConfirm(true)}><Trash2 className="text-destructive" /></Button>
+              <Button variant="ghost" size="icon" className={locked ? "hidden" : undefined} aria-label="Delete contact" onClick={() => setConfirm(true)}><Trash2 className="text-destructive" /></Button>
             </div>
           </div>
 

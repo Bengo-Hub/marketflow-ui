@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { apiError, marketingOsApi } from "@/lib/api/marketing-os";
+import { AdminOnly } from "@/components/layout/admin-only";
 import { ManagerConsole } from "@/components/marketing-os/manager-console";
 import { TeamRoster } from "@/components/marketing-os/team-roster";
 import { TemplateGallery } from "@/components/marketing-os/template-gallery";
@@ -68,7 +69,7 @@ export default function MarketingTeamPage() {
               ))}
             </div>
           ) : (
-            <TeamRoster orgSlug={orgSlug} members={members} />
+            <AdminOnly notice><TeamRoster orgSlug={orgSlug} members={members} /></AdminOnly>
           )}
         </TabsContent>
 

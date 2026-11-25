@@ -62,6 +62,61 @@ export function pageAllowed(path: string, access: Access): boolean {
   return open.some((o) => under(p, o));
 }
 
+/**
+ * Who may change what a page (after /{orgSlug}) shows, as marketflow-api's write gate decides it:
+ * "form" is an admin's page switched off as a whole for others, "admin" an admin's page whose own
+ * controls handle it, "member" members and admins, "any" nothing to change or the caller's own
+ * account. A test keeps every page in this table.
+ */
+export const PAGE_WRITES: Record<string, "form" | "admin" | "member" | "any"> = {
+  "/": "any",
+  "/dashboard": "any",
+  "/onboarding": "any",
+  "/team": "member",
+  "/leads": "member",
+  "/contacts": "member",
+  "/campaigns": "member",
+  "/studio": "member",
+  "/inbox": "member",
+  "/funnels": "member",
+  "/sequences": "member",
+  "/chat": "member",
+  "/meetings": "member",
+  "/short-links": "member",
+  "/knowledge": "member",
+  "/crm/deals": "member",
+  "/crm/accounts": "member",
+  "/crm/activities": "member",
+  "/crm/tasks": "member",
+  "/crm/segments": "member",
+  "/settings": "any",
+  "/settings/profile": "form",
+  "/settings/sales-follow-up": "form",
+  "/settings/lead-response": "form",
+  "/settings/lead-filter": "form",
+  "/settings/run-ads": "form",
+  "/settings/reports": "form",
+  "/settings/marketing-context": "admin",
+  "/settings/team": "admin",
+  "/settings/integrations": "admin",
+  "/settings/custom-fields": "admin",
+  "/settings/ads-setup": "admin",
+  "/settings/testimonials": "member",
+  "/settings/ppb-approvals": "member",
+  "/settings/agents": "member",
+  "/settings/billing": "any",
+  "/settings/invite": "any",
+  "/settings/audit": "any",
+};
+
+/** Who may change a page; a detail page follows its parent. */
+export function pageWrites(path: string): (typeof PAGE_WRITES)[string] | undefined {
+  for (let p = path.replace(/\/+$/, "") || "/"; p; p = p.slice(0, p.lastIndexOf("/"))) {
+    if (PAGE_WRITES[p]) return PAGE_WRITES[p];
+  }
+  return undefined;
+}
+
 /** The sidebar groups with the items the caller may open; a group left empty is dropped. */
 export function filterNavGroups<G extends { items: { href: string }[] }>(groups: G[], access: Access): G[] {
   if (!isRestricted(access)) return groups;

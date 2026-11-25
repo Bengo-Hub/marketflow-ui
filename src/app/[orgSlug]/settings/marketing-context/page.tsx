@@ -21,6 +21,8 @@ import { BrandFacesPanel } from "@/components/media/brand-faces-panel";
 import { BrandImagesPanel } from "@/components/media/brand-images-panel";
 import { ScreenshotsPanel } from "@/components/media/screenshots-panel";
 import { brandFormValues, mergeItems } from "@/lib/brand-form";
+import { AdminOnly } from "@/components/layout/admin-only";
+import { useAdminLocked } from "@/hooks/use-access";
 import { useBrandDraft } from "@/hooks/use-onboarding";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +66,7 @@ function fillEmpty(form: BrandContext, src: BrandContext): BrandContext {
 
 function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string }) {
   const qc = useQueryClient();
+  const locked = useAdminLocked();
   const [form, setForm] = useState<BrandContext>(saved);
   const [wantDraft, setWantDraft] = useState(false);
   const [interview, setInterview] = useState(false);
@@ -110,7 +113,7 @@ function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string })
         title="Brand context"
         description="Your marketing team reads this before writing anything. The clearer it is, the closer the first draft lands."
         actions={
-          <Button className="hidden md:inline-flex" disabled={!dirty || tooLong || save.isPending} onClick={() => save.mutate()}>
+          <Button className="hidden md:inline-flex" disabled={locked || !dirty || tooLong || save.isPending} onClick={() => save.mutate()}>
             {save.isPending ? "Saving..." : "Save"}
           </Button>
         }
@@ -272,7 +275,7 @@ function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string })
           <p className="text-sm font-medium">You have unsaved changes</p>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => setForm(saved)}>Undo</Button>
-            <Button disabled={tooLong || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving..." : "Save"}</Button>
+            <Button disabled={locked || tooLong || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving..." : "Save"}</Button>
           </div>
         </div>
       )}
@@ -315,6 +318,7 @@ export default function MarketingContextPage() {
     <div className="space-y-6">
       {/* Keyed on the saved value so a save or refetch resets the form to what the server holds. */}
       <BrandForm key={JSON.stringify(saved)} saved={saved} orgSlug={orgSlug} />
+      <AdminOnly>
       <GlassPanel>
         <div className="flex items-start justify-between gap-6">
           <div>
@@ -341,6 +345,7 @@ export default function MarketingContextPage() {
           orgSlug={orgSlug}
         />
       )}
+      </AdminOnly>
     </div>
   );
 }

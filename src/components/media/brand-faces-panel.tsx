@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog, Field } from "@/components/ui-kit";
 import { useAddBrandFace, useBrandFaces, useRemoveBrandFace, useSwitchBrandFaces } from "@/hooks/use-brand-faces";
-import { useCanApprove } from "@/hooks/use-creative";
+import { useAdminLocked } from "@/hooks/use-access";
 import { faceFormProblem, type BrandFace } from "@/lib/api/brand-faces";
 import { brandImagesApi } from "@/lib/api/brand-images";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,7 @@ const lastDay = (until: string) => day(new Date(new Date(until).getTime() - 1).t
  */
 export function BrandFacesPanel() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
-  const canChange = !!useCanApprove();
+  const canChange = !useAdminLocked();
   const faces = useBrandFaces();
   const images = useQuery({ queryKey: brandImagesKey(orgSlug), queryFn: brandImagesApi.list });
   const toggle = useSwitchBrandFaces();

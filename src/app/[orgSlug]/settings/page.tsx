@@ -6,6 +6,7 @@ import {
   BellRing, ChevronRight, CreditCard, FileChartColumn, Filter, Handshake, ListChecks, Megaphone, Palette, PlugZap, Quote, Rocket, ScrollText, Settings, ShieldCheck, SlidersHorizontal, UserCircle, UsersRound, Workflow,
   type LucideIcon,
 } from "lucide-react";
+import { SettingSources } from "@/components/layout/setting-sources";
 import { PageHeader, ToneBadge } from "@/components/ui-kit";
 import { useChecklist } from "@/hooks/use-onboarding";
 import { useTenantProfile } from "@/hooks/use-tenant-profile";
@@ -90,6 +91,7 @@ export default function SettingsPage() {
           </ul>
         </section>
       ))}
+      <SettingSources />
     </div>
   );
 }

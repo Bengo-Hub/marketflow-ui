@@ -2,7 +2,7 @@
 
 import { Switch } from "@/components/ui/switch";
 import { GlassPanel } from "@/components/ui-kit";
-import { useCanApprove } from "@/hooks/use-creative";
+import { useAdminLocked } from "@/hooks/use-access";
 import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import { AI_LABEL_EXPLANATION, AI_TEXT_EXPLANATION, aiLabelOn, aiLabelPatch, aiTextOn, aiTextPatch } from "@/lib/ai-label";
 
@@ -13,7 +13,7 @@ import { AI_LABEL_EXPLANATION, AI_TEXT_EXPLANATION, aiLabelOn, aiLabelPatch, aiT
 export function AILabelPanel() {
   const profile = useTenantProfile();
   const save = useUpdateTenantProfile();
-  const canChange = !!useCanApprove();
+  const canChange = !useAdminLocked();
   const on = aiLabelOn(profile.data?.metadata);
   return (
     <GlassPanel title="AI label">

@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState, ErrorState, Field, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
+import { useAdminLocked } from "@/hooks/use-access";
 import { useCanApprove, useOfferingSearch } from "@/hooks/use-creative";
 import { useBestTimes, usePublishAccounts } from "@/hooks/use-publishing";
 import { PLATFORM_LABEL, cadenceLabel, type BestTimes, type Platform } from "@/lib/api/publishing";
@@ -349,6 +350,8 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
   const latest = useQuery({ queryKey: [...KEY, a.id, "latest-run"], queryFn: () => autopilotApi.latestRun(a.id), enabled: !!cfg });
   const versions = a.metadata?.versions ?? [];
   const planToast = usePlanErrorToast();
+  // Autopilot settings are an admin's.
+  const locked = useAdminLocked();
   const setActive = useMutation({
     mutationFn: (on: boolean) => autopilotApi.setActive(a.id, on),
     onSuccess: (_d, on) => {
@@ -461,7 +464,7 @@ function AgentCard({ agent: a, plan, onEdit, onChange }: { agent: AutopilotAgent
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>Earlier settings:</span>
             {previous.map((v) => (
-              <Button key={v.version} size="sm" variant="ghost" disabled={rollback.isPending} onClick={() => rollback.mutate(v.version)}>
+              <Button key={v.version} size="sm" variant="ghost" disabled={locked || rollback.isPending} onClick={() => rollback.mutate(v.version)}>
                 <RotateCcw /> {when.format(new Date(v.saved_at))}
               </Button>
             ))}
@@ -522,8 +525,8 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
   const list = accounts.data ?? [];
   const autoPublish = useQuery({ queryKey: [...KEY, "auto-publish"], queryFn: autopilotApi.autoPublish, retry: false });
   const veto = autoPublish.data;
-  // The hold list is the approving roles' (owner and admin), as the API checks.
-  const canEditHold = useCanApprove();
+  // The settings, the terms and the hold list are an admin's, as the API's role gate checks.
+  const locked = useAdminLocked();
   const hours =clampVetoHours(vetoHours ?? veto?.default_veto_hours ?? 4, veto);
   const vetoBlocked = mode === "auto_publish" && !canSaveVetoWindow(veto, acceptTerms);
 
@@ -846,9 +849,10 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
         </fieldset>
 
         {mode === "auto_publish" && veto && (
-          <HoldCategoriesEditor status={veto} canEdit={canEditHold} queryKey={[...KEY, "auto-publish"]} />
+          <HoldCategoriesEditor status={veto} canEdit={!locked} queryKey={[...KEY, "auto-publish"]} />
         )}
 
+        {locked && <p className="text-sm text-muted-foreground">Only a MarketFlow admin can save these settings.</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         {refusal && refusal.code !== "plan_unavailable" && (
           <Link href={upgradeHref(orgSlug, refusal.upgradePath)} className={buttonVariants({ size: "sm", variant: "outline" })}>
@@ -856,7 +860,7 @@ function Settings({ agent, onDone }: { agent: AutopilotAgent; onDone: () => void
           </Link>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button disabled={save.isPending || picked.length === 0 || postIDs.length === 0 || budgetProblems.length > 0 || vetoBlocked} onClick={() => { setError(null); setRefusal(null); save.mutate(); }}>
+          <Button disabled={locked || save.isPending || picked.length === 0 || postIDs.length === 0 || budgetProblems.length > 0 || vetoBlocked} onClick={() => { setError(null); setRefusal(null); save.mutate(); }}>
 
             {save.isPending ? "Saving..." : "Save settings"}
           </Button>

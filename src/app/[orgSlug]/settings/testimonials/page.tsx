@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog, EmptyState, ErrorState, Field, PageHeader, ToneBadge } from "@/components/ui-kit";
+import { useAdminLocked } from "@/hooks/use-access";
 import { useMoveTestimonial, useRemoveTestimonial, useReviewTestimonial, useSaveTestimonial, useTestimonials } from "@/hooks/use-testimonials";
 import type { Testimonial } from "@/lib/api/testimonials";
 import { testimonialLinkUrl } from "@/lib/urls";
@@ -125,6 +126,7 @@ export default function TestimonialsSettingsPage() {
   const move = useMoveTestimonial();
   const remove = useRemoveTestimonial();
   const review = useReviewTestimonial();
+  const locked = useAdminLocked();
   const [editing, setEditing] = useState<{ item?: Testimonial } | null>(null);
   const [deleting, setDeleting] = useState<Testimonial | null>(null);
   const [view, setView] = useState<"all" | "pending">(search.get("status") === "pending" || reviewId ? "pending" : "all");
@@ -198,9 +200,10 @@ export default function TestimonialsSettingsPage() {
                 {t.status === "pending" || t.status === "rejected" ? (
                   <div className="mr-auto flex flex-wrap items-center gap-2">
                     <ReviewBadge t={t} />
-                    <Button size="sm" disabled={review.isPending} onClick={() => review.mutate({ id: t.id, approve: true })}><Check /> Approve and show</Button>
+                    {/* Reviewing a customer's words is an admin's call. */}
+                    <Button size="sm" disabled={locked || review.isPending} onClick={() => review.mutate({ id: t.id, approve: true })}><Check /> Approve and show</Button>
                     {t.status === "pending" && (
-                      <Button size="sm" variant="outline" disabled={review.isPending} onClick={() => review.mutate({ id: t.id, approve: false })}><X /> Decline</Button>
+                      <Button size="sm" variant="outline" disabled={locked || review.isPending} onClick={() => review.mutate({ id: t.id, approve: false })}><X /> Decline</Button>
                     )}
                   </div>
                 ) : (

@@ -7,6 +7,7 @@ import { Check, Eye, EyeOff, Inbox, Mail, MessageCircle, Reply, Trash2, UserPlus
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, ConfirmDialog, EmptyState, ErrorState, GlassPanel, PageHeader, ToneBadge, type Tone } from "@/components/ui-kit";
+import { AdminOnly } from "@/components/layout/admin-only";
 import { AutoReplySettings } from "@/components/inbox/auto-reply-settings";
 import { useInbox, useInboxDelete, useInboxHandled, useInboxHide, useInboxPrivateReply, useInboxPromote, useInboxReply } from "@/hooks/use-inbox";
 import { useIsRestricted, useMyAccess } from "@/hooks/use-access";
@@ -43,7 +44,7 @@ export default function InboxPage() {
         title="Inbox"
         description="Comments and messages on your Facebook Page and Instagram. People asking to buy are marked so you can answer them first."
       />
-      {!restricted && <AutoReplySettings />}
+      {!restricted && <AdminOnly notice><AutoReplySettings /></AdminOnly>}
       <CapsuleTabs
         label="Which messages to show"
         value={view}

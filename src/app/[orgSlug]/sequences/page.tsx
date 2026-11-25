@@ -195,6 +195,7 @@ export default function SequencesPage() {
             </ol>
             <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
               <ToneBadge tone={s.active ? "success" : "neutral"}>{s.active ? "On" : "Off"}</ToneBadge>
+              {s.metadata?.default_follow_up && <ToneBadge tone={s.metadata.inherit ? "info" : "neutral"}>{s.metadata.inherit ? "Shared wording" : "Your wording"}</ToneBadge>}
               <span className="text-xs text-muted-foreground tabular">{s.total_enrolled} enrolled, {s.total_completed} finished</span>
               <div className="ml-auto flex gap-1">
                 <Button variant="ghost" size="sm" onClick={() => setStats(s)}><BarChart3 /> Results</Button>

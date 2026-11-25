@@ -5,8 +5,9 @@ import { useParams, usePathname } from "next/navigation";
 import { Lock } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState, GlassPanel } from "@/components/ui-kit";
-import { useMyAccess } from "@/hooks/use-access";
-import { APP_REVIEWER, isRestricted, pageAllowed, type MyAccess } from "@/lib/access/role-access";
+import { AdminNotice } from "@/components/layout/admin-only";
+import { useAdminLocked, useMyAccess } from "@/hooks/use-access";
+import { APP_REVIEWER, canPublish, isRestricted, pageAllowed, pageWrites, type MyAccess } from "@/lib/access/role-access";
 import { useAuthStore } from "@/store/auth-store";
 
 /** The SSO role that makes someone the app reviewer (marketflow-api maps it to app_reviewer). */
@@ -22,6 +23,8 @@ export function RolePageGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const { data: access, isLoading } = useMyAccess();
   const ssoReviewer = useAuthStore((s) => s.user?.roles?.includes(SSO_REVIEWER_ROLE) ?? false);
+  const platformOwner = useAuthStore((s) => s.user?.isPlatformOwner ?? false);
+  const locked = useAdminLocked();
   const base = `/${orgSlug}`;
   const path = pathname.startsWith(base) ? pathname.slice(base.length) : pathname;
 
@@ -30,7 +33,18 @@ export function RolePageGuard({ children }: { children: React.ReactNode }) {
   if (ssoReviewer && isLoading && !pageAllowed(path, REVIEWER_ACCESS)) {
     return <div className="h-48 animate-pulse rounded-[1.25rem] bg-muted" aria-hidden />;
   }
-  if (!isRestricted(access) || pageAllowed(path, access)) return <>{children}</>;
+  if (!isRestricted(access) || pageAllowed(path, access)) {
+    const writes = pageWrites(path);
+    const viewer = !!access && !canPublish(access) && !platformOwner;
+    return (
+      <>
+        {locked && (writes === "form" || writes === "admin") && !isRestricted(access) && <AdminNotice />}
+        {viewer && writes === "member" && <AdminNotice text="Your role can view this page but not change it. Ask a MarketFlow admin for access." />}
+        {/* Always the same tree, so a form never remounts when the role arrives. */}
+        <fieldset disabled={locked && writes === "form"} className="contents">{children}</fieldset>
+      </>
+    );
+  }
   return (
     <GlassPanel>
       <EmptyState

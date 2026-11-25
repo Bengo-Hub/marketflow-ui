@@ -67,7 +67,21 @@ export interface KESRate {
   source: "treasury" | "same";
 }
 
+/** A setting another service owns (item 75): where it comes from and when it was last read. */
+export interface SettingSource {
+  key: string;
+  name: string;
+  from: string;
+  updates: string;
+  detail?: string;
+  last_sync?: string;
+  ok: boolean;
+}
+
 export const tenantProfileApi = {
+  sources: () => apiClient.get<{ data: SettingSource[] }>("/api/v1/tenant/profile/sources").then((r) => r.data.data ?? []),
+  syncSource: (key: string) =>
+    apiClient.post<SettingSource>(`/api/v1/tenant/profile/sources/${encodeURIComponent(key)}/sync`).then((r) => r.data),
   get: () => apiClient.get<TenantProfile>("/api/v1/tenant/profile").then((r) => r.data),
   update: (body: TenantProfileUpdate) => apiClient.patch<TenantProfile>("/api/v1/tenant/profile", body).then((r) => r.data),
   /** The business types an owner can pick, each with a label and description (Sprint 7 #32). */

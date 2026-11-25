@@ -33,6 +33,8 @@ export interface Sequence {
   steps: SequenceStep[];
   total_enrolled: number;
   total_completed: number;
+  /** inherit: the steps are Codevertex's shared wording until this business saves its own (item 76). */
+  metadata?: { default_follow_up?: boolean; inherit?: boolean } | null;
   created_at: string;
 }
 

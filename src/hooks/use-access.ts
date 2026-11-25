@@ -32,6 +32,13 @@ export function useIsAdmin(): boolean {
   return platformOwner || isAdmin(data);
 }
 
+/** Known not to be an admin, so admin-only controls are off. Unknown yet: leave them, the API decides. */
+export function useAdminLocked(): boolean {
+  const { isSuccess } = useMyAccess();
+  const admin = useIsAdmin();
+  return isSuccess && !admin;
+}
+
 /** May post an approved ad and boost it. Unknown yet: show it and let the API decide. */
 export function useCanPublish(): boolean {
   const platformOwner = useAuthStore((s) => s.user?.isPlatformOwner ?? false);

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { CapsuleTabs, ConfirmDialog, EmptyState, Field, ListEditor, ListTable, PageHeader, ToneBadge } from "@/components/ui-kit";
+import { useAdminLocked } from "@/hooks/use-access";
 import { useDeleteFieldDef, useFieldDefs, useSaveFieldDef } from "@/hooks/use-custom-fields";
 import type { EntityType } from "@/lib/api/activities";
 import type { CustomFieldDef, FieldType } from "@/lib/api/custom-fields";
@@ -97,6 +98,7 @@ function FieldForm({ entity, def, onDone }: { entity: EntityType; def?: CustomFi
 
 export default function CustomFieldsPage() {
   const [entity, setEntity] = useState<EntityType>("lead");
+  const locked = useAdminLocked();
   const defs = useFieldDefs(entity);
   const del = useDeleteFieldDef();
   const [editing, setEditing] = useState<{ def?: CustomFieldDef } | null>(null);
@@ -126,7 +128,7 @@ export default function CustomFieldsPage() {
       mobileAction: true,
       exportable: false,
       render: (d) => (
-        <div className="flex justify-end gap-1">
+        <div className={locked ? "hidden" : "flex justify-end gap-1"}>
           <Button variant="ghost" size="icon-sm" aria-label={`Edit ${d.field_label}`} onClick={() => setEditing({ def: d })}><Pencil /></Button>
           <Button variant="ghost" size="icon-sm" aria-label={`Delete ${d.field_label}`} onClick={() => setDeleting(d)}><Trash2 className="text-destructive" /></Button>
         </div>
@@ -140,7 +142,7 @@ export default function CustomFieldsPage() {
         icon={<SlidersHorizontal />}
         title="Custom fields"
         description="Extra details you keep on leads, contacts and deals. They show on each record's page."
-        actions={<Button onClick={() => setEditing({})}><Plus /> Add field</Button>}
+        actions={!locked && <Button onClick={() => setEditing({})}><Plus /> Add field</Button>}
       />
       <CapsuleTabs label="Record type" value={entity} onChange={setEntity} options={ENTITIES} />
       <ListTable<CustomFieldDef>
@@ -156,7 +158,7 @@ export default function CustomFieldsPage() {
             icon={<SlidersHorizontal />}
             title={`No fields on ${entityLabel} yet`}
             description="For example: company size, preferred contact time, or how they heard about you."
-            action={<Button onClick={() => setEditing({})}><Plus /> Add a field</Button>}
+            action={!locked && <Button onClick={() => setEditing({})}><Plus /> Add a field</Button>}
           />
         }
       />
