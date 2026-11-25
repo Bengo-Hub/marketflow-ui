@@ -7,6 +7,7 @@ import { WhatsAppIcon } from "@/components/public-profile/whatsapp-icon";
 import { ActivityTimeline } from "@/components/crm/activity-timeline";
 import { CustomFieldsPanel } from "@/components/crm/custom-fields-panel";
 import { CapsuleTabs, ErrorState, GlassPanel, ToneBadge, humanize } from "@/components/ui-kit";
+import { useLeadDeals } from "@/hooks/use-deals";
 import { useLead, useUpdateLead } from "@/hooks/use-leads";
 import { useIsRestricted } from "@/hooks/use-access";
 import { LEAD_STATUSES, leadName } from "@/lib/api/leads";
@@ -28,6 +29,7 @@ export default function LeadDetailPage() {
   const update = useUpdateLead(id);
   // The app reviewer views a lead: no status changes, custom fields or CRM timeline.
   const restricted = useIsRestricted();
+  const deals = useLeadDeals(id, !restricted);
   const l = lead.data;
   const wa = l?.phone ? `https://wa.me/${l.phone.replace(/\D/g, "")}` : null;
 
@@ -110,6 +112,13 @@ export default function LeadDetailPage() {
                   <Row label="Email">{l.email || "Not given"}</Row>
                   <Row label="Phone">{l.phone || "Not given"}</Row>
                   <Row label="Score">{l.score}</Row>
+                  {(deals.data?.data ?? []).map((d) => (
+                    <Row key={d.id} label="Deal">
+                      <Link href={`/${orgSlug}/crm/deals?deal=${d.id}`} className="text-primary hover:underline">
+                        {d.title}
+                      </Link>
+                    </Row>
+                  ))}
                   {l.interest && <Row label="Interested in">{l.interest}</Row>}
                   {(l.utm_source || l.utm_medium || l.utm_campaign) && (
                     <Row label="Ad tracking">{[l.utm_source, l.utm_medium, l.utm_campaign].filter(Boolean).join(" / ")}</Row>

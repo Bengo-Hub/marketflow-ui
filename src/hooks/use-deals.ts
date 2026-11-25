@@ -31,6 +31,11 @@ export function useDeal(id: string | null) {
   return useQuery({ queryKey: ["deal", id], queryFn: () => dealsApi.get(id!), enabled: !!id });
 }
 
+/** The deals made from a lead, newest first. */
+export function useLeadDeals(leadId: string, enabled = true) {
+  return useQuery({ queryKey: ["deals", "lead", leadId], queryFn: () => dealsApi.list({ lead_id: leadId, limit: 5 }), enabled: enabled && !!leadId, staleTime: 30_000 });
+}
+
 function useRefresh() {
   const qc = useQueryClient();
   return (id?: string) => {

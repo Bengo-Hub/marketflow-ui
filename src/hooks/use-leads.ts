@@ -27,6 +27,8 @@ export function useUpdateLead(id: string) {
     onSuccess: () => {
       toast.success("Lead updated");
       void qc.invalidateQueries({ queryKey: ["lead", id] });
+      // A qualified lead gets its deal.
+      void qc.invalidateQueries({ queryKey: ["deals"] });
       void qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e) => toast.error(apiErrorMessage(e, "Could not update the lead")),
