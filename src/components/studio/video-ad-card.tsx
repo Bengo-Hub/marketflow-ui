@@ -2,7 +2,6 @@
 
 import { DeleteVersionButton, RestoreVersionButton } from "@/components/studio/delete-version-button";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Check, Clapperboard, Film, LoaderCircle, Pencil, Play, RefreshCw, Rocket, Send, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +35,6 @@ import {
   VIDEO_KINDS,
   videoLengthSeconds,
   videoParts,
-  videoAdsApi,
   type EndCard,
   type ScriptScene,
   type Shot,
@@ -44,7 +42,7 @@ import {
   type VideoAdQuote,
   type VideoScript,
 } from "@/lib/api/video-ads";
-import { adWords, defaultPostCaption } from "@/lib/studio/post-caption";
+import { adWords } from "@/lib/studio/post-caption";
 import { adLeadUrl } from "@/lib/urls";
 
 const SHOTS: Shot[] = ["presenter", "product_clip", "b_roll", "owner_footage", "end_card"];
@@ -567,21 +565,6 @@ function Finished({
   const restricted = useIsRestricted();
   const ready = version.status === "ready";
   const caption = adWords(version.copy as Record<string, unknown> | undefined);
-  // A post ends with the ad's lead page, tagged so its leads show they came from this ad.
-  // A pharmacy's medicine ad ends with its PPB approval line (pharmacy hand-off 2026-11-14).
-  // The caption carries the same real contacts as the end card (owner, 2026-11-25).
-  const contacts = useQuery({
-    queryKey: ["caption-contacts", version.id],
-    queryFn: () => videoAdsApi.captionContacts(version.id),
-    enabled: posting,
-    staleTime: 60_000,
-  });
-  const postCaption = defaultPostCaption(
-    caption,
-    funnelSlug ? adLeadUrl(funnelSlug, briefId, "social", "social") : undefined,
-    version.metadata as Record<string, unknown> | undefined,
-    contacts.data ?? [],
-  );
   return (
     <div className="space-y-3">
       <BrandImagesRequired error={revise.error} />
@@ -644,7 +627,8 @@ function Finished({
           open={posting}
           onOpenChange={setPosting}
           assetId={video.id}
-          defaultCaption={postCaption}
+          versionId={version.id}
+          defaultCaption={caption}
           videoSeconds={videoLengthSeconds(measured, videoParts(version).script)}
         />
       )}
@@ -653,6 +637,7 @@ function Finished({
           open={boosting}
           onOpenChange={setBoosting}
           assetId={video.id}
+          versionId={version.id}
           defaultText={caption}
           otherVideos={otherVideos}
           defaultLink={funnelSlug ? adLeadUrl(funnelSlug, briefId, "facebook", "paid") : undefined}

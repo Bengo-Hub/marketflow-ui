@@ -34,6 +34,22 @@ export interface AdQuote {
   ad_account_id: string;
 }
 
+/** What the Boost dialog starts with (marketflow-api adsmanager.BoostPreset). */
+export interface BoostPreset {
+  ad_account_connected_id?: string;
+  page_connected_id?: string;
+  objective: Objective;
+  days: number;
+  /** The default budget per ad account, in its own currency; missing when no rate could be read. */
+  budgets: Record<string, number>;
+  message: string;
+  /** The ad's lead page. */
+  link: string;
+  /** The business's own privacy policy; empty with a prompt when it has none. */
+  privacy_url: string;
+  privacy_prompt?: string;
+}
+
 export interface BoostInput {
   ad_account_connected_id: string;
   budget: number;
@@ -115,6 +131,7 @@ export interface Boost {
 }
 
 export const adsApi = {
+  boostPreset: (versionId: string) => apiClient.get<BoostPreset>(`${base}/boost-preset`, { params: { version_id: versionId } }).then((r) => r.data),
   accounts: () => apiClient.get<{ data: AdAccount[] }>(`${base}/accounts`).then((r) => r.data.data),
   /** A KES ad account (Nairobi time) in the client's business portfolio, so Meta offers M-Pesa. */
   createKES: (b: { page_connected_id?: string; business_id?: string; name?: string }) =>

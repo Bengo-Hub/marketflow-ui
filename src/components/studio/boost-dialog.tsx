@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CapsuleTabs, Field, ToneBadge } from "@/components/ui-kit";
 import { toast } from "sonner";
-import { useAdAccounts, useAdQuote, useBoost, useBoostAction, useBoostOtp, useLaunchBoost } from "@/hooks/use-ads";
+import { useAdAccounts, useAdQuote, useBoost, useBoostAction, useBoostOtp, useBoostPreset, useLaunchBoost } from "@/hooks/use-ads";
 import { useAdminLocked, useIsRestricted } from "@/hooks/use-access";
 import { useTenantCurrency } from "@/hooks/use-tenant-profile";
 import { MoneyInput } from "@bengo-hub/shared-ui-lib/payments";
@@ -62,6 +62,7 @@ export function BoostDialog({
   open,
   onOpenChange,
   assetId,
+  versionId,
   defaultText,
   defaultLink,
   otherVideos = [],
@@ -69,6 +70,8 @@ export function BoostDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
   assetId: string;
+  /** The video's version; its boost settings (budget, days, goal, link, privacy policy) are preset. */
+  versionId?: string;
   /** Other approved videos of the brief; up to two can run beside this one (budget optimiser). */
   otherVideos?: { assetId: string; label: string }[];
   defaultText?: string;
@@ -84,12 +87,20 @@ export function BoostDialog({
   const fbPages = useMemo(() => (pages.data ?? []).filter((p) => p.platform === "facebook"), [pages.data]);
   const [account, setAccount] = useState("");
   const [page, setPage] = useState("");
-  const [budget, setBudget] = useState(3000);
-  const [days, setDays] = useState(7);
-  const [objective, setObjective] = useState<Objective>("whatsapp");
-  const [message, setMessage] = useState(defaultText ?? "");
-  const [link, setLink] = useState(defaultLink ?? "");
-  const [privacy, setPrivacy] = useState("");
+  // The business's own boost settings, the ones a WhatsApp boost uses; anything typed here wins.
+  const preset = useBoostPreset(versionId, open);
+  const p = preset.data;
+  const [budgetTyped, setBudget] = useState<number | null>(null);
+  const [daysTyped, setDays] = useState<number | null>(null);
+  const [objectivePicked, setObjective] = useState<Objective | null>(null);
+  const [messageTyped, setMessage] = useState<string | null>(null);
+  const [linkTyped, setLink] = useState<string | null>(null);
+  const [privacyTyped, setPrivacy] = useState<string | null>(null);
+  const days = daysTyped ?? p?.days ?? 7;
+  const objective = objectivePicked ?? p?.objective ?? "whatsapp";
+  const message = messageTyped ?? (p?.message || defaultText || "");
+  const link = linkTyped ?? (p?.link || defaultLink || "");
+  const privacy = privacyTyped ?? p?.privacy_url ?? "";
   const [extras, setExtras] = useState<string[]>([]);
   const [audience, setAudience] = useState<string>("ke-all");
   const toggleExtra = (id: string) =>
@@ -98,7 +109,9 @@ export function BoostDialog({
   const [boostID, setBoostID] = useState<string | null>(null);
 
   const acct = account || accounts.data?.find((a) => a.active)?.connected_account_id || "";
-  const pg = page || fbPages[0]?.id || "";
+  const pg = page || fbPages.find((x) => x.id === p?.page_connected_id)?.id || fbPages[0]?.id || "";
+  // The default is in the chosen account's own currency; without a rate the owner types an amount.
+  const budget = budgetTyped ?? p?.budgets[acct] ?? 0;
   const debBudget = useDebouncedValue(budget, 400);
   const quote = useAdQuote(acct, debBudget, days);
   const launch = useLaunchBoost();
@@ -299,7 +312,7 @@ export function BoostDialog({
               ]}
             />
             {objective === "traffic" && (
-              <Field label="Link" htmlFor="boost-link" hint={defaultLink && link === defaultLink ? "This ad's own lead page, tagged so you can see which leads it brings." : undefined}>
+              <Field label="Link" htmlFor="boost-link" hint={link && link === (p?.link || defaultLink) ? "This ad's own lead page, tagged so you can see which leads it brings." : undefined}>
                 <Input id="boost-link" type="url" placeholder="https://" value={link} onChange={(e) => setLink(e.target.value)} />
               </Field>
             )}
@@ -307,7 +320,18 @@ export function BoostDialog({
               <Field
                 label="Your privacy policy link"
                 htmlFor="boost-privacy"
-                hint="People fill a short Facebook form (name, phone, email). Meta shows this link on it and requires one."
+                hint={
+                  p?.privacy_prompt && !privacy ? (
+                    <>
+                      {p.privacy_prompt}{" "}
+                      <Link href={`/${orgSlug}/settings/profile`} className="font-medium text-primary hover:underline">
+                        Add it
+                      </Link>
+                    </>
+                  ) : (
+                    "People fill a short Facebook form (name, phone, email). Meta shows this link on it and requires one."
+                  )
+                }
               >
                 <Input id="boost-privacy" type="url" placeholder="https://" value={privacy} onChange={(e) => setPrivacy(e.target.value)} />
               </Field>

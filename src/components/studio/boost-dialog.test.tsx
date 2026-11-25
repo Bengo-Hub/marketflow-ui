@@ -15,6 +15,7 @@ vi.mock("@/hooks/use-publishing", () => ({
 }));
 vi.mock("@/hooks/use-ads", () => ({
   useAdAccounts: () => ({ isSuccess: true, data: [{ connected_account_id: "a1", name: "Shop Ads", currency: "KES", active: true }] }),
+  useBoostPreset: () => ({ data: { objective: "whatsapp", days: 7, budgets: { a1: 60000 }, message: "Fresh bread daily", link: "", privacy_url: "" } }),
   useAdQuote: () => ({
     isError: false,
     data: { currency: "KES", budget: 60000, days: 7, balance: 0, shortfall: 0, funding: "card", launch_credits: 0, blockers: [], account_name: "Shop Ads", ad_account_id: "act_1" },

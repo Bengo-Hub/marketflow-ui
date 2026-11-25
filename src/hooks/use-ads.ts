@@ -9,6 +9,11 @@ export function useAdAccounts(enabled = true) {
   return useQuery({ queryKey: ["ad-accounts"], queryFn: adsApi.accounts, enabled, staleTime: 60_000, retry: 1 });
 }
 
+/** What the Boost dialog starts with for a video. */
+export function useBoostPreset(versionId: string | undefined, enabled = true) {
+  return useQuery({ queryKey: ["boost-preset", versionId], queryFn: () => adsApi.boostPreset(versionId!), enabled: enabled && !!versionId, staleTime: 60_000, retry: false });
+}
+
 /** The live quote; it refreshes when the account, budget or days change. */
 export function useAdQuote(accountID: string, budget: number, days: number) {
   return useQuery({

@@ -12,11 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, ToneBadge } from "@/components/ui-kit";
-import { useBestTimes, usePublishAccounts, useSchedulePost } from "@/hooks/use-publishing";
+import { useBestTimes, usePostPlan, usePublishAccounts, useSchedulePost } from "@/hooks/use-publishing";
 import { useTenantProfile } from "@/hooks/use-tenant-profile";
 import { aiLabelOn } from "@/lib/ai-label";
 import { apiErrorMessage } from "@/lib/api/errors";
-import { CAPTION_LIMIT, PLATFORM_LABEL, publishingApi, windowLabel, type PublishAccount } from "@/lib/api/publishing";
+import { CAPTION_LIMIT, PLATFORM_LABEL, presetAccounts, publishingApi, windowLabel, type PublishAccount } from "@/lib/api/publishing";
 
 const bestFmt = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
 import { reconnectToDeleteHint } from "@/lib/studio/delete-from-platform";
@@ -36,12 +36,15 @@ export function PublishDialog({
   open,
   onOpenChange,
   assetId,
+  versionId,
   defaultCaption,
   videoSeconds = 0,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   assetId: string;
+  versionId: string;
+  /** The ad's own words, shown until the server's caption (contacts, lead page link) loads. */
   defaultCaption?: string;
   /** The video's length, checked against the TikTok account's limit (0 when unknown; the server checks it too). */
   videoSeconds?: number;
@@ -49,13 +52,16 @@ export function PublishDialog({
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const accounts = usePublishAccounts(open);
   const schedule = useSchedulePost();
-  const [picked, setPicked] = useState<string[]>([]);
-  // Until it is edited the caption follows the default, which gains the contacts once they load.
+  // What the post starts with (accounts, caption, AI label, best time): the same server rule the
+  // WhatsApp approval shows and posts (owner, 2026-11-25). Anything the person changes wins.
+  const preset = usePostPlan(versionId, open);
+  const [pickedByHand, setPicked] = useState<string[] | null>(null);
+  const picked = useMemo(() => pickedByHand ?? presetAccounts(preset.data), [pickedByHand, preset.data]);
   const [edited, setCaption] = useState<string | null>(null);
-  const caption = edited ?? defaultCaption ?? "";
+  const caption = edited ?? preset.data?.caption ?? defaultCaption ?? "";
   const profile = useTenantProfile();
   const [aiTick, setAITick] = useState<boolean | null>(null);
-  const ai = aiTick ?? aiLabelOn(profile.data?.metadata);
+  const ai = aiTick ?? preset.data?.ai_generated ?? aiLabelOn(profile.data?.metadata);
   const [later, setLater] = useState(false);
   // "Now" is fixed when the dialog opens, so render stays pure; the server moves a past time to now.
   const [openedAt] = useState(() => Date.now());
@@ -79,24 +85,25 @@ export function PublishDialog({
   const tiktokBlock = tiktokAccount ? tiktokProblem(tiktokDraft, creator.data, videoSeconds, tiktokConsent) : null;
   // The posting plan's best times for the picked platforms (marketflow-api postingplan).
   const plan = useBestTimes(open);
-  const [bestTime, setBestTime] = useState(false);
+  const [bestTimeTick, setBestTime] = useState<boolean | null>(null);
+  const bestTime = bestTimeTick ?? preset.data?.best_time ?? false;
   const pickedPlatforms = useMemo(() => [...new Set(pickedAccounts.map((a) => a.platform))], [pickedAccounts]);
   const whenDate = new Date(when);
   const whenInvalid = later && (Number.isNaN(whenDate.getTime()) || whenDate.getTime() < openedAt);
 
   const toggle = (a: PublishAccount, on: boolean) => {
     if (!on) {
-      setPicked((p) => p.filter((id) => id !== a.id));
+      setPicked(picked.filter((id) => id !== a.id));
       return;
     }
     if (a.platform !== "tiktok") {
-      setPicked((p) => [...p, a.id]);
+      setPicked([...picked, a.id]);
       return;
     }
     // Picking another TikTok account replaces the first and starts its choices over.
     setTikTokDraft(emptyTikTokDraft);
     setTikTokConsent(false);
-    setPicked((p) => [...p.filter((id) => list.find((x) => x.id === id)?.platform !== "tiktok"), a.id]);
+    setPicked([...picked.filter((id) => list.find((x) => x.id === id)?.platform !== "tiktok"), a.id]);
   };
 
   const submit = () => {
@@ -116,7 +123,7 @@ export function PublishDialog({
       },
       {
         onSuccess: () => {
-          setPicked([]);
+          setPicked(null);
           onOpenChange(false);
         },
         onError: (e) => setError(apiErrorMessage(e, "Could not schedule the post")),
@@ -145,6 +152,9 @@ export function PublishDialog({
                 </Link>
               </p>
             )}
+            {preset.data?.skipped.map((s) => (
+              <p key={s.display_name} className="text-xs text-muted-foreground">{s.display_name} cannot take it: {s.reason}.</p>
+            ))}
             {list.map((a) => {
               const blocked = !a.enabled || a.needs_reconnect;
               return (

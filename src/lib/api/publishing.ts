@@ -106,7 +106,26 @@ export interface JobPage {
   has_more: boolean;
 }
 
+/** What a finished video is posted with (marketflow-api publishing.PostPlan). */
+export interface PostPlan {
+  caption: string;
+  ai_generated: boolean;
+  best_time: boolean;
+  timezone: string;
+  posts: { connected_account_id: string; platform: Platform; display_name: string; at?: string; note?: string }[];
+  skipped: { display_name: string; reason: string }[];
+}
+
+/**
+ * The accounts the Post dialog starts with: the plan's, without TikTok, whose audience the person
+ * must choose themselves (TikTok's posting guidelines).
+ */
+export function presetAccounts(plan: PostPlan | undefined): string[] {
+  return (plan?.posts ?? []).filter((p) => p.platform !== "tiktok").map((p) => p.connected_account_id);
+}
+
 export const publishingApi = {
+  postPlan: (versionId: string) => apiClient.get<PostPlan>(`${base}/post-plan`, { params: { version_id: versionId } }).then((r) => r.data),
   accounts: () => apiClient.get<{ data: PublishAccount[] }>(`${base}/accounts`).then((r) => r.data.data),
   tiktokCreatorInfo: (accountId: string) =>
     apiClient.get<TikTokCreatorInfo>(`${base}/accounts/${accountId}/tiktok-creator-info`).then((r) => r.data),

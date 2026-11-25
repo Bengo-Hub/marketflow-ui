@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ErrorState, GlassPanel, ToneBadge } from "@/components/ui-kit";
 import { useCanApprove } from "@/hooks/use-creative";
 import { useBestTimes, useSaveBestTimes } from "@/hooks/use-publishing";
+import { useTenantProfile, useUpdateTenantProfile } from "@/hooks/use-tenant-profile";
 import { apiErrorMessage } from "@/lib/api/errors";
 import {
   PLATFORM_LABEL,
@@ -22,6 +23,24 @@ const PLATFORMS: Platform[] = ["facebook", "instagram", "tiktok", "youtube"];
 const inputClass = "min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm";
 const SOURCE_LABEL = { default: "Recommended", platform: "Codevertex default", tenant: "Your choice" } as const;
 const whenFmt = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+
+/** Whether the Post dialog and WhatsApp start with each platform's best time (metadata.post_at_best_time). */
+function BestTimeDefault({ canEdit }: { canEdit: boolean }) {
+  const profile = useTenantProfile();
+  const save = useUpdateTenantProfile();
+  const stored = profile.data?.metadata?.post_at_best_time;
+  return (
+    <label className="flex min-h-10 items-center gap-3 px-1 text-sm">
+      <input
+        type="checkbox"
+        checked={stored !== "off"}
+        disabled={!canEdit || !profile.data || save.isPending}
+        onChange={(e) => save.mutate({ metadata: { post_at_best_time: e.target.checked ? "on" : "off" } })}
+      />
+      Start posts at each platform&apos;s best time, in the Studio and on WhatsApp
+    </label>
+  );
+}
 
 /**
  * The business's posting plan: when each platform's posts go out (best-time windows, in the
@@ -42,6 +61,7 @@ export function PostingPlanCard() {
       title="Posting plan"
       description={`Best times to post and how often, in ${data.timezone}. Recommended times come from 2025 and 2026 studies by Sprout Social, Buffer and Hootsuite, set to East African lunch and evening hours.`}
     >
+      <BestTimeDefault canEdit={canEdit} />
       <ul className="divide-y divide-border">
         {PLATFORMS.map((p) => {
           const info = data.platforms[p];

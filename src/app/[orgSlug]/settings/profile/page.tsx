@@ -31,6 +31,8 @@ type Meta = Pick<
   /** Private: where the business is, so its ads show scenes from its own town. */
   business_address?: string;
   business_city?: string;
+  /** The business's own privacy policy, shown on its Meta lead forms. */
+  privacy_url?: string;
 };
 
 const SOCIALS: Array<{ key: keyof Socials; label: string }> = [
@@ -76,6 +78,7 @@ function initialMeta(data: TenantProfile): Meta {
     opportunity_text: m.opportunity_text,
     business_address: m.business_address as string | undefined,
     business_city: m.business_city as string | undefined,
+    privacy_url: m.privacy_url as string | undefined,
     socials: (m.socials as Socials) ?? {},
     offerings: Array.isArray(m.offerings) ? (m.offerings as Offering[]) : [],
   };
@@ -126,6 +129,7 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
     if (!form.name.trim()) e.name = "Enter your business name.";
     for (const k of ["video_url", "logo_url", "cover_url"] as const) if (!isHttp(meta[k])) e[k] = "Use a full link starting with https://";
     if (meta.contact_email && !/^\S+@\S+\.\S+$/.test(meta.contact_email)) e.contact_email = "Enter a valid email address.";
+    if (meta.privacy_url?.trim() && !/^https:\/\/\S+$/i.test(meta.privacy_url.trim())) e.privacy_url = "Use a full link starting with https://";
     for (const s of SOCIALS) if (!isHttp(meta.socials[s.key])) e[`social_${s.key}`] = "Use a full link starting with https://";
     return e;
   }, [form, meta]);
@@ -269,6 +273,9 @@ function ProfileForm({ data, draft }: { data: TenantProfile; draft?: BrandDraft 
           </Field>
           <Field label="Contact email" hint="Shown when there is no WhatsApp number." error={errors.contact_email} htmlFor="pf-email">
             <Input id="pf-email" type="email" autoComplete="email" value={meta.contact_email ?? ""} onChange={(e) => setM({ contact_email: e.target.value })} />
+          </Field>
+          <Field label="Your privacy policy link" hint="Your own business's policy. Meta shows it on your lead forms, and the Boost form fills it in." error={errors.privacy_url} htmlFor="pf-privacy">
+            <Input id="pf-privacy" type="url" maxLength={500} placeholder="https://" value={meta.privacy_url ?? ""} onChange={(e) => setM({ privacy_url: e.target.value })} />
           </Field>
           <Field label="Business address" hint={<>Your head office address on your <a href={HQ_ADDRESS_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">account</a> is used first; this private copy is used only when it has none.</>} htmlFor="pf-address">
             <Input id="pf-address" maxLength={200} autoComplete="street-address" value={meta.business_address ?? ""} onChange={(e) => setM({ business_address: e.target.value })} placeholder="Building, street and area" />

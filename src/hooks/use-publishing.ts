@@ -5,6 +5,11 @@ import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { publishingApi, type BestTimesUpdate, type JobStatus, type ScheduleInput } from "@/lib/api/publishing";
 
+/** What a finished video is posted with; a refusal (no account, no video) leaves the dialog empty. */
+export function usePostPlan(versionId: string, enabled = true) {
+  return useQuery({ queryKey: ["post-plan", versionId], queryFn: () => publishingApi.postPlan(versionId), enabled, staleTime: 60_000, retry: false });
+}
+
 /** The accounts a video can go to; they change only when one is connected. */
 export function usePublishAccounts(enabled = true) {
   return useQuery({ queryKey: ["publish-accounts"], queryFn: publishingApi.accounts, enabled, staleTime: 5 * 60_000 });
