@@ -9,7 +9,7 @@ export function FacePicker({ value, onChange }: { value: string; onChange: (id: 
   const faces = (useBrandFaces().data?.faces ?? []).filter((f) => f.live);
   if (faces.length === 0) return null;
   return (
-    <Field label="Looks like" hint="Only people who agreed are listed. Their consent is in Settings, Brand.">
+    <Field label="Looks like" hint="Only people who agreed are listed. Their consent is in Settings, Brand. Drawing a new presenter from a person costs a few extra AI credits.">
       <SearchableCombobox
         options={[{ value: "", label: "No real person" }, ...faces.map((f) => ({ value: f.id, label: f.name }))]}
         value={faces.some((f) => f.id === value) ? value : ""}
