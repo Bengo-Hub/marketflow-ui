@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ErrorState, Field, GlassPanel, ToneBadge } from "@/components/ui-kit";
-import { adsSetupApi, sortItems, summary, type SetupAccount, type SetupItem, type SetupStatus } from "@/lib/api/ads-setup";
+import { adsSetupApi, groupItems, summary, type SetupAccount, type SetupItem, type SetupStatus } from "@/lib/api/ads-setup";
 import { apiErrorMessage } from "@/lib/api/errors";
 
 const PLATFORM: Record<string, string> = { google: "Google Ads", meta: "Meta", tiktok: "TikTok" };
@@ -33,7 +33,8 @@ export function AccountChecklist({ account }: { account: SetupAccount }) {
     onSuccess: (d) => qc.setQueryData(key, d),
     onError: (e) => toast.error(apiErrorMessage(e, "The account could not be read. Try again shortly.")),
   });
-  const items = q.data ? sortItems(q.data.items) : [];
+  const total = q.data?.items.length ?? 0;
+  const done = q.data?.items.filter((i) => i.status === "ok" || i.status === "info").length ?? 0;
 
   return (
     <GlassPanel
@@ -50,51 +51,80 @@ export function AccountChecklist({ account }: { account: SetupAccount }) {
         <ErrorState message={apiErrorMessage(q.error, "The account could not be read. Try again shortly.")} onRetry={() => void q.refetch()} />
       )}
       {q.data && (
-        <ul className="divide-y divide-border">
-          {items.map((it) => (
-            <li key={it.key} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start">
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-medium">{it.title}</h3>
-                  <ToneBadge tone={BADGE[it.status]?.tone}>{BADGE[it.status]?.label ?? it.status}</ToneBadge>
-                </div>
-                <p className="break-words text-sm text-muted-foreground">{it.detail}</p>
-                {it.points && it.points.length > 0 && (
-                  <ul className="list-disc space-y-0.5 break-words pl-5 text-sm text-muted-foreground">
-                    {it.points.map((p, i) => <li key={i}>{p}</li>)}
-                  </ul>
-                )}
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                {it.link?.url.startsWith("/") && (
-                  <Link href={it.link.url} className="inline-flex min-h-9 items-center rounded-lg border px-3 text-sm font-medium hover:bg-muted">
-                    {it.link.label}
-                  </Link>
-                )}
-                {it.link && !it.link.url.startsWith("/") && (
-                  <a
-                    href={it.link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium hover:bg-muted"
-                  >
-                    {it.link.label} <ExternalLink className="size-3.5" aria-hidden />
-                    <span className="sr-only">(opens in a new tab)</span>
-                  </a>
-                )}
-                {it.fix && q.data.can_fix && (
-                  <Button size="sm" onClick={() => setOpen(it)}>
-                    <Wrench /> {it.fix.label}
-                  </Button>
-                )}
-                {it.fix && !q.data.can_fix && <p className="text-xs text-muted-foreground">The account owner or an admin can fix this.</p>}
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <progress className="h-2 flex-1 accent-primary" value={done} max={total} aria-label="Checks done" />
+            <span className="text-sm tabular-nums text-muted-foreground">{done} of {total}</span>
+          </div>
+          {groupItems(q.data.items).map((g) => {
+            const cards = (
+              <ul className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                {g.items.map((it) => (
+                  <ItemCard key={it.key} item={it} canFix={q.data.can_fix} onFix={() => setOpen(it)} />
+                ))}
+              </ul>
+            );
+            return g.key === "ok" || g.key === "info" ? (
+              <details key={g.key}>
+                <summary className="cursor-pointer text-sm font-semibold">{g.title} ({g.items.length})</summary>
+                <div className="pt-3">{cards}</div>
+              </details>
+            ) : (
+              <section key={g.key} className="space-y-3">
+                <h3 className="text-sm font-semibold">{g.title} ({g.items.length})</h3>
+                {cards}
+              </section>
+            );
+          })}
+        </div>
       )}
       {open?.fix && <FixDialog key={open.key} accountID={account.connected_account_id} item={open} onClose={() => setOpen(null)} />}
     </GlassPanel>
+  );
+}
+
+/** One check: what is wrong, the numbered steps, and the buttons. */
+function ItemCard({ item: it, canFix, onFix }: { item: SetupItem; canFix: boolean; onFix: () => void }) {
+  const linkClass = "inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium hover:bg-muted";
+  return (
+    <li className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="text-sm font-medium">{it.title}</h4>
+        <ToneBadge tone={BADGE[it.status]?.tone}>{BADGE[it.status]?.label ?? it.status}</ToneBadge>
+      </div>
+      <p className="break-words text-sm text-muted-foreground">{it.detail}</p>
+      {it.points && it.points.length > 0 && (
+        <ul className="list-disc space-y-0.5 break-words pl-5 text-sm text-muted-foreground">
+          {it.points.map((p, i) => <li key={i}>{p}</li>)}
+        </ul>
+      )}
+      {it.steps && it.steps.length > 0 && (
+        <ol className="list-decimal space-y-1 break-words pl-5 text-sm">
+          {it.steps.map((p, i) => <li key={i}>{p}</li>)}
+        </ol>
+      )}
+      {it.support && (
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">For support</summary>
+          <p className="break-words pt-1">{it.support}</p>
+        </details>
+      )}
+      <div className="mt-auto flex flex-wrap items-center gap-2">
+        {it.fix && canFix && (
+          <Button size="sm" onClick={onFix}>
+            <Wrench /> {it.fix.label}
+          </Button>
+        )}
+        {it.fix && !canFix && <p className="text-xs text-muted-foreground">The account owner or an admin can fix this.</p>}
+        {it.link?.url.startsWith("/") && <Link href={it.link.url} className={linkClass}>{it.link.label}</Link>}
+        {it.link && !it.link.url.startsWith("/") && (
+          <a href={it.link.url} target="_blank" rel="noopener noreferrer" className={linkClass}>
+            {it.link.label} <ExternalLink className="size-3.5" aria-hidden />
+            <span className="sr-only">(opens in a new tab)</span>
+          </a>
+        )}
+      </div>
+    </li>
   );
 }
 

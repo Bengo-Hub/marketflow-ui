@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AccountChecklist } from "./account-checklist";
-import { adsSetupApi, sortItems, summary, type SetupChecklist, type SetupItem } from "@/lib/api/ads-setup";
+import { adsSetupApi, groupItems, summary, type SetupChecklist, type SetupItem } from "@/lib/api/ads-setup";
 
 const account = { connected_account_id: "a1", platform: "google", external_id: "1", name: "Shop", status: "active" };
 const call: SetupItem = {
@@ -67,6 +67,17 @@ describe("AccountChecklist", () => {
     expect(screen.getByRole("link", { name: /Open assets/ }).getAttribute("target")).toBe("_blank");
   });
 
+  it("numbers the manual steps, keeps the platform's words apart and folds what is done", async () => {
+    vi.spyOn(adsSetupApi, "checklist").mockResolvedValue({
+      ...list(),
+      items: [{ ...ok, status: "unknown", key: "x", steps: ["Open it", "Save"], support: "RAW" }, ok],
+    });
+    show();
+    expect((await screen.findByText("Open it")).closest("ol")).toBeTruthy();
+    expect(screen.getByText("RAW").closest("details")?.open).toBe(false);
+    expect(screen.getByText("Done (1)").closest("details")?.open).toBe(false);
+  });
+
   it("offers no fix to a member who may not change it", async () => {
     vi.spyOn(adsSetupApi, "checklist").mockResolvedValue(list(false));
     show();
@@ -77,7 +88,7 @@ describe("AccountChecklist", () => {
 
 describe("ads setup helpers", () => {
   it("puts problems first and sums up", () => {
-    expect(sortItems([ok, call]).map((i) => i.key)).toEqual(["google.call", "google.account"]);
+    expect(groupItems([ok, call]).map((g) => g.key)).toEqual(["warning", "ok"]);
     expect(summary([ok, call])).toBe("1 to improve");
     expect(summary([ok])).toBe("Everything is set up");
   });

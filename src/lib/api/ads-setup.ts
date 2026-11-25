@@ -37,6 +37,10 @@ export interface SetupItem {
   status: SetupStatus;
   detail: string;
   points?: string[];
+  /** What the owner does themselves, in order. */
+  steps?: string[];
+  /** The platform's own words, for support. */
+  support?: string;
   link?: { label: string; url: string };
   fix?: SetupFix;
 }
@@ -58,11 +62,16 @@ export const adsSetupApi = {
     apiClient.post<SetupChecklist>(`${base}/${id}/fix`, { item, token, input }).then((r) => r.data),
 };
 
-const ORDER: Record<SetupStatus, number> = { action: 0, warning: 1, unknown: 2, info: 3, ok: 4 };
-
-/** Problems first; the API's own order (tracking before extras) within a status. */
-export function sortItems(items: SetupItem[]): SetupItem[] {
-  return [...items].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
+/** The page's sections, each in the API's own order. "Done" also counts nothing-to-do notes. */
+export function groupItems(items: SetupItem[]): { key: string; title: string; items: SetupItem[] }[] {
+  const of = (s: SetupStatus) => items.filter((i) => i.status === s);
+  return [
+    { key: "action", title: "Fix now", items: of("action") },
+    { key: "warning", title: "Improve", items: of("warning") },
+    { key: "unknown", title: "Check yourself", items: of("unknown") },
+    { key: "info", title: "Good to know", items: of("info") },
+    { key: "ok", title: "Done", items: of("ok") },
+  ].filter((g) => g.items.length > 0);
 }
 
 /** "2 things to fix, 1 to improve" or "Everything is set up". */

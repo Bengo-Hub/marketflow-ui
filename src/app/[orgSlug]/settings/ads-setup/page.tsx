@@ -16,11 +16,11 @@ export default function AdsSetupPage() {
   const integrations = <Link className="underline" href={`/${orgSlug}/settings/integrations`}>Open Integrations</Link>;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         icon={<ListChecks />}
         title="Ads setup"
-        description="What each of your ad accounts needs before ads work well. MarketFlow fixes what it can, and shows you each change first."
+        description="What each of your ad accounts needs before ads work well. Start at the top: press the button where there is one, or follow the numbered steps. You see each change before it happens."
       />
       <AdAccountChoiceCard />
       {q.isLoading &&<div className="glass h-64 animate-pulse rounded-[1.25rem]" aria-busy />}
