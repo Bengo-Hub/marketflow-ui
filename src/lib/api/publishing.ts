@@ -171,6 +171,8 @@ export interface BestTimesPlatform {
 
 export interface BestTimes {
   timezone: string;
+  /** What a business that set nothing gets. */
+  best_time_default?: boolean;
   platforms: Record<Platform, BestTimesPlatform>;
   defaults: { windows: Record<Platform, PostingWindow[]>; cadence: Record<Platform, PostingCadence> };
 }

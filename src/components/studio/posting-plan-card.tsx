@@ -24,8 +24,8 @@ const inputClass = "min-h-11 w-full rounded-lg border border-input bg-background
 const SOURCE_LABEL = { default: "Recommended", platform: "Codevertex default", tenant: "Your choice" } as const;
 const whenFmt = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-/** Whether the Post dialog and WhatsApp start with each platform's best time (metadata.post_at_best_time). */
-function BestTimeDefault({ canEdit }: { canEdit: boolean }) {
+/** Whether posts wait for each platform's best time (metadata.post_at_best_time); off posts straight away. */
+function BestTimeDefault({ canEdit, platformDefault }: { canEdit: boolean; platformDefault: boolean }) {
   const profile = useTenantProfile();
   const save = useUpdateTenantProfile();
   const stored = profile.data?.metadata?.post_at_best_time;
@@ -33,11 +33,11 @@ function BestTimeDefault({ canEdit }: { canEdit: boolean }) {
     <label className="flex min-h-10 items-center gap-3 px-1 text-sm">
       <input
         type="checkbox"
-        checked={stored !== "off"}
+        checked={stored ? stored === "on" : platformDefault}
         disabled={!canEdit || !profile.data || save.isPending}
         onChange={(e) => save.mutate({ metadata: { post_at_best_time: e.target.checked ? "on" : "off" } })}
       />
-      Start posts at each platform&apos;s best time, in the Studio and on WhatsApp
+      Wait for each platform&apos;s best time, in the Studio and on WhatsApp. When this is off, an approved post goes out straight away.
     </label>
   );
 }
@@ -61,7 +61,7 @@ export function PostingPlanCard() {
       title="Posting plan"
       description={`Best times to post and how often, in ${data.timezone}. Recommended times come from 2025 and 2026 studies by Sprout Social, Buffer and Hootsuite, set to East African lunch and evening hours.`}
     >
-      <BestTimeDefault canEdit={canEdit} />
+      <BestTimeDefault canEdit={canEdit} platformDefault={data.best_time_default ?? false} />
       <ul className="divide-y divide-border">
         {PLATFORMS.map((p) => {
           const info = data.platforms[p];

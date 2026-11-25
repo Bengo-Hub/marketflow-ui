@@ -51,7 +51,7 @@ export interface TenantProfileUpdate {
     business_city?: string;
     /** The business's own privacy policy link; empty clears it. */
     privacy_url?: string | null;
-    /** Whether posts start at each platform's best time; unset follows the platform (on). */
+    /** Whether posts start at each platform's best time; unset follows the platform (off). */
     post_at_best_time?: "on" | "off";
     /** The owner's currency; null or "" goes back to the country or platform default. */
     currency?: string | null;
