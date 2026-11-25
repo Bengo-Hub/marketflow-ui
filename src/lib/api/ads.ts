@@ -222,6 +222,13 @@ export interface PlatformPlan {
   total: number;
   account_daily?: number;
   account_total?: number;
+  /** The same amounts in the business's own currency, shown beside (absent when the plan is in it). */
+  local_daily?: number;
+  local_total?: number;
+  /** What ads on the platform spent this month; null when there is no data. */
+  month_spend?: number | null;
+  /** Says plainly when the platform has no past results. */
+  results_note?: string;
   tiers: RunTier[];
   estimates: RunEstimate[];
   funding: FundingView;
@@ -240,7 +247,12 @@ export interface DaysHint {
 
 export interface RunPlan {
   version_id: string;
+  /** The ads currency (USD unless the platform or the business chose another). */
   currency: string;
+  /** The business's own currency, shown beside (absent when the plan is already in it). */
+  local_currency?: string;
+  local_total?: number;
+  notes?: string[];
   days: number;
   total_cap: number;
   total: number;
@@ -261,6 +273,8 @@ export interface PlatformChoice {
 
 /** The owner's changes to the default plan; anything left out keeps the default. */
 export interface RunChoice {
+  /** The currency the amounts below were typed in; the API converts if the plan is in another. */
+  currency?: string;
   days?: number;
   total_cap?: number;
   platforms?: PlatformChoice[];
@@ -305,6 +319,12 @@ export interface RunAdsView {
   daily_budget: Partial<Record<RunPlatform, number>>;
   days: number;
   total_cap: number;
+  /** True when the business set total_cap itself; its 0 is then no cap. */
+  total_cap_set?: boolean;
+  /** The ads currency plans are shown in. */
+  currency?: string;
+  /** What daily_budget and total_cap were saved in; empty is the business's own currency. */
+  amounts_currency?: string;
   total_cap_kes?: number;
   rule_of_thumb_kes: Partial<Record<RunPlatform, Partial<Record<"low" | "recommended" | "high", number>>>>;
   tiktok_mode: "guided" | "api" | string;
@@ -315,7 +335,10 @@ export interface RunAdsSettingsResponse {
   effective: RunAdsView;
   /** Only the keys the tenant set itself. */
   tenant: Partial<RunAdsView>;
+  /** The business's own currency. */
   currency: string;
+  /** What the ads currency can be. */
+  currencies?: string[];
   can_edit: boolean;
 }
 

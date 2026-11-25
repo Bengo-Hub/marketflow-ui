@@ -88,6 +88,8 @@ export interface PlatformForm {
 }
 
 export interface RunAdsForm {
+  /** The currency the amounts were typed in (the plan's, when they were typed). */
+  currency?: string;
   days?: number;
   /** 0 is no cap; undefined keeps the default. */
   totalCap?: number;
@@ -115,7 +117,14 @@ export function buildChoice(form: RunAdsForm): RunChoice {
     if (Object.keys(c).length > 1) platforms.push(c);
   }
   if (platforms.length) out.platforms = platforms;
+  if (form.currency && (out.total_cap !== undefined || platforms.some((c) => c.daily))) out.currency = form.currency;
   return out;
+}
+
+/** "USD 190 (about KES 24,700)": an amount with the business's own currency beside it. */
+export function withLocal(amount: number, currency: string, local?: number, localCurrency?: string): string {
+  const main = formatBudget(amount, currency);
+  return local && localCurrency && localCurrency !== currency ? `${main} (about ${formatBudget(local, localCurrency)})` : main;
 }
 
 /** "Confirm and run ads: KES 21,000". */
@@ -129,10 +138,27 @@ export interface RunAdsSettingsForm {
   tier: "low" | "recommended" | "high";
   daily_budget: Partial<Record<RunPlatform, number | null>>;
   days: number;
-  total_cap: number;
+  /** null uses the MarketFlow default; 0 is no cap. */
+  total_cap: number | null;
+  /** The ads currency plans are shown in. */
+  currency: string;
+  /** What the amounts above are in; kept as they were saved, never relabelled. */
+  amounts_currency: string;
+}
+
+/**
+ * The currency the Settings amounts are in: the one they were saved in (the business's own for
+ * amounts saved before plans were in USD), else, with no saved amount, the ads currency.
+ */
+export function amountsCurrency(effective: RunAdsView, tenantCurrency: string): string {
+  const saved = Object.keys(effective.daily_budget ?? {}).length > 0 || !!effective.total_cap_set;
+  if (!saved) return effective.currency || tenantCurrency;
+  return effective.amounts_currency || tenantCurrency;
 }
 
 export type RunAdsPatch = Partial<{
+  currency: string;
+  amounts_currency: string;
   platforms: RunPlatform[];
   tier: "low" | "recommended" | "high";
   daily_budget: Partial<Record<RunPlatform, number>>;
@@ -142,8 +168,8 @@ export type RunAdsPatch = Partial<{
 
 /**
  * metadata.run_ads for PATCH /tenant/profile: only the values that differ from the platform
- * defaults, so a later change to a default still reaches the tenant, and only the five keys the
- * API accepts. null when everything matches (clears the tenant's overrides).
+ * defaults, so a later change to a default still reaches the tenant, and only the keys the API
+ * accepts. Amounts go with the currency they are in; a cap of 0 is sent (no cap). null when everything matches (clears the tenant's overrides).
  */
 export function runAdsPatch(v: RunAdsSettingsForm, platform: RunAdsView): RunAdsPatch | null {
   const out: RunAdsPatch = {};
@@ -158,7 +184,9 @@ export function runAdsPatch(v: RunAdsSettingsForm, platform: RunAdsView): RunAds
   }
   if (Object.keys(daily).length) out.daily_budget = daily;
   if (v.days !== platform.days) out.days = v.days;
-  if (v.total_cap > 0) out.total_cap = Math.round(v.total_cap);
+  if (v.total_cap !== null) out.total_cap = Math.round(v.total_cap);
+  if (v.currency !== platform.currency) out.currency = v.currency;
+  if (out.daily_budget || out.total_cap) out.amounts_currency = v.amounts_currency;
   return Object.keys(out).length ? out : null;
 }
 
@@ -167,6 +195,6 @@ export function runAdsSettingsProblems(v: RunAdsSettingsForm): string[] {
   const out: string[] = [];
   if (v.platforms.length === 0) out.push("Switch on at least one platform.");
   if (!Number.isInteger(v.days) || v.days < 1 || v.days > 90) out.push("Days must be a whole number from 1 to 90.");
-  if (!Number.isFinite(v.total_cap) || v.total_cap < 0) out.push("The total cap must be 0 or more.");
+  if (v.total_cap !== null && (!Number.isFinite(v.total_cap) || v.total_cap < 0)) out.push("The total cap must be 0 or more.");
   return out;
 }

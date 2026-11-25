@@ -15,6 +15,7 @@ import {
   PLATFORM_LABEL,
   RUN_PLATFORMS,
   TIER_LABEL,
+  amountsCurrency,
   runAdsPatch,
   runAdsSettingsProblems,
   type RunAdsSettingsForm,
@@ -35,8 +36,12 @@ export default function RunAdsSettingsPage() {
   return <RunAdsForm key={q.dataUpdatedAt} data={q.data} />;
 }
 
-function formFrom(v: RunAdsSettingsResponse["effective"]): RunAdsSettingsForm {
-  return { platforms: [...v.platforms], tier: v.tier, daily_budget: { ...v.daily_budget }, days: v.days, total_cap: v.total_cap };
+function formFrom(v: RunAdsSettingsResponse["effective"], tenantCurrency: string): RunAdsSettingsForm {
+  return {
+    platforms: [...v.platforms], tier: v.tier, daily_budget: { ...v.daily_budget }, days: v.days,
+    total_cap: v.total_cap_set ? v.total_cap : null,
+    currency: v.currency || tenantCurrency, amounts_currency: amountsCurrency(v, tenantCurrency),
+  };
 }
 
 function RunAdsForm({ data }: { data: RunAdsSettingsResponse }) {
@@ -44,8 +49,8 @@ function RunAdsForm({ data }: { data: RunAdsSettingsResponse }) {
   const qc = useQueryClient();
   const save = useUpdateTenantProfile();
   const p = data.platform;
-  const cur = data.currency;
-  const [v, setV] = useState<RunAdsSettingsForm>(() => formFrom(data.effective));
+  const [v, setV] = useState<RunAdsSettingsForm>(() => formFrom(data.effective, data.currency));
+  const cur = v.amounts_currency;
   const [daysText, setDaysText] = useState(String(data.effective.days));
   const problems = runAdsSettingsProblems(v);
   const disabled = !data.can_edit;
@@ -59,7 +64,7 @@ function RunAdsForm({ data }: { data: RunAdsSettingsResponse }) {
     );
   };
   const resetToDefaults = () => {
-    setV(formFrom(p));
+    setV(formFrom(p, data.currency));
     setDaysText(String(p.days));
   };
   const togglePlatform = (pl: RunPlatform) =>
@@ -95,6 +100,31 @@ function RunAdsForm({ data }: { data: RunAdsSettingsResponse }) {
 
       <GlassPanel title="Budget" description={`Amounts are in ${cur}. An own daily amount for a platform replaces the tier for that platform.`}>
         <div className="space-y-5 px-5 pb-5 pt-3">
+          <Field
+            label="Ads currency"
+            htmlFor="ra-currency"
+            hint={`Plans are shown in this currency with ${data.currency} beside it, converted with the day's rate. Each platform is still sent its own ad account's currency.${cur !== v.currency ? ` Your amounts below stay in ${cur} and are converted.` : ""}`}
+          >
+            <select
+              id="ra-currency"
+              className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm sm:max-w-48"
+              value={v.currency}
+              disabled={disabled}
+              onChange={(e) => {
+                const next = e.target.value;
+                // Amounts already entered keep their currency; with none, new ones are in the ads currency.
+                setV((c) => ({
+                  ...c,
+                  currency: next,
+                  amounts_currency: c.total_cap === null && Object.values(c.daily_budget).every((n) => !n) ? next : c.amounts_currency,
+                }));
+              }}
+            >
+              {[...new Set([v.currency, ...(data.currencies ?? [])])].map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </Field>
           <fieldset>
             <legend className="mb-2 text-sm font-medium">Default tier</legend>
             <div className="flex flex-wrap gap-1.5">
@@ -150,9 +180,9 @@ function RunAdsForm({ data }: { data: RunAdsSettingsResponse }) {
             <Field
               label="Total cap"
               htmlFor="ra-cap"
-              hint={`The most one plan may spend on all platforms together. 0 for none${p.total_cap_kes ? `; MarketFlow's default cap of ${formatBudget(p.total_cap_kes, "KES")} then applies` : ""}.`}
+              hint={`The most one plan may spend on all platforms together. 0 is no cap. Leave it empty to use MarketFlow's default (${p.total_cap_kes ? formatBudget(p.total_cap_kes, "KES") : "no cap"}).`}
             >
-              <MoneyInput id="ra-cap" currency={cur} wholeOnly min={0} disabled={disabled} value={v.total_cap} onChange={(n) => setV((c) => ({ ...c, total_cap: Math.max(0, n ?? 0) }))} />
+              <MoneyInput id="ra-cap" currency={cur} wholeOnly min={0} disabled={disabled} value={v.total_cap} onChange={(n) => setV((c) => ({ ...c, total_cap: n === null || n === undefined ? null : Math.max(0, n) }))} />
             </Field>
           </div>
         </div>

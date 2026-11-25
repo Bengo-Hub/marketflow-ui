@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RunAdsView } from "@/lib/api/ads";
-import { buildChoice, estimateLine, estimateText, modeLabel, runAdsPatch, runAdsSettingsProblems, sourceLabel, type RunAdsSettingsForm } from "./run-ads";
+import { amountsCurrency, buildChoice, estimateLine, estimateText, modeLabel, runAdsPatch, runAdsSettingsProblems, sourceLabel, withLocal, type RunAdsSettingsForm } from "./run-ads";
 
 const platform: RunAdsView = {
   platforms: ["meta", "google", "tiktok"],
@@ -11,9 +11,10 @@ const platform: RunAdsView = {
   total_cap_kes: 0,
   rule_of_thumb_kes: { meta: { low: 650, recommended: 1300, high: 2600 } },
   tiktok_mode: "guided",
+  currency: "USD",
 };
 
-const same: RunAdsSettingsForm = { platforms: ["meta", "google", "tiktok"], tier: "recommended", daily_budget: {}, days: 7, total_cap: 0 };
+const same: RunAdsSettingsForm = { platforms: ["meta", "google", "tiktok"], tier: "recommended", daily_budget: {}, days: 7, total_cap: null, currency: "USD", amounts_currency: "USD" };
 
 describe("buildChoice", () => {
   it("sends nothing when nothing changed", () => {
@@ -72,13 +73,34 @@ describe("runAdsPatch", () => {
     expect(runAdsPatch(same, platform)).toBeNull();
   });
 
-  it("sends only the five keys the API accepts, and only what differs", () => {
+  it("sends only what differs, amounts with the currency they are in", () => {
     const patch = runAdsPatch(
-      { platforms: ["google", "meta"], tier: "high", daily_budget: { meta: 1200, google: null, tiktok: 0 }, days: 14, total_cap: 20000 },
+      { ...same, platforms: ["google", "meta"], tier: "high", daily_budget: { meta: 1200, google: null, tiktok: 0 }, days: 14, total_cap: 20000, amounts_currency: "KES" },
       platform,
     );
-    expect(patch).toEqual({ platforms: ["meta", "google"], tier: "high", daily_budget: { meta: 1200 }, days: 14, total_cap: 20000 });
-    expect(Object.keys(patch!).every((k) => ["platforms", "tier", "daily_budget", "days", "total_cap"].includes(k))).toBe(true);
+    expect(patch).toEqual({ platforms: ["meta", "google"], tier: "high", daily_budget: { meta: 1200 }, days: 14, total_cap: 20000, amounts_currency: "KES" });
+  });
+
+  it("sends a cap of 0 as no cap, and the ads currency only when it differs", () => {
+    expect(runAdsPatch({ ...same, total_cap: 0 }, platform)).toEqual({ total_cap: 0 });
+    expect(runAdsPatch({ ...same, currency: "KES" }, platform)).toEqual({ currency: "KES" });
+  });
+
+  it("keeps saved amounts in the currency they were saved in", () => {
+    const saved = { ...platform, daily_budget: { meta: 1300 } };
+    expect(amountsCurrency(saved, "KES")).toBe("KES");
+    expect(amountsCurrency({ ...saved, amounts_currency: "USD" }, "KES")).toBe("USD");
+    expect(amountsCurrency(platform, "KES")).toBe("USD");
+  });
+
+  it("shows the business's own currency beside", () => {
+    expect(withLocal(190, "USD", 24700, "KES")).toContain("(about ");
+    expect(withLocal(190, "KES", undefined, undefined)).not.toContain("about");
+  });
+
+  it("sends the currency of typed amounts", () => {
+    expect(buildChoice({ currency: "USD", platforms: { meta: { daily: 10 } } })).toEqual({ currency: "USD", platforms: [{ platform: "meta", daily: 10 }] });
+    expect(buildChoice({ currency: "USD", platforms: { meta: { tier: "low" } } })).toEqual({ platforms: [{ platform: "meta", tier: "low" }] });
   });
 
   it("checks the form", () => {

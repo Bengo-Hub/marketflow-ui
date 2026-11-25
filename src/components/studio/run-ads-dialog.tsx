@@ -42,6 +42,7 @@ import {
   PLATFORM_LABEL,
   sourceLabel,
   TIER_LABEL,
+  withLocal,
   type PlatformForm,
   type RunAdsForm,
 } from "@/lib/ads/run-ads";
@@ -92,7 +93,7 @@ export function RunAdsDialog({ open, onOpenChange, versionId }: { open: boolean;
   const outOfTries = tries >= MAX_OTP_TRIES;
 
   const setPlatform = (platform: string, change: PlatformForm) =>
-    setForm((f) => ({ ...f, platforms: { ...f.platforms, [platform]: { ...f.platforms[platform], ...change } } }));
+    setForm((f) => ({ ...f, currency: change.daily ? p?.currency : f.currency, platforms: { ...f.platforms, [platform]: { ...f.platforms[platform], ...change } } }));
 
   /** A 409 carries the plan as it is now: show it, so the owner confirms that one. */
   const showFreshPlan = (fresh: RunPlan | undefined) => {
@@ -268,7 +269,7 @@ export function RunAdsDialog({ open, onOpenChange, versionId }: { open: boolean;
                   wholeOnly
                   min={0}
                   value={form.totalCap ?? p.total_cap}
-                  onChange={(v) => setForm((f) => ({ ...f, totalCap: Math.max(0, v ?? 0) }))}
+                  onChange={(v) => setForm((f) => ({ ...f, currency: cur, totalCap: Math.max(0, v ?? 0) }))}
                 />
               </Field>
             </div>
@@ -278,6 +279,7 @@ export function RunAdsDialog({ open, onOpenChange, versionId }: { open: boolean;
                 key={pp.platform}
                 pp={pp}
                 currency={cur}
+                localCurrency={p.local_currency}
                 form={form.platforms[pp.platform] ?? {}}
                 onChange={(c) => setPlatform(pp.platform, c)}
               />
@@ -285,9 +287,12 @@ export function RunAdsDialog({ open, onOpenChange, versionId }: { open: boolean;
 
             <div className="space-y-1 rounded-lg border border-border p-3 text-sm">
               <p>
-                Total for all platforms: <strong>{formatBudget(p.total, cur)}</strong> over {p.days} {p.days === 1 ? "day" : "days"}
+                Total for all platforms: <strong>{withLocal(p.total, cur, p.local_total, p.local_currency)}</strong> over {p.days} {p.days === 1 ? "day" : "days"}
                 {p.total_cap > 0 ? `, within your cap of ${formatBudget(p.total_cap, cur)}` : ""}.
               </p>
+              {p.notes?.map((n) => (
+                <p key={n} className="text-muted-foreground">{n}</p>
+              ))}
               {p.otp_required && <p className="text-muted-foreground">A plan this size needs a code sent to your WhatsApp before it runs.</p>}
               {p.blockers.map((b) => (
                 <p key={b} className="text-destructive">{b}</p>
@@ -376,11 +381,13 @@ function FundingLine({ pp }: { pp: PlatformPlan }) {
 function PlatformCard({
   pp,
   currency,
+  localCurrency,
   form,
   onChange,
 }: {
   pp: PlatformPlan;
   currency: string;
+  localCurrency?: string;
   form: PlatformForm;
   onChange: (c: PlatformForm) => void;
 }) {
@@ -448,7 +455,7 @@ function PlatformCard({
           </Field>
 
           <p>
-            {formatBudget(pp.daily, currency)} per day for {pp.days} {pp.days === 1 ? "day" : "days"}: <strong>{formatBudget(pp.total, currency)}</strong>
+            {formatBudget(pp.daily, currency)} per day for {pp.days} {pp.days === 1 ? "day" : "days"}: <strong>{withLocal(pp.total, currency, pp.local_total, localCurrency)}</strong>
             {pp.account && pp.account.currency && pp.account.currency !== currency && pp.account_daily
               ? `. Sent to ${label} as ${formatBudget(pp.account_daily, pp.account.currency)} per day (${formatBudget(pp.account_total ?? 0, pp.account.currency)} in total).`
               : "."}
@@ -467,6 +474,10 @@ function PlatformCard({
           )}
 
           <FundingLine pp={pp} />
+          {typeof pp.month_spend === "number" && (
+            <p className="text-muted-foreground">Spent on {label} this month: {formatBudget(pp.month_spend, currency)}</p>
+          )}
+          {pp.results_note && <p className="text-muted-foreground">{pp.results_note}</p>}
 
           {pp.setup.length > 0 && (
             <div>
