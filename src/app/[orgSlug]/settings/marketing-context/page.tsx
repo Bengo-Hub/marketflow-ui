@@ -234,6 +234,15 @@ function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string })
               )
             }
           >
+            {l.key === "banned_claims" && (form.shared_banned_claims?.length ?? 0) > 0 && (
+              <div className="mb-3 text-sm">
+                <p className="font-medium">Always blocked for your kind of business</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
+                  {form.shared_banned_claims?.map((c) => <li key={c}>{c}</li>)}
+                </ul>
+                <p className="mt-3 font-medium">Your own</p>
+              </div>
+            )}
             <ListEditor label={l.label.toLowerCase()} value={form[l.key]} placeholder={l.placeholder} onChange={(v) => setForm({ ...form, [l.key]: v })} />
           </GlassPanel>
         ))}

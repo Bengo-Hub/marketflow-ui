@@ -49,6 +49,8 @@ export interface BrandContext {
   voice: string;
   voice_examples: string[];
   banned_claims: string[];
+  /** The shared claims this business inherits, read only; banned_claims are its own (item 76). */
+  shared_banned_claims?: string[];
   learnings: string[];
   /** Naming tradition for people in videos; empty leaves it to the writer. */
   actor_name_style?: ActorNameStyle | "";
