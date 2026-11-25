@@ -13,7 +13,7 @@ import { funnelUrl } from "@/lib/urls";
 import { AB_HEADER, applyVariant, parseBucket, variantFor } from "@/lib/funnel-ab";
 import { DOMAIN_TENANT_HEADER, domainAllows } from "@/lib/tenant-domains";
 import { FunnelForm } from "./funnel-form";
-import { blockType, primaryStepIndex, splitBenefits, starCount } from "./layout-plan";
+import { blockType, DEFAULT_LEAD_FIELDS, formFields, needsDefaultForm, primaryStepIndex, splitBenefits, starCount } from "./layout-plan";
 import { StepView } from "./step-view";
 import { StickyCta } from "./sticky-cta";
 import type { FunnelStep, PublicFunnel } from "./types";
@@ -62,9 +62,8 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
   // One main call to action: the first form (or action block) sits beside the headline and a
   // phone-width bar keeps it in reach; the other steps follow in their saved order.
   const primary = primaryStepIndex(steps);
-  const defaultForm = steps.length === 0;
-  const hasPrimary = primary >= 0 || defaultForm;
-  const primaryLabel = defaultForm ? "Get in touch" : primary >= 0 ? ctaLabel(steps[primary]) : "";
+  const defaultForm = needsDefaultForm(steps);
+  const primaryLabel = defaultForm ? "Get in touch" : ctaLabel(steps[primary]);
   const rest = steps.map((step, i) => ({ step, i })).filter(({ i }) => i !== primary);
   const { intro, benefits } = splitBenefits(f.description);
   const rated = testimonials.filter((t) => starCount(t.rating) > 0);
@@ -87,7 +86,7 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
       <main id="main" className="mx-auto max-w-6xl px-4 pb-28 sm:px-6 md:pb-16">
         <section
           aria-labelledby="funnel-title"
-          className={`grid gap-8 pt-8 md:pt-14 ${hasPrimary ? "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-x-14" : "mx-auto max-w-3xl text-center"}`}
+          className="grid gap-8 pt-8 md:pt-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-x-14"
         >
           <div className="space-y-6">
             <h1 id="funnel-title" className="text-balance font-display text-[2.15rem] font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.4rem]">
@@ -96,7 +95,7 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
             {f.subheadline && <p className="text-pretty text-lg leading-relaxed text-muted-foreground sm:text-xl">{f.subheadline}</p>}
             {intro && <p className="text-pretty text-[15px] leading-relaxed text-muted-foreground">{intro}</p>}
             {benefits.length > 0 && (
-              <ul className={`space-y-3 ${hasPrimary ? "" : "mx-auto inline-block text-left"}`}>
+              <ul className="space-y-3">
                 {benefits.map((b) => (
                   <li key={b} className="flex items-start gap-3 text-[15px] leading-snug">
                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -108,7 +107,7 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
               </ul>
             )}
             {testimonials.length > 0 && (
-              <a href="#reviews" className={`group flex items-center gap-3 text-sm ${hasPrimary ? "" : "justify-center"}`}>
+              <a href="#reviews" className="group flex items-center gap-3 text-sm">
                 <span className="flex -space-x-2" aria-hidden>
                   {testimonials.map((t) => (
                     <span key={t.id} className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary/15 text-xs font-semibold text-primary">
@@ -129,32 +128,25 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
             )}
           </div>
 
-          {hasPrimary && (
-            <div className="lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
-              {defaultForm ? (
-                <FunnelForm
-                  id={PRIMARY_ID}
-                  prominent
-                  businessName={businessName}
-                  tenantSlug={f.tenant_slug}
-                  funnelSlug={f.slug}
-                  variant={tested}
-                  title="Leave your details"
-                  ctaText={primaryLabel}
-                  fields={[
-                    { key: "first_name", label: "Name", required: true },
-                    { key: "phone", label: "Phone or WhatsApp", type: "tel", required: true },
-                    { key: "email", label: "Email", type: "email" },
-                    { key: "interest", label: "What are you interested in?", type: "textarea" },
-                  ]}
-                />
-              ) : (
-                <StepView funnelSlug={f.slug} index={primary} variant={tested}>
-                  <Block step={steps[primary]} funnel={f} profile={profile} variant={tested} anchorId={PRIMARY_ID} prominent />
-                </StepView>
-              )}
-            </div>
-          )}
+          <div className="lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
+            {defaultForm ? (
+              <FunnelForm
+                id={PRIMARY_ID}
+                prominent
+                businessName={businessName}
+                tenantSlug={f.tenant_slug}
+                funnelSlug={f.slug}
+                variant={tested}
+                title="Leave your details"
+                ctaText={primaryLabel}
+                fields={DEFAULT_LEAD_FIELDS}
+              />
+            ) : (
+              <StepView funnelSlug={f.slug} index={primary} variant={tested}>
+                <Block step={steps[primary]} funnel={f} profile={profile} variant={tested} anchorId={PRIMARY_ID} prominent />
+              </StepView>
+            )}
+          </div>
 
           {hero && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -201,7 +193,7 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
           </div>
         )}
 
-        {hasPrimary && (rest.length > 0 || testimonials.length > 0) && (
+        {(rest.length > 0 || testimonials.length > 0) && (
           <section className="mx-auto mt-16 max-w-3xl rounded-[1.5rem] bg-primary px-6 py-10 text-center text-primary-foreground shadow-soft sm:px-10">
             <p className="text-balance font-display text-2xl font-semibold tracking-tight sm:text-3xl">{f.headline || f.name}</p>
             <a
@@ -218,7 +210,7 @@ export default async function PublicFunnelPage({ params }: { params: Promise<{ s
         {/* White label (Business plan) hides the badge. */}
         {!profile?.white_label && <PoweredByBadge />}
       </footer>
-      {hasPrimary && <StickyCta targetId={PRIMARY_ID} label={primaryLabel} />}
+      <StickyCta targetId={PRIMARY_ID} label={primaryLabel} />
     </div>
   );
 }
@@ -279,7 +271,7 @@ function Block({
         title={step.title}
         description={step.description}
         ctaText={step.cta_text}
-        fields={step.fields ?? []}
+        fields={formFields(step)}
       />
     );
   }

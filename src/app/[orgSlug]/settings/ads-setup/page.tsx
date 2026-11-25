@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ListChecks } from "lucide-react";
+import { AdAccountChoiceCard } from "@/components/ads/ad-account-choice";
 import { AccountChecklist } from "@/components/ads/account-checklist";
 import { EmptyState, ErrorState, PageHeader } from "@/components/ui-kit";
 import { adsSetupApi } from "@/lib/api/ads-setup";
@@ -21,7 +22,8 @@ export default function AdsSetupPage() {
         title="Ads setup"
         description="What each of your ad accounts needs before ads work well. MarketFlow fixes what it can, and shows you each change first."
       />
-      {q.isLoading && <div className="glass h-64 animate-pulse rounded-[1.25rem]" aria-busy />}
+      <AdAccountChoiceCard />
+      {q.isLoading &&<div className="glass h-64 animate-pulse rounded-[1.25rem]" aria-busy />}
       {q.isError && <ErrorState message="Could not load your ad accounts." onRetry={() => void q.refetch()} />}
       {q.data?.length === 0 && (
         <EmptyState icon={<ListChecks />} title="No ad account connected" description="Connect Google Ads, Meta or TikTok first." action={integrations} />

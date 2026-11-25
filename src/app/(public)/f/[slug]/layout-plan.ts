@@ -1,4 +1,25 @@
-import type { FunnelStep } from "./types";
+import type { FunnelField, FunnelStep } from "./types";
+
+/** The lead form of a funnel that has none of its own, or whose form step has no fields. */
+export const DEFAULT_LEAD_FIELDS: FunnelField[] = [
+  { key: "first_name", label: "Name", required: true },
+  { key: "phone", label: "Phone or WhatsApp", type: "tel", required: true },
+  { key: "email", label: "Email", type: "email" },
+  { key: "interest", label: "What are you interested in?", type: "textarea" },
+];
+
+/** The form's fields; a form saved without any still asks how to reach the person. */
+export function formFields(step: FunnelStep): FunnelField[] {
+  return step.fields && step.fields.length > 0 ? step.fields : DEFAULT_LEAD_FIELDS;
+}
+
+/**
+ * Whether the page shows the default lead form: the funnel has no form and no action block, so
+ * without it a visitor could not leave their details (a funnel with content steps only).
+ */
+export function needsDefaultForm(steps: FunnelStep[]): boolean {
+  return primaryStepIndex(steps) < 0;
+}
 
 /** A step's block type: the saved one, else a form when it has fields, else content. */
 export function blockType(step: FunnelStep) {
