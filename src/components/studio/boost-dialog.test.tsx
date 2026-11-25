@@ -8,7 +8,7 @@ const sendOtp = vi.fn<(body: Record<string, unknown>, o: Opts) => void>();
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ orgSlug: "shop" }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock("@/hooks/use-access", () => ({ useIsRestricted: () => true }));
+vi.mock("@/hooks/use-access", () => ({ useIsRestricted: () => true, useAdminLocked: () => false }));
 vi.mock("@bengo-hub/shared-ui-lib/search", () => ({ useDebouncedValue: (v: unknown) => v }));
 vi.mock("@/hooks/use-publishing", () => ({
   usePublishAccounts: () => ({ data: [{ id: "pg1", platform: "facebook", display_name: "Shop Page" }] }),
