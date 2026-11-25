@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CREATIVE_SETTINGS, validateContacts, validateBranding, validateDiscardWindow, validateLandmarks, validateScreens, windowHours } from "./creative-settings-card";
+import { CREATIVE_SETTINGS, validateContacts, validateBranding, validateDiscardWindow, validateBrandFaces, validateLandmarks, validateLocalCues, validateScreens, windowHours } from "./creative-settings-card";
 import { fileNameFrom } from "@/lib/api/creative";
 import { creditCeilingProblem } from "@/lib/api/autopilot";
 
@@ -57,6 +57,22 @@ describe("real app screens", () => {
     expect(validateScreens('{"enabled": true, "max_scenes": 3}')).toBeNull();
     expect(validateScreens('{"enabled": "yes"}')).toContain("enabled");
     expect(validateScreens('{"enabled": true, "max_scenes": 9}')).toContain("max_scenes");
+  });
+});
+
+describe("local cues and brand faces", () => {
+  it("accepts short words only", () => {
+    const cue = (text: string) => JSON.stringify({ enabled: true, cues: [{ match: ["counter"], object: "a card", text }] });
+    expect(validateLocalCues("")).toBeNull();
+    expect(validateLocalCues(cue("LIPA HAPA"))).toBeNull();
+    expect(validateLocalCues(cue("TILL 123456"))).toContain("no numbers");
+    expect(validateLocalCues('{"enabled": true, "cues": [{"text": "KARIBU"}]}')).toContain("match");
+    expect(validateLocalCues('{"max_scenes": 1}')).toContain("enabled");
+  });
+  it("checks the brand face limits", () => {
+    expect(validateBrandFaces('{"enabled": false}')).toBeNull();
+    expect(validateBrandFaces('{"enabled": true, "max_days": 5000}')).toContain("max_days");
+    expect(validateBrandFaces('{"max_faces": 2}')).toContain("enabled");
   });
 });
 

@@ -101,6 +101,29 @@ export function validateScreens(v: string): string | null {
   return null;
 }
 
+/** The local cues: short words with no digits, each with what it is printed on and the scenes it suits. */
+export function validateLocalCues(v: string): string | null {
+  if (!v.trim()) return null;
+  let c: { enabled?: unknown; max_scenes?: unknown; cues?: unknown; marks?: unknown };
+  try {
+    c = JSON.parse(v);
+  } catch {
+    return "Not valid JSON.";
+  }
+  if (!c || typeof c !== "object" || Array.isArray(c) || typeof c.enabled !== "boolean") return "enabled must be true or false.";
+  if (c.max_scenes !== undefined && c.max_scenes !== 1 && c.max_scenes !== 2) return "max_scenes is 1 or 2.";
+  if (c.cues !== undefined && !Array.isArray(c.cues)) return "cues is a list.";
+  for (const cue of (c.cues ?? []) as { match?: unknown; object?: unknown; text?: unknown }[]) {
+    const text = String(cue?.text ?? "").trim();
+    if (text.length < 2 || text.length > 20 || !/^\p{L}[\p{L} '&-]*$/u.test(text)) return `"${text}": use 2 to 20 letters, no numbers.`;
+    if (!Array.isArray(cue.match) || cue.match.length === 0 || !String(cue.object ?? "").trim()) return `"${text}": give match words and an object.`;
+  }
+  if (c.marks !== undefined && (typeof c.marks !== "object" || c.marks === null || Object.values(c.marks).some((m) => typeof m !== "string"))) {
+    return "marks maps a trade mark to neutral words.";
+  }
+  return null;
+}
+
 /** The brand face limits: enabled, up to 20 people and up to 1095 days. */
 export function validateBrandFaces(v: string): string | null {
   if (!v.trim()) return null;
@@ -178,6 +201,14 @@ export const CREATIVE_SETTINGS: CreativeSetting[] = [
     hint: 'JSON: {"enabled": true, "max_faces": 5, "max_days": 365}. enabled false stops every face at once; a tenant still has to opt in and record each person\'s consent.',
     fallback: '{"enabled": true, "max_faces": 5, "max_days": 365}',
     validate: validateBrandFaces,
+  },
+  {
+    key: "creative.local_cues",
+    label: "Local cues in the scenes",
+    hint: 'JSON: {"enabled": true, "max_scenes": 1, "cues": [{"match": ["counter"], "object": "a small plain card on the counter", "text": "LIPA HAPA", "countries": ["KE"]}], "marks": {"m-pesa": "mobile money"}}. Words only, no numbers, up to 20 letters. Drawn only on the text routes in the media routing settings and kept only when the self-review reads them. marks are trade marks and the neutral words a drawn scene says instead.',
+    fallback: "",
+    multiline: true,
+    validate: validateLocalCues,
   },
   {
     key: "creative.landmark_lookup",
