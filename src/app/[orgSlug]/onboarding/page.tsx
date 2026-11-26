@@ -94,17 +94,20 @@ function BrandStep({ draft, onDone }: { draft?: BrandDraft; onDone: () => void }
     onError: (e) => toast.error(apiErrorMessage(e, "Could not save the brief")),
   });
   if (!draft) return <div className="h-24 animate-pulse rounded-xl bg-muted" />;
+  // Lists may come back empty or missing for a business with no brief yet.
   const s = draft.suggested;
+  const offers = s.offers ?? [];
+  const audience = s.audience ?? [];
   return (
     <div className="space-y-3">
       <dl className="grid gap-2 text-sm sm:grid-cols-3">
         <div className="rounded-xl bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">What you do</dt><dd className="mt-1 line-clamp-3">{s.positioning || "Not found yet"}</dd></div>
-        <div className="rounded-xl bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">What you sell</dt><dd className="mt-1">{s.offers.length ? `${s.offers.length} items` : "Not found yet"}</dd></div>
-        <div className="rounded-xl bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">Who you sell to</dt><dd className="mt-1">{s.audience.length ? `${s.audience.length} groups` : "Add this yourself"}</dd></div>
+        <div className="rounded-xl bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">What you sell</dt><dd className="mt-1">{offers.length ? `${offers.length} items` : "Not found yet"}</dd></div>
+        <div className="rounded-xl bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">Who you sell to</dt><dd className="mt-1">{audience.length ? `${audience.length} groups` : "Add this yourself"}</dd></div>
       </dl>
       <ActorNamesFields idPrefix="ob-actor" value={actors} onChange={setActors} />
       <div className="flex flex-wrap gap-2">
-        <Button disabled={use.isPending || (!s.positioning && s.offers.length === 0)} onClick={() => use.mutate()}>{use.isPending ? "Saving..." : "Use this as a start"}</Button>
+        <Button disabled={use.isPending || (!s.positioning && offers.length === 0)} onClick={() => use.mutate()}>{use.isPending ? "Saving..." : "Use this as a start"}</Button>
         <Link href={`/${orgSlug}/settings/marketing-context`} className={buttonVariants({ variant: "outline" })}>Open the full brief</Link>
       </div>
     </div>

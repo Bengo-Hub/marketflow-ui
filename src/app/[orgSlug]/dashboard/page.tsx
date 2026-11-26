@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/public-profile/whatsapp-icon";
 import { CapsuleTabs, EmptyState, ErrorState, GlassPanel, PageHeader, StatCard } from "@/components/ui-kit";
+import { apiErrorMessage } from "@/lib/api/errors";
 import { LeadTrendChart, SourceBars } from "@/components/dashboard/charts";
 import { CampaignROIPanel } from "@/components/dashboard/campaign-roi";
 import { ReportDownload } from "@/components/dashboard/report-download";
@@ -67,7 +68,7 @@ export default function DashboardPage() {
 
       <SetupCard orgSlug={orgSlug} />
 
-      {dash.isError && <ErrorState message="Could not load the dashboard." onRetry={() => void dash.refetch()} />}
+      {dash.isError && <ErrorState message={apiErrorMessage(dash.error, "Could not load the dashboard.")} onRetry={() => void dash.refetch()} />}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="New leads this week" icon={<Users />} loading={loading} value={d ? nf.format(d.leads.this_week) : "0"} hint={d && <Delta pct={d.leads.delta_percent} />} />
