@@ -22,6 +22,8 @@ export interface SetupField {
   value: string;
   max?: number;
   required?: boolean;
+  /** A picture the owner may tick (value "yes"), shown cut to the shape that is sent. */
+  picture?: { url: string; source: string; ratio: number };
 }
 
 export interface SetupFix {

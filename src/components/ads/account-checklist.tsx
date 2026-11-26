@@ -165,7 +165,7 @@ function FixDialog({ accountID, item, onClose }: { accountID: string; item: Setu
         </ul>
         {fields.length > 0 && (
           <div className="space-y-3">
-            {fields.map((f) => (
+            {fields.filter((f) => !f.picture).map((f) => (
               <Field key={f.key} label={f.label} htmlFor={`fix-${f.key}`} required={f.required}>
                 <Input
                   id={`fix-${f.key}`}
@@ -175,6 +175,29 @@ function FixDialog({ accountID, item, onClose }: { accountID: string; item: Setu
                   onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
                 />
               </Field>
+            ))}
+            {[...new Set(fields.filter((f) => f.picture).map((f) => f.label))].map((label) => (
+              <fieldset key={label} disabled={run.isPending}>
+                <legend className="pb-1 text-sm font-medium">{label}s</legend>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {fields.filter((f) => f.picture && f.label === label).map((f, i) => (
+                    <label key={f.key} className="flex cursor-pointer flex-col gap-1 rounded-lg border border-border p-1.5 text-xs has-[:checked]:border-primary">
+                      {/* The middle of the picture at Google's shape, the same cut the server sends. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={f.picture!.url} alt="" loading="lazy" style={{ aspectRatio: f.picture!.ratio }} className="w-full rounded object-cover" />
+                      <span className="flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          aria-label={`${label} ${i + 1}, ${f.picture!.source}`}
+                          checked={values[f.key] === "yes"}
+                          onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.checked ? "yes" : "" }))}
+                        />
+                        {f.picture!.source}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             ))}
           </div>
         )}

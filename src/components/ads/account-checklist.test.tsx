@@ -43,6 +43,22 @@ describe("AccountChecklist", () => {
     await waitFor(() => expect(fix).toHaveBeenCalledWith("a1", "google.call", "t1", { phone: "0711" }));
   });
 
+  it("shows pictures cut to their shape, unticked, and sends only the ticked one", async () => {
+    const pic = (key: string): NonNullable<SetupItem["fix"]>["fields"] => [
+      { key, label: "Landscape picture", value: "", picture: { url: `https://img.example/${key}`, source: "Your brand pictures", ratio: 1.91 } },
+    ];
+    const item: SetupItem = { ...call, fix: { ...call.fix!, label: "Add pictures", fields: [...pic("a")!, ...pic("b")!] } };
+    vi.spyOn(adsSetupApi, "checklist").mockResolvedValue({ ...list(), items: [item] });
+    const fix = vi.spyOn(adsSetupApi, "fix").mockResolvedValue(list());
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Add pictures" }));
+    const ticks = await screen.findAllByRole("checkbox");
+    expect(ticks.every((t) => !(t as HTMLInputElement).checked)).toBe(true);
+    fireEvent.click(ticks[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Add pictures" }).at(-1)!);
+    await waitFor(() => expect(fix).toHaveBeenCalledWith("a1", "google.call", "t1", { a: "", b: "yes" }));
+  });
+
   it("shows a refusal and keeps the dialog open", async () => {
     vi.spyOn(adsSetupApi, "fix").mockRejectedValue({ response: { data: { error: "Google refused: bad number" } } });
     show();
