@@ -11,6 +11,8 @@ import { SearchableCombobox, type ComboboxOption } from "@bengo-hub/shared-ui-li
 import { Field, ToneBadge } from "@/components/ui-kit";
 import { ProviderLogo } from "./provider-logo";
 import { RoutingPolicyEditor } from "./routing-policy-editor";
+import { MediaRoutePanel } from "./media-route-panel";
+import type { RouteSwitch } from "@/lib/api/media-routes";
 import type { ProviderDef, ProviderField } from "@/lib/providers/catalog";
 import { isAdvancedField } from "@/lib/providers/groups";
 import { cn } from "@/lib/utils";
@@ -35,8 +37,14 @@ export type ProviderBalance = {
 
 type Recommendation = { field: string; label: string; model: string; informational?: boolean };
 
-/** One synced model. free and vision come from lists that say so (OpenRouter, Gemini). */
-export type ModelOption = { id: string; free?: boolean; vision?: boolean };
+/**
+ * One synced model. free and vision come from lists that say so (OpenRouter, Gemini); category is
+ * fal's kind for it (text-to-image, image-to-video, text-to-speech).
+ */
+export type ModelOption = { id: string; free?: boolean; vision?: boolean; category?: string };
+
+/** The provider cards whose media tiers are set here (MediaRoutePanel). */
+const ROUTE_CARDS = new Set(["fal", "elevenlabs"]);
 
 /** Combobox rows for a synced list: "free, reads images" as the row hint. */
 export function modelOptions(models: ModelOption[], current: string): ComboboxOption[] {
@@ -152,6 +160,7 @@ export function ProviderCard({
   });
 
   const [latest, setLatest] = useState<Recommendation[]>([]);
+  const hasRoutes = provider.type === "media" && ROUTE_CARDS.has(provider.id) && configured;
 
   const syncModels = useMutation({
     mutationFn: async () => {
@@ -159,17 +168,19 @@ export function ProviderCard({
         models: ModelOption[];
         recommended?: Record<string, string>;
         recommendations?: Recommendation[];
+        auto_switched?: RouteSwitch[] | null;
       }>(`/api/v1/admin/providers/sync-models`, {
         provider_type: provider.type,
         provider_name: provider.id,
       });
       return {
-        models: r.data.models.map((m) => ({ id: m.id, free: m.free, vision: m.vision })),
+        models: r.data.models.map((m) => ({ id: m.id, free: m.free, vision: m.vision, category: m.category })),
         recommended: r.data.recommended ?? {},
         recs: r.data.recommendations ?? [],
+        switched: r.data.auto_switched ?? [],
       };
     },
-    onSuccess: ({ models, recommended, recs }) => {
+    onSuccess: ({ models, recommended, recs, switched }) => {
       qc.setQueryData(["provider-models", provider.type, provider.id], models);
       // Preselect the recommended model for every role this card has a field for; nothing is
       // saved until Update.
@@ -177,10 +188,18 @@ export function ProviderCard({
       const picks = Object.fromEntries(Object.entries(recommended).filter(([k]) => fields.has(k)));
       setEdits((s) => ({ ...s, ...picks }));
       setLatest(recs.filter((r) => r.informational || !fields.has(r.field)));
+      // Sync models has already moved a media tier to a newer version of its own model, if any.
+      if (switched.length > 0) qc.invalidateQueries({ queryKey: ["media-routes", provider.id] });
       const n = Object.keys(picks).length;
+      const moved = switched.map((s) => `${s.label}: ${s.from} to ${s.to}`).join("; ");
       setFeedback({
         kind: "ok",
-        text: n > 0 ? `${models.length} models; the newest stable model is preselected for ${n} role${n === 1 ? "" : "s"}. Review, then Update.` : `${models.length} models available`,
+        text: [
+          n > 0 ? `${models.length} models; the newest stable model is preselected for ${n} role${n === 1 ? "" : "s"}. Review, then Update.` : `${models.length} models available.`,
+          switched.length > 0 && `Switched to the newer version (Revert is on each tier, and the admins were told): ${moved}.`,
+        ]
+          .filter(Boolean)
+          .join(" "),
       });
     },
     onError: (e) => setFeedback({ kind: "err", text: `Sync failed: ${(e as Error).message}` }),
@@ -326,6 +345,15 @@ export function ProviderCard({
         </details>
       )}
 
+      {hasRoutes && (
+        <MediaRoutePanel
+          card={provider.id as "fal" | "elevenlabs"}
+          models={modelChoices}
+          recommendations={Object.fromEntries(latest.map((r) => [r.field, r.model]))}
+          idPrefix={cardId}
+        />
+      )}
+
       {latest.length > 0 && (
         <div className="mt-4 rounded-xl border border-border bg-muted/40 p-3 text-xs">
           <p className="mb-1 font-medium text-foreground">Newest model per tier</p>
@@ -336,7 +364,11 @@ export function ProviderCard({
               </li>
             ))}
           </ul>
-          <p className="mt-1 text-muted-foreground">These media routes are set in marketflow-ai; compare a new model before switching it there.</p>
+          <p className="mt-1 text-muted-foreground">
+            {hasRoutes
+              ? "Pick one in Media tiers to compare it with what runs now. Sync models switches a tier on its own only to a newer version of the same model."
+              : "Compare a new model with the current one before switching."}
+          </p>
         </div>
       )}
 

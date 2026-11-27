@@ -224,7 +224,9 @@ function BrandForm({ saved, orgSlug }: { saved: BrandContext; orgSlug: string })
             description={l.help}
             className="min-w-0"
             actions={
-              l.key === "learnings" ? undefined : (
+              // "What has worked before" suggests lessons from this business's own competitors and
+              // reference ads (Settings, Competitors), so it is worth pressing once they are set.
+              (
                 <AIFieldButton
                   field={l.key}
                   form={() => brandFormValues(form)}

@@ -1234,7 +1234,12 @@
       return;
     }
 
-    // Support / escalate — all niches. The ticket opens in ticketing-api for a verified email.
+    // Support / escalate, all niches. The visitor verifies their email, then marketflow-ai's
+    // /public/support sends the request where it belongs: a Codevertex platform ticket for a
+    // technical problem, a ticket in the business's own queue when its plan includes ticketing,
+    // or an email and WhatsApp notice to the business's team. The server words the answer
+    // (`message`) and never promises a reply time the business has not set. A business with the
+    // routing off answers as the old ticket route did (ticket_number only).
     if (intent === 'escalate' || intent === 'support_request' ||
         t.includes('ticket') || t.includes('report') || t.includes('not working')) {
       var ticketFields = [
@@ -1242,32 +1247,51 @@
           defaultValue: authUserName || '' },
         { name: 'email', type: 'email',    label: 'Email',               required: true, maxLength: 254,
           defaultValue: authUserEmail || '' },
+        { name: 'phone', type: 'text',     label: 'Phone or WhatsApp (optional)', maxLength: 32 },
         { name: 'issue', type: 'textarea', label: 'Describe your issue', required: true, maxLength: 4000 },
         { name: 'priority', type: 'select', label: 'Priority', options: ['Low', 'Medium', 'High (urgent)'] },
       ];
       buildForm({
-        title: 'Create Support Ticket',
-        submitLabel: 'Submit Ticket →',
+        title: 'Get help',
+        submitLabel: 'Send →',
         fields: ticketFields,
       }, function (data, ctl) {
         ctl.done();
         showOTPVerification(data.email, function (token) {
           var firstLine = data.issue.split('\n')[0];
           var subject = firstLine.length > 90 ? firstLine.slice(0, 87) + '...' : firstLine;
-          postForm('/tickets', {
+          postForm('/support', {
             name: data.name,
+            phone: data.phone || '',
             subject: subject,
-            description: data.issue + (data.priority ? '\n\nPriority given by the customer: ' + data.priority : '') +
-              '\n\nSent from the ' + widgetTitle + ' chat on ' + window.location.hostname + '.',
+            description: data.issue,
+            priority: data.priority || '',
+            page: window.location.href.split('#')[0].slice(0, 500),
           }, { 'X-OTP-Token': token }).then(function (res) {
             if (!res.ok) {
-              appendMsg('bot', md('Your email is verified, but the ticket did not go through: ' + formFailure(res) +
+              appendMsg('bot', md('Your email is verified, but your request did not go through: ' + formFailure(res) +
                 ' You can also reach us directly:'));
               renderActionChips(contactChips());
               return;
             }
+            var d = res.data || {};
+            if (d.route === 'contact_only') {
+              appendMsg('bot', md(d.message || 'I could not pass this on right now. You can reach us directly:'));
+              var chips = [];
+              if (d.contact && d.contact.email) chips.push({ label: '✉️ Email ' + d.contact.email, href: 'mailto:' + d.contact.email });
+              if (d.contact && d.contact.whatsapp) {
+                var digits = String(d.contact.whatsapp).replace(/[^0-9]/g, '');
+                if (digits) chips.push({ label: '💬 WhatsApp', href: 'https://wa.me/' + digits });
+              }
+              renderActionChips(chips.length ? chips : contactChips());
+              return;
+            }
             formSubmitCount++;
-            appendMsg('bot', md('Ticket **' + (res.data.ticket_number || '') + '** created. Our team will reply to **' +
+            if (d.message) {
+              appendMsg('bot', md(d.message));
+              return;
+            }
+            appendMsg('bot', md('Ticket **' + (d.ticket_number || '') + '** created. Our team will reply to **' +
               (data.email) + '**.'));
             if (waHref) renderActionChips([{ label: '💬 WhatsApp for urgent help', href: waHref }]);
           });

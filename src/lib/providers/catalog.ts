@@ -932,7 +932,7 @@ const mediaProviders: ProviderDef[] = [
     type: "media",
     name: "fal.ai",
     description:
-      "Pay as you go. Poster images (Seedream, Nano Banana), talking presenters (VEED Fabric, Creatify Aurora), the voice fallback and video assembly.",
+      "Pay as you go. Poster images (Seedream, Nano Banana), video clips, talking presenters (Creatify Boreal, VEED Fabric), the voice fallback and video assembly. The model per tier is under Media tiers.",
     scope: "platform",
     brandColor: "#5B21B6",
     docsUrl: "https://fal.ai/dashboard/keys",
@@ -973,14 +973,16 @@ const mediaProviders: ProviderDef[] = [
     id: "elevenlabs",
     type: "media",
     name: "ElevenLabs",
-    description: "Voice-overs (eleven_v4_turbo, English by default, Swahili when asked) and music beds.",
+    description:
+      "Voice-overs (always tried first, English by default, Swahili when asked) and music beds. The voice models per tier are under Media tiers.",
     scope: "platform",
     logoSlug: "elevenlabs",
     logoColor: "000000",
     brandColor: "#000000",
     docsUrl: "https://elevenlabs.io/app/settings/api-keys",
     capabilities: { test: true, syncModels: true, balance: true },
-    modelFieldKeys: ["voice_model", "voice_premium_model"],
+    // The standard and premium voice models moved to the media tiers (media.route.voice_*); a
+    // voice_model or voice_premium_model saved before stays as their fallback.
     fields: [
       {
         key: "api_key",
@@ -990,8 +992,6 @@ const mediaProviders: ProviderDef[] = [
         required: true,
         help: "Needs a paid plan: free-plan audio can never be used in ads, even after upgrading.",
       },
-      { key: "voice_model", label: "Voice model (standard)", type: "text", placeholder: "eleven_v4_turbo" },
-      { key: "voice_premium_model", label: "Voice model (premium)", type: "text", placeholder: "eleven_v4" },
     ],
   },
   {
