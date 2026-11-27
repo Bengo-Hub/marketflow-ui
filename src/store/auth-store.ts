@@ -19,6 +19,14 @@ import { isCookieSessionEnabled, scrubStoredTokens } from "@/lib/auth/session-mo
 
 const AUTH_STORAGE_KEY = "marketflow-auth";
 
+/** True from the first logout call until the browser leaves the page (same fix as inventory-ui 9460a99). */
+let loggingOut = false;
+
+/** Whether a logout is under way; nothing may start an SSO sign-in while it is. */
+export function isLoggingOut(): boolean {
+  return loggingOut;
+}
+
 // Cookie session: tokens stored by the old flow are dropped before the store loads.
 if (isCookieSessionEnabled()) scrubStoredTokens(AUTH_STORAGE_KEY);
 
@@ -101,6 +109,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       redirectToSSO: async (returnTo, tenant, opts) => {
+        // A sign-in started during logout would cancel the logout navigation and the SSO session
+        // would sign the person straight back in (the logout loop).
+        if (loggingOut) return;
         const verifier = generateCodeVerifier();
         const challenge = await generateCodeChallenge(verifier);
         const state = generateState();
@@ -170,6 +181,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        if (loggingOut) return;
+        loggingOut = true;
         // Capture the token BEFORE clearing local state so we can revoke the
         // backend session (Redis session_token keys + DB sessions).
         if (isCookieSessionEnabled()) {
@@ -182,8 +195,10 @@ export const useAuthStore = create<AuthState>()(
         }
 
         get().syncTenantToStorage(null);
+        // "loading", never "unauthenticated": the layouts start a new sign-in on "unauthenticated",
+        // which would cancel the logout navigation below. The page is left anyway.
         set({
-          status: "unauthenticated",
+          status: "loading",
           user: null,
           session: null,
           isAuthenticated: false,

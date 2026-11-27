@@ -21,7 +21,7 @@ import {
 import { clearAccessToken, setAccessToken } from "@/lib/api/client";
 import { CLIENT_ID } from "@/lib/auth/pkce";
 import { AUTH_API_URL } from "@/lib/urls";
-import { useAuthStore } from "@/store/auth-store";
+import { isLoggingOut, useAuthStore } from "@/store/auth-store";
 
 /** The outlet the person picked belongs to their tenant, so it goes with the mf_* keys. */
 const OUTLET_KEY = "marketflow-selected-outlet-id";
@@ -126,7 +126,9 @@ function handleChange(state: CookieSessionState | null) {
   if (!state) {
     clearAccessToken();
     useAuthStore.setState({ session: null });
-    if (!ending) signOutLocally();
+    // During logout the store already says "loading"; signing out locally here would flip it to
+    // "unauthenticated" and start a new sign-in that cancels the logout.
+    if (!ending && !isLoggingOut()) signOutLocally();
     return;
   }
   setAccessToken(state.accessToken);
