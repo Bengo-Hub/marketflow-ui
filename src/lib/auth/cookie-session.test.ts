@@ -230,7 +230,9 @@ describe("cookie session (NEXT_PUBLIC_COOKIE_SESSION on)", () => {
     expect((end?.init.headers as Record<string, string>).Authorization).toBe("Bearer cookie-1");
     // The stored-token revoke is not used with the cookie session.
     expect(calls.some((c) => c.url.endsWith("/api/v1/auth/logout"))).toBe(false);
-    expect(useAuthStore.getState()).toMatchObject({ status: "unauthenticated", user: null });
+    // "loading", not "unauthenticated": the layouts start a new sign-in on "unauthenticated",
+    // which cancelled the logout redirect and looped (auth-store logout).
+    expect(useAuthStore.getState()).toMatchObject({ status: "loading", user: null, isAuthenticated: false });
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 });
