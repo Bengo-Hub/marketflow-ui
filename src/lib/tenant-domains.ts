@@ -17,9 +17,16 @@ export function normaliseHost(host: string | null | undefined): string {
 
 /** True for a host that may be a tenant's own domain: not the app's own host, not local. */
 export function isTenantDomain(host: string, appHost: string): boolean {
-  const h = normaliseHost(host);
+  const raw = (host ?? "").trim().toLowerCase();
+  // IPv6 literals ("[::1]:3000", "::1") are never a business's domain.
+  if (!raw || raw.startsWith("[") || raw.split(":").length > 2) return false;
+  const h = normaliseHost(raw);
   if (!h || h === normaliseHost(appHost)) return false;
-  return h !== "localhost" && h !== "127.0.0.1" && !h.endsWith(".local");
+  // Kubelet probes reach the pod by its IP: an IPv4 literal, a single-label name or a
+  // cluster-internal name is never looked up (each cost a 404 from auth-api every minute per pod,
+  // through Cloudflare).
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h) || !h.includes(".")) return false;
+  return !/\.(local|internal|localhost|svc|cluster\.local)$/.test(h);
 }
 
 /** Framework, API and static paths that are never rewritten. */

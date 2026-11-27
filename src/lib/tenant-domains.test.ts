@@ -22,6 +22,13 @@ describe("tenant domains", () => {
     expect(isTenantDomain("marketflow.codevertexafrica.com:443", APP)).toBe(false);
     expect(isTenantDomain("localhost:3000", APP)).toBe(false);
     expect(isTenantDomain("", APP)).toBe(false);
+    // Kubelet probes send the pod IP as the host; those must never be looked up.
+    expect(isTenantDomain("192.168.134.239:3000", APP)).toBe(false);
+    expect(isTenantDomain("192.168.134.239", APP)).toBe(false);
+    expect(isTenantDomain("[::1]:3000", APP)).toBe(false);
+    expect(isTenantDomain("fe80::1", APP)).toBe(false);
+    expect(isTenantDomain("marketflow-ui", APP)).toBe(false);
+    expect(isTenantDomain("marketflow-ui.marketflow.svc.cluster.local", APP)).toBe(false);
   });
 
   it("serves the public page at the root and leaves other paths alone", () => {
