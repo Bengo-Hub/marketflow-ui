@@ -61,6 +61,9 @@ useEffect(() => {
 | `data-whatsapp`, `data-phone`, `data-email`, `data-call-url` | Contact buttons in the header. |
 | `data-theme` | `light`, `dark` or `auto`. |
 | `data-autoopen` | `true` opens the panel on load. |
+| `data-quick-actions` | The business's own quick actions on the welcome screen, in place of the defaults: up to 5, separated by `\|`. A plain label is sent to Vera as a question; `Label>/path` or `Label>https://...` opens that page. A label with "report" or "not working" opens the support form. Example (Hadia): `Create a gift registry>/sign-in?next=%2Fapp%2Fregistries%2Fnew\|Find a couple's registry>/search\|How do M-Pesa cash gifts work?\|Is Hadia free to use?\|Report a problem`. |
+
+The launcher is a speech-bubble shape (rounded with one square corner), with the logo in a rounded square.
 
 The widget:
 - Renders a floating button in the bottom-right corner and opens a 360×520 panel on click.

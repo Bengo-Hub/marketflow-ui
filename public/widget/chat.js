@@ -184,7 +184,7 @@
 :host{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}\
 \
 .fab{\
-  width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;\
+  width:60px;height:56px;border-radius:22px 22px 6px 22px;border:none;cursor:pointer;\
   background:linear-gradient(135deg,' + primaryColor + ',' + accentColor + ');\
   box-shadow:0 4px 20px rgba(0,0,0,.28);\
   display:flex;align-items:center;justify-content:center;\
@@ -193,7 +193,7 @@
 .fab:hover{transform:scale(1.06);box-shadow:0 6px 24px rgba(0,0,0,.35)}\
 .fab:active{transform:scale(.97)}\
 .fab .avatar{\
-  width:36px;height:36px;border-radius:50%;\
+  width:36px;height:36px;border-radius:12px;overflow:hidden;\
   background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.5);\
   display:flex;align-items:center;justify-content:center;\
   font-weight:700;font-size:16px;color:#fff;letter-spacing:-.5px\
@@ -502,7 +502,8 @@
     var img = document.createElement('img');
     img.alt = '';
     img.src = logoUrl;
-    img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;background:#fff';
+    // The launcher is a speech bubble (owner, 2026-11-28), so the logo sits in a rounded square.
+    img.style.cssText = 'width:100%;height:100%;border-radius:10px;object-fit:cover;background:#fff';
     img.onerror = function () { el.textContent = widgetTitle.charAt(0).toUpperCase(); };
     el.textContent = '';
     el.appendChild(img);
@@ -534,13 +535,40 @@
 
   // ── FAQ chips ────────────────────────────────────────────────────
   var platformFaqs      = ['What is MarketFlow?', 'Tell me about Digitika courses', 'How does ordering work?', 'Get support'];
-  var tenantFaqs        = ['What products do you offer?', 'How does the business work?', 'How can I join?', 'Book a call'];
+  // The direct-selling list stays with Forever Living pages; any other business gets neutral
+  // actions until it sets its own (data-quick-actions).
+  var flpFaqs           = ['What products do you offer?', 'How does the business work?', 'How can I join?', 'Book a call'];
+  var tenantFaqs        = ['What do you offer?', 'Prices and how to order', 'Send us a message', 'Report a problem'];
   var cafeFaqs          = ['View our menu', 'Book a table', 'Upcoming events', 'Opening hours'];
   var marketflowCrmFaqs = ['What is MarketFlow CRM?', 'CRM features', 'Request a demo', 'Pricing & plans'];
   var faqList = mode === 'platform' ? platformFaqs
+    : businessType === 'flp'            ? flpFaqs
     : businessType === 'cafe'           ? cafeFaqs
     : businessType === 'marketflow-crm' ? marketflowCrmFaqs
     : tenantFaqs;
+
+  // A site's own quick actions (owner, 2026-11-28: the generic "Book a call" list did not fit
+  // Hadia). data-quick-actions="Label|Label>/path|Label>https://..." : up to 5, each a question
+  // sent to Vera, or a link when ">" names a same-site path or an https page.
+  var faqLinks = {};
+  (function () {
+    var raw = (script && script.dataset.quickActions) || '';
+    if (!raw) return;
+    var list = [];
+    raw.split('|').forEach(function (item) {
+      var parts = item.split('>');
+      var label = (parts[0] || '').trim().slice(0, 60);
+      var href = (parts.slice(1).join('>') || '').trim();
+      if (!label || list.length >= 5) return;
+      // A same-site path ("/search", not "//host"), an anchor on this page ("#booking"), or https.
+      if (href && !/^\/(?!\/)[^\s"'<>\\]*$/.test(href) && !/^#[A-Za-z0-9_-]+$/.test(href) &&
+          !/^https:\/\/[^\s"'<>\\]+$/i.test(href)) href = '';
+      if (href.length > 500) href = '';
+      list.push(label);
+      if (href) faqLinks[label] = href;
+    });
+    if (list.length) faqList = list;
+  })();
 
   var faqHTML = faqList.map(function (q) {
     return '<button class="faq" data-q="' + escAttr(q) + '">' + escHTML(q) + '</button>';
@@ -664,6 +692,16 @@
     var btn = e.target.closest('.faq');
     if (!btn) return;
     var q = btn.dataset.q;
+
+    // A site's own quick action that is a link opens the page.
+    if (faqLinks[q]) {
+      if (faqLinks[q].charAt(0) === '#') {
+        var target = document.getElementById(faqLinks[q].slice(1));
+        if (target) { closePanel(); target.scrollIntoView({ behavior: 'smooth' }); return; }
+      }
+      window.location.href = faqLinks[q];
+      return;
+    }
 
     // Cafe quick actions — navigate directly without an AI round-trip
     if (businessType === 'cafe') {

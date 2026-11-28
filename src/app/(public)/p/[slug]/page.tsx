@@ -277,7 +277,10 @@ export default async function PublicProfilePage({
         data-mode="tenant"
         data-widget-title="Vera"
         data-primary-color={/^#[0-9a-f]{6}$/i.test(color ?? "") ? color! : "#9100B0"}
-        data-business-type={v.isFLP ? "flp" : "marketflow-crm"}
+        // Only Forever Living pages take a niche; other businesses get their own quick actions
+        // (the MarketFlow CRM list and subtitle are for MarketFlow's own site, not a tenant's page).
+        data-business-type={v.isFLP ? "flp" : undefined}
+        data-quick-actions={v.isFLP ? undefined : quickActions(v.booking)}
         data-persona={v.isFLP ? "flp-fbo" : "marketflow-crm"}
         data-subtitle={v.name}
         data-logo-url={v.logo?.startsWith("https://") ? v.logo : undefined}
@@ -289,6 +292,19 @@ export default async function PublicProfilePage({
 }
 
 /** The support tab: a request that opens a ticket in the business's helpdesk (ticketing). */
+/**
+ * Vera's quick actions on a business's page (owner, 2026-11-28): what a visitor does here. The
+ * anchors are this page's sections; "Report a problem" opens Vera's support form, which routes it.
+ */
+function quickActions(booking: boolean): string {
+  return [
+    "What do you offer?>#offerings",
+    "Prices and how to order",
+    booking ? "Book an appointment>#booking" : "Send us a message",
+    "Report a problem",
+  ].join("|");
+}
+
 function SupportSection({ slug, name }: { slug: string; name: string }) {
   return (
     <section id="support" aria-labelledby="support-title" className="scroll-mt-6">

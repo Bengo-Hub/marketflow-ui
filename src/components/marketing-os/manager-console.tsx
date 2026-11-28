@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCreateBrief } from "@/hooks/use-creative";
+import { posterSeed } from "@/lib/studio/poster-seed";
 import { SafeMarkdown } from "@/components/safe-markdown";
 import { ReviewNotes } from "@/components/review-notes";
 import { toast } from "sonner";
@@ -321,6 +324,8 @@ export function ManagerConsole({
   onDraftChange: (v: string) => void;
 }) {
   const qc = useQueryClient();
+  const router = useRouter();
+  const createBrief = useCreateBrief();
   const [spec, setSpec] = useState<TaskSpec | null>(null);
   const [res, setRes] = useState<AskResponse | null>(null);
   const [tier, setTier] = useState("");
@@ -395,6 +400,9 @@ export function ManagerConsole({
   const busy = preview.isPending || ask.isPending;
   const elapsed = useElapsed(ask.isPending);
   const brandStep = result?.steps?.find((s) => s.contract === "brand_context" && s.output);
+  // A poster brief goes to the Studio's poster maker with the team's words (posters cost credits
+  // there, with a quote first); "Make posters" otherwise waits for a video script.
+  const posterStep = result?.steps?.find((s) => s.contract === "poster_brief" && posterSeed(s.output));
   // The first available media action makes the Studio draft; the others open it afterwards.
   const mediaKey = result?.next_actions?.find((a) => MEDIA_ACTIONS.has(a.key) && a.available)?.key;
 
@@ -566,6 +574,28 @@ export function ManagerConsole({
                       disabled={saveBrand.isPending}
                     >
                       {a.label}
+                    </Button>
+                  ) : a.key === "produce_media" && posterStep ? (
+                    <Button
+                      key={a.key}
+                      size="sm"
+                      onClick={() => {
+                        const seed = posterSeed(posterStep.output)!;
+                        createBrief.mutate(
+                          {
+                            title: seed.headline || "Poster from the marketing team",
+                            objective: "awareness",
+                            language: result.spec?.entities?.language === "sw" ? "sw" : "en",
+                            metadata: { poster_seed: seed, source: "marketing_team", run_id: res?.run_id },
+                          },
+                          { onSuccess: (b) => router.push(`/${orgSlug}/studio/${b.id}`) },
+                        );
+                      }}
+                      disabled={createBrief.isPending}
+                      className="gap-2"
+                    >
+                      {createBrief.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Make this poster in the Studio
                     </Button>
                   ) : MEDIA_ACTIONS.has(a.key) && a.available && res?.run_id ? (
                     made ? (

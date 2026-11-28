@@ -8,6 +8,9 @@ vi.mock("@/lib/api/marketing-os", async (importOriginal) => {
   return { ...real, marketingOsApi: { ...real.marketingOsApi, askStream: (...a: unknown[]) => askStream(...a) } };
 });
 
+// The poster button opens the Studio with the app router.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), useParams: () => ({ orgSlug: "acme" }) }));
+
 import { ManagerConsole } from "./manager-console";
 
 // Sprint 21: the console's "Set up my team" button runs the team setup (free the first time,

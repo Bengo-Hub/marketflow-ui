@@ -12,12 +12,16 @@ import { useCreativeQuote, useMakePoster } from "@/hooks/use-creative";
 import { kes } from "@/lib/api/billing";
 import { FORMATS, type CreativeBrief, type CreativeVersion, type PosterFormat, type Tier } from "@/lib/api/creative";
 import { cn } from "@/lib/utils";
+import { readSeed } from "@/lib/studio/poster-seed";
 
 const MAX_PHOTOS = 4;
 const MAX_LINE = 200;
 
 /** Words a first poster starts with, from the offering the ad is about. */
 function defaults(brief: CreativeBrief) {
+  // A brief made from the marketing team's poster brief starts from the team's words.
+  const seed = readSeed(brief.metadata);
+  if (seed) return { prompt: seed.prompt, headline: seed.headline, subline: seed.subline, price: "", cta: seed.cta, format: seed.format };
   const o = brief.offering ?? {};
   const promo = o.type === "PROMOTION";
   const ends = o.ends_at ? new Date(o.ends_at).toLocaleDateString("en-KE", { day: "numeric", month: "short" }) : "";
@@ -35,7 +39,7 @@ export function PosterForm({ brief, base, onStarted }: { brief: CreativeBrief; b
   const start = base?.copy ?? defaults(brief);
   const offerPhotos = (brief.offering?.photo_urls ?? []).filter((u) => /^https?:\/\//.test(u));
   const [prompt, setPrompt] = useState(start.prompt ?? "");
-  const [format, setFormat] = useState<PosterFormat>(base?.format ?? "1080x1350");
+  const [format, setFormat] = useState<PosterFormat>(base?.format ?? readSeed(brief.metadata)?.format ?? "1080x1350");
   const [tier, setTier] = useState<Tier>(base?.tier ?? "standard");
   const [headline, setHeadline] = useState(start.headline ?? "");
   const [subline, setSubline] = useState(start.subline ?? "");
