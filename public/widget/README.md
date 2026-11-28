@@ -63,6 +63,8 @@ useEffect(() => {
 | `data-autoopen` | `true` opens the panel on load. |
 | `data-quick-actions` | The business's own quick actions on the welcome screen, in place of the defaults: up to 5, separated by `\|`. A plain label is sent to Vera as a question; `Label>/path` or `Label>https://...` opens that page. A label with "report" or "not working" opens the support form. Example (Hadia): `Create a gift registry>/sign-in?next=%2Fapp%2Fregistries%2Fnew\|Find a couple's registry>/search\|How do M-Pesa cash gifts work?\|Is Hadia free to use?\|Report a problem`. |
 
+`data-widget-title` is the assistant's name everywhere in the widget: the greeting, the "thinking" line, and any "Vera" in a reply, which reads as that name ("Aloe Vera" is left alone). Codevertex's own sites keep "Vera"; a tenant's site uses its own brand, for example `Hadia AI`.
+
 The launcher is a speech-bubble shape (rounded with one square corner), with the logo in a rounded square.
 
 The widget:

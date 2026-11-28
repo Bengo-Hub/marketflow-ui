@@ -275,7 +275,7 @@ export default async function PublicProfilePage({
         data-tenant={profile.slug}
         data-api-url={AI_URL}
         data-mode="tenant"
-        data-widget-title="Vera"
+        data-widget-title={assistantName(v.name)}
         data-primary-color={/^#[0-9a-f]{6}$/i.test(color ?? "") ? color! : "#9100B0"}
         // Only Forever Living pages take a niche; other businesses get their own quick actions
         // (the MarketFlow CRM list and subtitle are for MarketFlow's own site, not a tenant's page).
@@ -296,6 +296,17 @@ export default async function PublicProfilePage({
  * Vera's quick actions on a business's page (owner, 2026-11-28): what a visitor does here. The
  * anchors are this page's sections; "Report a problem" opens Vera's support form, which routes it.
  */
+/**
+ * The assistant on a business's page wears that business's name (owner, 2026-11-28), for example
+ * "Urban Loft AI"; "Vera" stays on Codevertex's own sites. A long name keeps its first words.
+ */
+function assistantName(business?: string): string {
+  const name = (business ?? "").replace(/\s+/g, " ").trim();
+  if (!name) return "Vera";
+  const short = name.length > 24 ? name.slice(0, 24).replace(/\s+\S*$/, "") || name.slice(0, 24) : name;
+  return `${short} AI`;
+}
+
 function quickActions(booking: boolean): string {
   return [
     "What do you offer?>#offerings",

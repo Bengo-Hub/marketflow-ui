@@ -1501,8 +1501,17 @@
     return row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function (c) { return c.trim(); });
   }
 
+  // The assistant carries the site's brand (owner, 2026-11-28): on a tenant's site named, say,
+  // "Hadia AI", a reply's "Vera" reads as that name. "Aloe Vera" (an FLP product) is left alone.
+  // Done here because every reply, streamed, cached or fixed, is rendered through md().
+  function brandName(text) {
+    if (widgetTitle === 'Vera' || !text) return text;
+    return String(text).replace(/(Aloe\s+)?\bVera\b/g, function (m, aloe) { return aloe ? m : widgetTitle; });
+  }
+
   function md(text) {
     if (!text) return '';
+    text = brandName(text);
     var lines = String(text).replace(/\r\n?/g, '\n').split('\n');
     var out = [];
     var para = [];
@@ -1767,7 +1776,7 @@
     input.value = '';
 
     appendMsg('user', escHTML(q));
-    var typingEl = showTyping('Vera is thinking');
+    var typingEl = showTyping(widgetTitle + ' is thinking');
 
     try {
       var chatHeaders = {
