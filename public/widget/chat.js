@@ -631,6 +631,7 @@
   ].join('');
   shadow.appendChild(panel);
   showLogo(panel.querySelector('.hdr-avatar'));
+  showLogo(panel.querySelector('.welcome-icon'));
   applyWhiteLabel(panel.querySelector('.powered'));
 
   // applyWhiteLabel keeps "Powered by Codevertex" off for a tenant whose plan includes white label
@@ -643,7 +644,19 @@
     var timer = setTimeout(function () { badge.hidden = false; }, 4000);
     fetch(apiURL + '/api/v1/public/widget-config?tenant=' + encodeURIComponent(tenantSlug))
       .then(function (r) { return r.ok ? r.json() : {}; })
-      .then(function (cfg) { clearTimeout(timer); badge.hidden = !!(cfg && cfg.white_label === true); })
+      .then(function (cfg) {
+        clearTimeout(timer);
+        badge.hidden = !!(cfg && cfg.white_label === true);
+        // A page that passes no logo shows the tenant's own (owner, 2026-11-28: Codevertex and
+        // Urban Loft showed the initial). Same https-only rule as data-logo-url.
+        var fromProfile = cfg && typeof cfg.logo_url === 'string' ? cfg.logo_url : '';
+        if (!logoUrl && /^https:\/\/[^\s"'<>()\\]+$/i.test(fromProfile) && fromProfile.length <= 1000) {
+          logoUrl = fromProfile;
+          showLogo(fab.querySelector('.avatar'));
+          showLogo(panel.querySelector('.hdr-avatar'));
+          showLogo(panel.querySelector('.welcome-icon'));
+        }
+      })
       .catch(function () { clearTimeout(timer); badge.hidden = false; });
   }
 

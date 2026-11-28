@@ -1,6 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { AIFieldButton } from "@/components/marketing-os/ai-field-button";
+import { marketingOsApi } from "@/lib/api/marketing-os";
 import { SearchableCombobox, type ComboboxOption } from "@bengo-hub/shared-ui-lib/combobox";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -38,6 +42,8 @@ export function NewAdForm({ onDone }: { onDone: (briefId?: string) => void }) {
   const [title, setTitle] = useState("");
   const [objective, setObjective] = useState<Objective>("sales");
   const [audience, setAudience] = useState("");
+  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const brand = useQuery({ queryKey: ["os-brand-context", orgSlug], queryFn: marketingOsApi.brandContext, staleTime: 5 * 60_000 });
   const [language, setLanguage] = useState<"en" | "sw">("en");
   const [planning, setPlanning] = useState(false);
   const [plan, setPlan] = useState<BriefPlan | null>(null);
@@ -118,8 +124,24 @@ export function NewAdForm({ onDone }: { onDone: (briefId?: string) => void }) {
         <Field label="Goal">
           <CapsuleTabs label="Goal" value={objective} onChange={setObjective} options={OBJECTIVES} />
         </Field>
-        <Field label="Who is it for?" htmlFor="ad-aud" hint="Optional. For example: mothers in Nairobi who shop on WhatsApp.">
+        <Field label="Who is it for?" htmlFor="ad-aud" hint="Optional. Pick one of your audiences, generate one from your brand context, or write your own.">
           <Textarea id="ad-aud" rows={2} value={audience} maxLength={500} onChange={(e) => setAudience(e.target.value)} />
+          {/* The brand context's audiences, one tap each, and an AI suggestion that reads the brand
+              context, knowledge base and the offer chosen above (owner, 2026-11-28). */}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {(brand.data?.audience ?? []).slice(0, 5).map((a) => (
+              <button key={a} type="button" onClick={() => setAudience(a)}
+                className="rounded-full border border-border px-3 py-1 text-xs hover:bg-accent">
+                {a}
+              </button>
+            ))}
+            <AIFieldButton
+              field="audience"
+              label="Generate with AI"
+              form={() => ({ offer: [offering?.name, offering?.description].filter((v): v is string => typeof v === "string" && v !== "").join(": "), ad_name: title, goal: objective })}
+              onResult={(s) => s.items?.[0] && setAudience(s.items[0])}
+            />
+          </div>
         </Field>
         <Field label="Poster language">
           <CapsuleTabs
